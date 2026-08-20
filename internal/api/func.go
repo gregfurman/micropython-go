@@ -1,63 +1,50 @@
 package api
 
-import (
-	"fmt"
+type Func struct {
+	in     *Instance
+	handle int32
+	name   string
+	gen    uint64
+}
 
-	"github.com/gregfurman/micropython-wasi/internal/exec"
-)
+func (i *Instance) Func(name string) (*Func, error) {
+	i.mu.Lock()
+	defer i.mu.Unlock()
 
-func Define[In, Out any](in *exec.Instance, name, src string) (func(In) (Out, error), error) {
-	fn, err := in.Define(name, src)
+	if i.abi == nil {
+		return nil, ErrClosed
+	}
+	handle, err := i.abi.Func(name)
 	if err != nil {
 		return nil, err
 	}
-	return toFunc[In, Out](fn), nil
+
+	// TODO: cancel func if closed early
+	return &Func{in: i, handle: handle, name: name, gen: i.gen}, nil
 }
 
-func Bind[In, Out any](in *exec.Instance, name string) (func(In) (Out, error), error) {
-	fn, err := in.Func(name)
-	if err != nil {
+func (i *Instance) define(name, src string) (*Func, error) {
+	if _, err := i.Exec(src); err != nil {
 		return nil, err
 	}
-	return toFunc[In, Out](fn), nil
+	return i.Func(name)
 }
 
-func BindVar[Out any](in *exec.Instance, name string) (func(...any) (Out, error), error) {
-	fn, err := in.Func(name)
-	if err != nil {
-		return nil, err
+func (f *Func) Name() string { return f.name }
+
+// Call invokes the function and returns its result as a native Go value, using
+// the same mapping as Eval.
+func (f *Func) Call(args ...any) (any, error) {
+	i := f.in
+	i.mu.Lock()
+	defer i.mu.Unlock()
+
+	if i.abi == nil {
+		return nil, ErrClosed
 	}
-	return func(args ...any) (Out, error) {
-		var zero Out
 
-		result, err := fn.Call(args...)
-		if err != nil {
-			return zero, err
-		}
-
-		out, err := exec.Coerce[Out](result)
-		if err != nil {
-			return zero, fmt.Errorf("%s: %w", fn.Name(), err)
-		}
-
-		return out, nil
-	}, nil
-}
-
-func toFunc[In, Out any](fn *exec.Func) func(In) (Out, error) {
-	return func(in In) (Out, error) {
-		var zero Out
-
-		result, err := fn.Call(in)
-		if err != nil {
-			return zero, err
-		}
-
-		out, err := exec.Coerce[Out](result)
-		if err != nil {
-			return zero, fmt.Errorf("%s: %w", fn.Name(), err)
-		}
-
-		return out, nil
+	if f.gen != i.gen {
+		return nil, ErrStale
 	}
+	return i.abi.Call(f.handle, args)
 }

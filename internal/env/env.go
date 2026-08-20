@@ -28,7 +28,6 @@ import (
 // panicking through an invoke_* is a genuine failure and is re-panicked.
 type longjmp struct{}
 
-// Env implements wasi.Xenv.
 type Env struct {
 	mod *wasi.Module
 }

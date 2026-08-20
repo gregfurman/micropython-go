@@ -76,8 +76,7 @@ MP_API_EXPORT(mp_api_err) const char *mp_api_err(void);
 MP_API_EXPORT(mp_api_err_len) uint32_t mp_api_err_len(void);
 
 // Turning host data into Python values; see wasm_build.c.  Arguments arrive
-// encoded in a single buffer, with any name ahead of them.
-MP_API_EXPORT(mp_api_set_global) int32_t mp_api_set_global(const char *name, uint32_t name_len, const uint8_t *ptr, uint32_t len);
+// encoded in a single buffer.
 MP_API_EXPORT(mp_api_func) int32_t mp_api_func(const char *name, uint32_t name_len);
 MP_API_EXPORT(mp_api_call) int32_t mp_api_call(int32_t handle, const uint8_t *ptr, uint32_t len, uint32_t n_args);
 

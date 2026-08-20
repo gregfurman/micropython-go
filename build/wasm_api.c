@@ -94,6 +94,19 @@ void mp_api_store_error(mp_obj_t exc) {
     mp_obj_print_exception(&print, exc);
 }
 
+// Asked by the VM hook every MICROPY_VM_HOOK_COUNT instructions; non-zero means
+// the host wants this call to stop.
+__attribute__((import_module("host"), import_name("poll")))
+extern int32_t host_poll(void);
+
+// Raising here unwinds through the interpreter's own nlr machinery, so the
+// guest sees an ordinary exception and the host sees an ordinary error.
+void mp_api_vm_poll(void) {
+    if (host_poll()) {
+        mp_raise_type(&mp_type_KeyboardInterrupt);
+    }
+}
+
 // --- entry points ----------------------------------------------------------
 
 // Runs as part of _initialize, so the host has a working interpreter as soon

@@ -34,6 +34,20 @@
 // host wants the bytes the program actually wrote.
 #define MP_PLAT_PRINT_STRN(str, len) mp_hal_stdout_tx_strn((str), (len))
 
+// Nothing can interrupt running Python from outside: no scheduler, no signals,
+// no second thread. So the VM asks the host, every so often, whether it should
+// stop. Without this a guest loop wedges the host permanently.
+#define MICROPY_VM_HOOK_COUNT (256)
+#define MICROPY_VM_HOOK_INIT static uint16_t vm_hook_divisor = MICROPY_VM_HOOK_COUNT;
+#define MICROPY_VM_HOOK_POLL                        \
+    if (--vm_hook_divisor == 0) {                   \
+        vm_hook_divisor = MICROPY_VM_HOOK_COUNT;    \
+        extern void mp_api_vm_poll(void);           \
+        mp_api_vm_poll();                           \
+    }
+#define MICROPY_VM_HOOK_LOOP MICROPY_VM_HOOK_POLL
+#define MICROPY_VM_HOOK_RETURN MICROPY_VM_HOOK_POLL
+
 #define MICROPY_ALLOC_PATH_MAX      (256)
 
 // Disable all optional sys module features.

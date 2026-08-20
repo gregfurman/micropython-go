@@ -1,4 +1,4 @@
-package exec
+package api
 
 import "testing"
 
@@ -73,7 +73,7 @@ func BenchmarkFuncRealistic(b *testing.B) {
 	if err != nil {
 		b.Fatal(err)
 	}
-	fn, err := in.Define("score", `
+	fn, err := in.Define[map[string]any, any]("score", `
 def score(row):
     total = row["a"] * 2 + row["b"]
     return {"id": row["id"], "score": total, "ok": total > 10}
@@ -84,7 +84,7 @@ def score(row):
 	row := map[string]any{"id": "r-1", "a": 4, "b": 5}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if _, err := fn.Call(row); err != nil {
+		if _, err := fn(row); err != nil {
 			b.Fatal(err)
 		}
 	}

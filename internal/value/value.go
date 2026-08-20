@@ -1,4 +1,4 @@
-package exec
+package value
 
 import (
 	"encoding/json"
@@ -136,7 +136,6 @@ func Coerce[T any](src any) (T, error) {
 		return zero, nil
 	}
 
-	// 4. JSON bridge fallback for complex types (maps/slices into structs)
 	switch src.(type) {
 	case map[string]any, []any, map[any]any:
 		b, err := json.Marshal(src)
@@ -149,8 +148,6 @@ func Coerce[T any](src any) (T, error) {
 
 	return zero, fmt.Errorf("type mismatch: Python returned %T, Go expected %T", src, zero)
 }
-
-// --- Exhaustive Type Coercers ---
 
 func coerceInt64(v any) (int64, error) {
 	switch t := v.(type) {

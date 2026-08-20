@@ -3,8 +3,6 @@ package api
 import (
 	"reflect"
 	"testing"
-
-	"github.com/gregfurman/micropython-wasi/internal/exec"
 )
 
 type Row struct {
@@ -20,9 +18,9 @@ type Score struct {
 	OK    bool   `json:"ok"`
 }
 
-func instance(t *testing.T) *exec.Instance {
+func instance(t *testing.T) *Instance {
 	t.Helper()
-	in, err := exec.New()
+	in, err := New()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -30,7 +28,7 @@ func instance(t *testing.T) *exec.Instance {
 }
 
 func TestStructRoundTrip(t *testing.T) {
-	fn, err := Define[Row, Score](instance(t), "score", `
+	fn, err := instance(t).Define[Row, Score]("score", `
 def score(row):
     total = int(row["a"] * 2 + row["b"])
     return {"id": row["id"], "score": total, "ok": total > 10}
@@ -50,7 +48,7 @@ def score(row):
 func TestScalars(t *testing.T) {
 	in := instance(t)
 
-	double, err := Define[int, int](in, "double", "def double(n):\n    return n * 2\n")
+	double, err := in.Define[int, int]("double", "def double(n):\n    return n * 2\n")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -58,7 +56,7 @@ func TestScalars(t *testing.T) {
 		t.Errorf("double(21) = %v, %v", got, err)
 	}
 
-	upper, err := Define[string, string](in, "upper", "def upper(s):\n    return s.upper()\n")
+	upper, err := in.Define[string, string]("upper", "def upper(s):\n    return s.upper()\n")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -66,7 +64,7 @@ func TestScalars(t *testing.T) {
 		t.Errorf("upper = %q, %v", got, err)
 	}
 
-	half, err := Define[int, float64](in, "half", "def half(n):\n    return n / 2\n")
+	half, err := in.Define[int, float64]("half", "def half(n):\n    return n / 2\n")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -78,7 +76,7 @@ func TestScalars(t *testing.T) {
 func TestSliceAndMap(t *testing.T) {
 	in := instance(t)
 
-	cumsum, err := Define[[]int, []int](in, "cumsum", `
+	cumsum, err := in.Define[[]int, []int]("cumsum", `
 def cumsum(xs):
     out, total = [], 0
     for x in xs:
@@ -97,7 +95,7 @@ def cumsum(xs):
 		t.Errorf("cumsum = %v", got)
 	}
 
-	counts, err := Define[[]string, map[string]int](in, "counts", `
+	counts, err := in.Define[[]string, map[string]int]("counts", `
 def counts(words):
     out = {}
     for w in words:
@@ -121,7 +119,7 @@ func TestVarFunc(t *testing.T) {
 	if _, err := in.Exec("def add(a, b, c):\n    return a + b + c\n"); err != nil {
 		t.Fatal(err)
 	}
-	add, err := BindVar[int](in, "add")
+	add, err := in.BindVar[int]("add")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -131,7 +129,7 @@ func TestVarFunc(t *testing.T) {
 }
 
 func TestCallableAndAny(t *testing.T) {
-	fn, err := Define[any, any](instance(t), "echo", "def echo(v):\n    return v\n")
+	fn, err := instance(t).Define[any, any]("echo", "def echo(v):\n    return v\n")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -147,7 +145,7 @@ func TestCallableAndAny(t *testing.T) {
 func TestErrors(t *testing.T) {
 	in := instance(t)
 
-	boom, err := Define[int, int](in, "boom", "def boom(n):\n    raise ValueError('nope')\n")
+	boom, err := in.Define[int, int]("boom", "def boom(n):\n    raise ValueError('nope')\n")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -155,7 +153,7 @@ func TestErrors(t *testing.T) {
 		t.Fatal("expected a Python error")
 	}
 
-	bad, err := Define[int, string](in, "bad", "def bad(n):\n    return n\n")
+	bad, err := in.Define[int, string]("bad", "def bad(n):\n    return n\n")
 	if err != nil {
 		t.Fatal(err)
 	}

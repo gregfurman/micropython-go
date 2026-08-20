@@ -28,22 +28,7 @@
 #include "py/runtime.h"
 
 #include "wasm_api.h"
-
-// Tags; must match the encoder in internal/exec/pack.go.
-enum {
-    PK_NONE = 0,
-    PK_FALSE = 1,
-    PK_TRUE = 2,
-    PK_INT = 3,
-    PK_FLOAT = 4,
-    PK_STR = 5,
-    PK_BYTES = 6,
-    PK_LIST = 7,
-    PK_TUPLE = 8,
-    PK_DICT = 9,
-};
-
-#define MAX_DEPTH (32)
+#include "wasm_pack.h"
 
 // The decode stack, and the callables the host has resolved to handles. Both
 // are plain Python lists, so the GC traces them for free and they grow on
@@ -137,7 +122,7 @@ static void collect(uint8_t tag, size_t n) {
 // Decodes one value and leaves it on the stack.
 static void unpack_one(unpacker_t *u, int depth) {
     mp_cstack_check();
-    if (depth > MAX_DEPTH) {
+    if (depth > PK_MAX_DEPTH) {
         mp_raise_ValueError(MP_ERROR_TEXT("argument nested too deeply"));
     }
 
@@ -219,19 +204,6 @@ static void unpack_all(const uint8_t *ptr, uint32_t len, uint32_t n) {
 }
 
 // --- exports ---------------------------------------------------------------
-
-// Decodes one value from the buffer and binds it to a global. The name lives
-// in the same buffer, ahead of the value, so this is one crossing.
-int32_t mp_api_set_global(const char *name, uint32_t name_len,
-    const uint8_t *ptr, uint32_t len) {
-    MP_API_ENTER();
-
-    unpack_all(ptr, len, 1);
-    mp_store_global(qstr_from_strn(name, name_len), stack()->items[take(1)]);
-    stack()->len = 0;
-
-    MP_API_LEAVE();
-}
 
 // Resolves a global once and returns a handle for it, or -1 with the error
 // recorded. Worth doing when the same function is called repeatedly: it lifts

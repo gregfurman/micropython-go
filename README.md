@@ -48,14 +48,14 @@ It imports two modules, both of which the host must supply:
 - `host` — the `val_*` callbacks a Python value is streamed through on its way
   out.
 
-`internal/env` and `internal/exec` implement them.
+`internal/env` and `internal/host` implement them.
 
 ## Embedding it
 
 The shape this is built for is a function defined once and invoked many times:
 
 ```go
-in, _ := exec.New()
+in, _ := host.New()
 
 score, _ := api.Define[Row, Score](in, "score", `
 def score(row):
@@ -70,7 +70,7 @@ for _, row := range rows {
 
 `api.Define` and `api.Bind` return a plain `func(In) (Out, error)`, so the
 Python function ends up looking like any other Go function. Underneath,
-`exec.Define`/`exec.Func` return the untyped handle if you want `any` back.
+`host.Define`/`host.Func` return the untyped handle if you want `any` back.
 
 `Define` and `Func` resolve the name once, which lifts the qstr interning and
 the global lookup out of the call. `Instance.Call(name, ...)` does the lookup
@@ -84,7 +84,7 @@ v, _ := in.Eval("{'a': [1, 2], 'b': (3,)}")  // map[string]any{...}
 in.Set("rows", []int{1, 2, 3})               // bind a global
 ```
 
-A Python exception comes back as `*exec.Error` carrying the traceback; the
+A Python exception comes back as `*host.Error` carrying the traceback; the
 instance stays usable afterwards.
 
 An `Instance` is **serial-use only** — it owns one interpreter with one heap.
@@ -128,9 +128,9 @@ values, so the host reassembles the tree with a small explicit stack.
 | `str` | `string` |
 | `bytes` | `[]byte` |
 | `list` | `[]any` |
-| `tuple` | `exec.Tuple` |
+| `tuple` | `host.Tuple` |
 | `dict` | `map[string]any`, or `map[any]any` for non-string keys |
-| anything else | `exec.Object{Type, Repr}` |
+| anything else | `host.Object{Type, Repr}` |
 
 **In**, `wasm_build.c` decodes a flat prefix walk of the value, one byte of tag
 each, arriving in a single buffer. Values are assembled on a Python list
@@ -235,8 +235,10 @@ both compile the module; they fail only on the missing `env` imports.
     $ make test      # go test ./...
 
 `internal/env` implements the `invoke_*` trampolines against the table and
-`__stack_pointer` that wasm2go exposes; `internal/exec` is the embedding API
-and the `val_*` callbacks; `internal/api` is a generic wrapper over it.
+`__stack_pointer` that wasm2go exposes. `internal/host` owns the module:
+`ABI` does the crossing (the `val_*` callbacks outbound, argument encoding
+inbound) and `Instance` is the API on top of it. `internal/api` is a generic
+wrapper over that.
 
 The generated code reads `m.___stack_pointer` on entry to each function and
 writes it back on the normal return path only, so the trampoline restoring that
