@@ -1,0 +1,5 @@
+# Build output.  The C sources live in build/, which is tracked.
+out/
+
+# Unpack a wasi-sdk release here, or set WASI_SDK_PATH.
+wasi-sdk-*/
