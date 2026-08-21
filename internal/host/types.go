@@ -25,10 +25,10 @@ type Exception struct {
 	// that argument as text. Empty for an exception raised with no arguments.
 	Message string
 
-	// Raw is the traceback exactly as MicroPython printed it, trailing
+	// raw is the traceback exactly as MicroPython printed it, trailing
 	// newline included, and is what Error reports. Empty for the errors the
 	// module never raised, such as a name that did not resolve.
-	Raw string
+	raw string
 
 	interrupted bool
 }
@@ -44,6 +44,10 @@ func (e *Exception) Error() string {
 	}
 
 	return e.Type + ": " + e.Message
+}
+
+func (e *Exception) Raw() string {
+	return e.raw
 }
 
 // Unwrap reports ErrInterrupted for the exception a cancellation caused, so

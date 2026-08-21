@@ -56,24 +56,4 @@ func run() error {
 	wg.Wait()
 
 	return nil
-
-	// instance, err := micropython.NewInstance(ctx)
-
-	// // Close with a live context: the one above may already be cancelled.
-	// defer instance.Close(context.Background())
-
-	// src := strings.Join(os.Args[1:], " ")
-	// if src == "" {
-	// 	return fmt.Errorf("usage: %s <python source>", os.Args[0])
-	// }
-
-	// // A deadline as well as the signal, because an unbounded guest is the one
-	// // thing this build cannot otherwise recover from.
-	// ctx, cancel := context.WithTimeout(ctx, guestBudget)
-	// defer cancel()
-
-	// out, err := instance.Eval(ctx, src)
-	// fmt.Print(out)
-
-	// return err
 }

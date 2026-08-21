@@ -26,7 +26,7 @@ func TestPythonError(t *testing.T) {
 	if !errors.As(err, &exc) {
 		t.Fatalf("got %T, want *Exception", err)
 	}
-	if exc.Raw == "" {
+	if exc.Raw() == "" {
 		t.Error("empty traceback")
 	}
 	if exc.Type != "ZeroDivisionError" {

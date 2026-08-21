@@ -64,8 +64,8 @@ func TestExceptions(t *testing.T) {
 			if !strings.Contains(exc.Error(), tt.typ) {
 				t.Errorf("Error() does not mention %q: %s", tt.typ, exc)
 			}
-			if !strings.Contains(exc.Raw, tt.fn) {
-				t.Errorf("traceback does not mention %q:\n%s", tt.fn, exc.Raw)
+			if !strings.Contains(exc.Raw(), tt.fn) {
+				t.Errorf("traceback does not mention %q:\n%s", tt.fn, exc.Raw())
 			}
 		})
 	}
@@ -110,8 +110,8 @@ func TestText(t *testing.T) {
 		"  File \"<string>\", line 2, in outer\n" +
 		"  File \"<string>\", line 5, in inner\n" +
 		"ValueError: boom\n"
-	if exc.Raw != want {
-		t.Errorf("Text =\n%q\nwant\n%q", exc.Raw, want)
+	if exc.Raw() != want {
+		t.Errorf("Raw() =\n%q\nwant\n%q", exc.Raw(), want)
 	}
 
 	// Error() reports the type and message alone, so it reads correctly when a

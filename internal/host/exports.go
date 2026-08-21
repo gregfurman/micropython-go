@@ -145,7 +145,7 @@ func (a *ABI) check(rc int32) error {
 func (a *ABI) lastError() *Exception {
 	text := a.str(a.mod.Xmp_api_err(), a.mod.Xmp_api_err_len())
 
-	exc := &Exception{Raw: text}
+	exc := &Exception{raw: text}
 
 	a.dec.reset()
 	if a.mod.Xmp_api_err_value() == apiOK {
@@ -155,7 +155,7 @@ func (a *ABI) lastError() *Exception {
 	}
 	a.dec.reset()
 
-	if exc.Raw == "" && exc.Type == "" {
+	if exc.Raw() == "" && exc.Type == "" {
 		return nil
 	}
 	return exc

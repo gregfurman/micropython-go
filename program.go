@@ -2,6 +2,7 @@ package micropython
 
 import (
 	"context"
+	"runtime"
 	"sync"
 
 	"github.com/gregfurman/micropython-wasi/internal/api"
@@ -12,12 +13,22 @@ import (
 type Program struct {
 	snap *host.Snapshot
 
+	maxIdle int
+
 	mu     sync.Mutex
 	free   []*Instance
 	closed bool
 }
 
-func Compile(ctx context.Context, src string) (*Program, error) {
+func Compile(ctx context.Context, src string, opts ...option) (*Program, error) {
+	// TODO(gregfurman): Consider catering for warm and cold starts
+	opt := &options{
+		programPoolSize: max(runtime.NumCPU(), 1),
+	}
+	for _, o := range opts {
+		o(opt)
+	}
+
 	in, err := api.New()
 	if err != nil {
 		return nil, err
@@ -34,7 +45,11 @@ func Compile(ctx context.Context, src string) (*Program, error) {
 		return nil, err
 	}
 
-	return &Program{snap: snap, free: []*Instance{{in: in}}}, nil
+	return &Program{
+		snap:    snap,
+		maxIdle: opt.programPoolSize,
+		free:    []*Instance{{in: in}},
+	}, nil
 }
 
 func (p *Program) Instance(ctx context.Context) (*Instance, error) {
@@ -65,21 +80,31 @@ func (p *Program) Close() error {
 	return nil
 }
 
+// acquire takes an interpreter from the pool, or makes one if none is free.
 func (p *Program) acquire() (*Instance, error) {
-	p.mu.Lock()
-	if p.closed {
-		p.mu.Unlock()
-		return nil, ErrClosed
-	}
-	if n := len(p.free); n > 0 {
+	for {
+		p.mu.Lock()
+		if p.closed {
+			p.mu.Unlock()
+			return nil, ErrClosed
+		}
+
+		n := len(p.free)
+		if n == 0 {
+			p.mu.Unlock()
+			return fromSnapshot(p.snap)
+		}
+
 		in := p.free[n-1]
+		p.free[n-1] = nil
 		p.free = p.free[:n-1]
 		p.mu.Unlock()
-		return in, nil
-	}
-	p.mu.Unlock()
 
-	return p.Instance(context.TODO())
+		if in.Err() == nil {
+			return in, nil
+		}
+		in.Close()
+	}
 }
 
 // release rewinds the interpreter and returns it to the pool.
@@ -90,11 +115,13 @@ func (p *Program) release(in *Instance) {
 	}
 
 	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	if p.closed {
-		in.Close()
-		return
+	keep := !p.closed && len(p.free) < p.maxIdle
+	if keep {
+		p.free = append(p.free, in)
 	}
-	p.free = append(p.free, in)
+	p.mu.Unlock()
+
+	if !keep {
+		in.Close()
+	}
 }
