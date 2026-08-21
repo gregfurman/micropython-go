@@ -13,6 +13,17 @@ func (o Object) String() string { return o.Repr }
 // back into Python can preserve tuple-ness, which JSON could not.
 type Tuple []any
 
+// Set is a Python set. Go has no set type, so it arrives as a slice -- but a
+// distinct one, so a round trip back into Python stays a set rather than
+// becoming a list, and so a reader is not misled into depending on the order.
+// A set has none: these are the elements in whatever order the guest's hash
+// table held them.
+type Set []any
+
+// FrozenSet is a Python frozenset. It is separate from Set only so the round
+// trip preserves which one it was; nothing about it is immutable on this side.
+type FrozenSet []any
+
 // Exception is a Python exception that reached the host. It is the error every
 // failing Eval, Exec and Call returns.
 type Exception struct {

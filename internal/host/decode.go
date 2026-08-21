@@ -2,6 +2,7 @@ package host
 
 import (
 	"fmt"
+	"reflect"
 )
 
 // Values coming out of the module.
@@ -18,6 +19,8 @@ const (
 	frameList frameKind = iota
 	frameTuple
 	frameDict
+	frameSet
+	frameFrozenSet
 )
 
 type frame struct {
@@ -88,6 +91,10 @@ func collapse(f frame) any {
 		return Tuple(f.items)
 	case frameDict:
 		return makeMap(f.items)
+	case frameSet:
+		return Set(f.items)
+	case frameFrozenSet:
+		return FrozenSet(f.items)
 	default:
 		return f.items
 	}
@@ -118,12 +125,10 @@ func makeMap(kv []any) any {
 }
 
 func key(v any) any {
-	switch v.(type) {
-	case []any, map[string]any, map[any]any:
-		return fmt.Sprint(v)
-	default:
+	if v == nil || reflect.TypeOf(v).Comparable() {
 		return v
 	}
+	return fmt.Sprintf("%T%v", v, v)
 }
 
 func (a *ABI) Xval_none()           { a.dec.push(nil) }
@@ -133,6 +138,14 @@ func (a *ABI) Xval_float(v float64) { a.dec.push(v) }
 func (a *ABI) Xval_list(n int32)    { a.dec.open(frameList, n) }
 func (a *ABI) Xval_tuple(n int32)   { a.dec.open(frameTuple, n) }
 func (a *ABI) Xval_dict(n int32)    { a.dec.open(frameDict, n) }
+
+func (a *ABI) Xval_set(n, frozen int32) {
+	kind := frameSet
+	if frozen != 0 {
+		kind = frameFrozenSet
+	}
+	a.dec.open(kind, n)
+}
 
 func (a *ABI) Xval_str(ptr, length int32) {
 	a.dec.push(a.str(ptr, length))

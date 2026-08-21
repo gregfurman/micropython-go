@@ -106,6 +106,7 @@ func (e *Env) Xinvoke_i(v0 int32) int32 {
 
 // Scalar arguments other than i32 get their own signatures; the linker asks
 // for exactly the set the module uses, so this list grows when the API does.
+
 func (e *Env) Xinvoke_ij(v0 int32, v1 int64) int32 {
 	return e.invoke(v0, func(f func(int64) int32) int32 { return f(v1) })
 }

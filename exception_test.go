@@ -35,9 +35,6 @@ func TestExceptions(t *testing.T) {
 			msg:  "this is an exception",
 		},
 		{
-			// The fixture routes its message to the `custom` attribute and
-			// passes nothing on to super(), so the exception itself carries no
-			// message -- only the type name survives.
 			name: "raises custom exception",
 			fn:   "raises_custom_exception",
 			typ:  "CustomException",
@@ -59,8 +56,6 @@ func TestExceptions(t *testing.T) {
 				t.Errorf("Message = %q, want %q", exc.Message, tt.msg)
 			}
 
-			// Error() is the type and message alone. The frame the exception
-			// came from is only in Raw.
 			if !strings.Contains(exc.Error(), tt.typ) {
 				t.Errorf("Error() does not mention %q: %s", tt.typ, exc)
 			}
@@ -91,10 +86,7 @@ func TestExceptions(t *testing.T) {
 	})
 }
 
-// Text is the traceback as MicroPython printed it, untouched: every frame in
-// call order with the line it was on. It is the only place that detail
-// survives, since Exception does not break the traceback into fields.
-func TestText(t *testing.T) {
+func TestTracebackText(t *testing.T) {
 	instance := newT(t)
 
 	if _, err := instance.Exec(t.Context(), "def outer():\n    inner()\n\ndef inner():\n    raise ValueError('boom')\n"); err != nil {
@@ -114,16 +106,11 @@ func TestText(t *testing.T) {
 		t.Errorf("Raw() =\n%q\nwant\n%q", exc.Raw(), want)
 	}
 
-	// Error() reports the type and message alone, so it reads correctly when a
-	// caller wraps it in a sentence; Raw is what you print to debug.
 	if got, want := exc.Error(), "ValueError: boom"; got != want {
 		t.Errorf("Error() = %q, want %q", got, want)
 	}
 }
 
-// Eval parses in expression context and Exec in statement context, so `raise`
-// is a SyntaxError through the first and an Exception through the second.
-// CPython draws the same line: eval("raise ValueError()") does not compile.
 func TestRaiseNeedsStatementContext(t *testing.T) {
 	instance := newT(t)
 
@@ -139,8 +126,6 @@ func TestRaiseNeedsStatementContext(t *testing.T) {
 		t.Errorf("Exec reported a syntax error: %s", err)
 	}
 
-	// An expression that raises is fine through Eval; it is the statement that
-	// is not.
 	if _, err := instance.Eval(t.Context(), "1/0"); err == nil {
 		t.Error("Eval swallowed ZeroDivisionError")
 	}

@@ -36,7 +36,7 @@ func TestPythonError(t *testing.T) {
 		t.Errorf("Message = %q", exc.Message)
 	}
 
-	// The interpreter must still work afterwards.
+	// ensure the interpreter survives the exception...
 	if got := evalValue(t, a, "1 + 1"); got != int64(2) {
 		t.Errorf("after error: %#v", got)
 	}

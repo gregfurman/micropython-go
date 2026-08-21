@@ -22,11 +22,14 @@ const (
 	pkList  = 7
 	pkTuple = 8
 	pkDict  = 9
+
+	pkSet       = 10
+	pkFrozenSet = 11
 )
 
 const maxEncodeDepth = 32
 
-// encoder is the mirror of decoder.
+// encoder is the mirror of decoder. It is NOT thread safe.
 type encoder struct {
 	buf []byte
 }
@@ -98,6 +101,17 @@ func (e *encoder) value(v any, depth int) error {
 
 	case Tuple:
 		e.tag(pkTuple)
+		e.u32(uint32(len(value)))
+		return e.each(value, depth)
+	case Set:
+		// Duplicates and unhashable items are the guest's problem, and it
+		// gives the same answers set() would: the first collapses, the second
+		// is a TypeError.
+		e.tag(pkSet)
+		e.u32(uint32(len(value)))
+		return e.each(value, depth)
+	case FrozenSet:
+		e.tag(pkFrozenSet)
 		e.u32(uint32(len(value)))
 		return e.each(value, depth)
 	case []any:

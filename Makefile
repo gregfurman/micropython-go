@@ -73,7 +73,7 @@ CFLAGS += -DMICROPY_C_STACK_SIZE=$(MICROPY_C_STACK_SIZE)
 CFLAGS += -mllvm -enable-emscripten-sjlj
 
 # What wasm2go accepts, minus tail calls, whose behaviour it does not
-# guarantee. Must not include exception handling.
+# guarantee. Must NOT include exception handling as its not handled.
 WASM_FEATURES ?= \
 	-mmutable-globals \
 	-mmultivalue \
@@ -116,7 +116,13 @@ SRC_C = \
 	build/wasm_build.c \
 	build/wasm_sjlj.c \
 
+# Just include json and re packages.
+SRC_C += \
+	micropython/extmod/modjson.c \
+	micropython/extmod/modre.c \
+
 SRC_QSTR += build/wasm_api.c build/wasm_build.c
+SRC_QSTR += micropython/extmod/modjson.c micropython/extmod/modre.c
 
 OBJ += $(PY_CORE_O)
 OBJ += $(addprefix $(BUILD)/, $(SRC_C:.c=.o))
@@ -154,8 +160,6 @@ endif
 
 GO_OUT = internal/micropython/micropython.go
 
-# Not named "go": with go.mod present that collides with make's built-in
-# Modula-2 rule (%: %.mod).
 .PHONY: wasm2go test
 wasm2go: $(GO_OUT)
 

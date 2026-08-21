@@ -108,6 +108,16 @@ static void collect(uint8_t tag, size_t n) {
             mp_obj_dict_store(collected, stack()->items[base + 2 * i],
                 stack()->items[base + 2 * i + 1]);
         }
+    } else if (tag == PK_SET || tag == PK_FROZENSET) {
+        base = take(n);
+        // Raises TypeError if an item is unhashable, which is the same answer
+        // set() would give in Python.
+        collected = mp_obj_new_set(n, &stack()->items[base]);
+        #if MICROPY_PY_BUILTINS_FROZENSET
+        if (tag == PK_FROZENSET) {
+            collected = mp_call_function_1(MP_OBJ_FROM_PTR(&mp_type_frozenset), collected);
+        }
+        #endif
     } else {
         base = take(n);
         collected = (tag == PK_LIST)
@@ -178,6 +188,8 @@ static void unpack_one(unpacker_t *u, int depth) {
 
         case PK_LIST:
         case PK_TUPLE:
+        case PK_SET:
+        case PK_FROZENSET:
         case PK_DICT: {
             uint32_t n = read_u32(u);
             uint32_t values = (tag == PK_DICT) ? 2 * n : n;

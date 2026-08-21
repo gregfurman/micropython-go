@@ -46,6 +46,7 @@ HOST_IMPORT(val_bytes) extern void host_val_bytes(const char *ptr, uint32_t len)
 HOST_IMPORT(val_list) extern void host_val_list(uint32_t len);
 HOST_IMPORT(val_tuple) extern void host_val_tuple(uint32_t len);
 HOST_IMPORT(val_dict) extern void host_val_dict(uint32_t len);
+HOST_IMPORT(val_set) extern void host_val_set(uint32_t len, int32_t frozen);
 
 // Anything with no host equivalent, passed as its type name plus repr().
 HOST_IMPORT(val_other) extern void host_val_other(const char *type, uint32_t type_len,
@@ -63,6 +64,32 @@ static void emit_repr(mp_obj_t obj) {
     host_val_other(type, strlen(type), repr.data ? repr.data : "", repr.len);
     mp_api_buf_free(&repr);
 }
+
+static void emit_value(mp_obj_t obj, int depth);
+
+#if MICROPY_PY_BUILTINS_SET
+
+// Emits obj if it is a set or a frozenset, reporting whether it did.
+static bool emit_set(mp_obj_t obj, int depth) {
+    bool frozen = false;
+    #if MICROPY_PY_BUILTINS_FROZENSET
+    frozen = mp_obj_is_type(obj, &mp_type_frozenset);
+    #endif
+    if (!frozen && !mp_obj_is_type(obj, &mp_type_set)) {
+        return false;
+    }
+
+    host_val_set(MP_OBJ_SMALL_INT_VALUE(mp_obj_len(obj)), frozen);
+
+    mp_obj_iter_buf_t iter_buf;
+    mp_obj_t iter = mp_getiter(obj, &iter_buf);
+    mp_obj_t item;
+    while ((item = mp_iternext(iter)) != MP_OBJ_STOP_ITERATION) {
+        emit_value(item, depth + 1);
+    }
+    return true;
+}
+#endif
 
 static void emit_value(mp_obj_t obj, int depth) {
     mp_cstack_check();
@@ -84,9 +111,17 @@ static void emit_value(mp_obj_t obj, int depth) {
     }
 
     if (mp_obj_is_int(obj)) {
-        // Raises OverflowError past int64, which is the same limit the host
-        // has; a small int takes the fast path inside.
-        host_val_int(mp_obj_get_ll(obj));
+        if (mp_obj_is_small_int(obj)) {
+            host_val_int(MP_OBJ_SMALL_INT_VALUE(obj));
+            return;
+        }
+
+        long long value = mp_obj_get_ll(obj);
+        if (mp_obj_equal(mp_obj_new_int_from_ll(value), obj)) {
+            host_val_int(value);
+        } else {
+            emit_repr(obj);
+        }
         return;
     }
 
@@ -112,6 +147,20 @@ static void emit_value(mp_obj_t obj, int depth) {
         return;
     }
 
+    #if MICROPY_PY_BUILTINS_BYTEARRAY
+    // Through the buffer protocol rather than mp_obj_str_get_data, which is
+    // for str and bytes only. A bytearray reaches the host as []byte, like
+    // bytes: Go has one byte-slice type, and the mutability the two differ by
+    // does not survive the copy in either case.
+    if (mp_obj_is_type(obj, &mp_type_bytearray)) {
+        mp_buffer_info_t buf;
+        if (mp_get_buffer(obj, &buf, MP_BUFFER_READ)) {
+            host_val_bytes(buf.buf, buf.len);
+            return;
+        }
+    }
+    #endif
+
     if (mp_obj_is_type(obj, &mp_type_dict)) {
         mp_map_t *map = mp_obj_dict_get_map(obj);
         host_val_dict(map->used);
@@ -123,6 +172,12 @@ static void emit_value(mp_obj_t obj, int depth) {
         }
         return;
     }
+
+    #if MICROPY_PY_BUILTINS_SET
+    if (emit_set(obj, depth)) {
+        return;
+    }
+    #endif
 
     // mp_obj_get_array covers list and tuple in one call, so only the
     // list-vs-tuple tag has to be decided here.

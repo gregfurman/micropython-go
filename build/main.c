@@ -6,6 +6,8 @@
  * exports in wasm_api.c.
  */
 
+#include "py/builtin.h"
+#include "py/mperrno.h"
 #include "py/gc.h"
 #include "py/mphal.h"
 #include "py/runtime.h"
@@ -55,3 +57,14 @@ void MP_WEAK __assert_fail(const char *expr, const char *file, unsigned int line
     __fatal_error("assertion failed");
 }
 #endif
+
+// Although we have no filesystem here, we unfortunately need to include 
+// MICROPY_PY_IO as json.loads uses StringIO so opening anything fails the 
+// way opening a missing file does.
+mp_obj_t mp_builtin_open(size_t n_args, const mp_obj_t *args, mp_map_t *kwargs) {
+    (void)n_args;
+    (void)args;
+    (void)kwargs;
+    mp_raise_OSError(MP_ENOENT);
+}
+MP_DEFINE_CONST_FUN_OBJ_KW(mp_builtin_open_obj, 1, mp_builtin_open);

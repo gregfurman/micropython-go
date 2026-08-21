@@ -14,10 +14,6 @@ const (
 	minInt  = -maxInt - 1
 )
 
-type PythonUnmarshaler interface {
-	UnmarshalPython(src any) error
-}
-
 func Coerce[T any](src any) (T, error) {
 	var zero T
 	if src == nil {
@@ -26,11 +22,6 @@ func Coerce[T any](src any) (T, error) {
 
 	if v, ok := src.(T); ok {
 		return v, nil
-	}
-
-	if unmarshaler, ok := any(&zero).(PythonUnmarshaler); ok {
-		err := unmarshaler.UnmarshalPython(src)
-		return zero, err
 	}
 
 	switch target := any(&zero).(type) {
@@ -295,9 +286,6 @@ func coerceBytes(v any) ([]byte, error) {
 	}
 	return nil, fmt.Errorf("cannot coerce %T to []byte", v)
 }
-
-// --- Fast Cast Helpers ---
-// These exist strictly to reduce boilerplate in the bool/float coercers.
 
 func coerceNumericToInt64(v any) int64 {
 	switch t := v.(type) {

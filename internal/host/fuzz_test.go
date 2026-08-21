@@ -4,20 +4,12 @@ import (
 	"testing"
 )
 
-// The C decoder in build/wasm_build.c is a hand-written parser with manual
-// bounds checks, reading a buffer it does not produce. Feeding it arbitrary
-// bytes is the sharpest thing to fuzz here: a missing check is an out-of-bounds
-// read inside the module, and the failure mode is a trap that surfaces as a Go
-// panic through wasm2go.
-//
-// The invariant is not that garbage decodes -- it is that garbage is *rejected*
-// without taking the interpreter with it.
 func FuzzDecodeArgs(f *testing.F) {
 	f.Add([]byte{}, uint8(0))
-	f.Add([]byte{0}, uint8(1))                                    // none
+	f.Add([]byte{0}, uint8(1))                                    // None
 	f.Add([]byte{3, 1, 0, 0, 0, 0, 0, 0, 0}, uint8(1))            // int 1
 	f.Add([]byte{5, 2, 0, 0, 0, 'h', 'i'}, uint8(1))              // str "hi"
-	f.Add([]byte{7, 1, 0, 0, 0, 2}, uint8(1))                     // list of 1 true
+	f.Add([]byte{7, 1, 0, 0, 0, 2}, uint8(1))                     // [True]
 	f.Add([]byte{9, 1, 0, 0, 0, 5, 1, 0, 0, 0, 'k', 0}, uint8(1)) // dict {"k": None}
 	f.Add([]byte{5, 255, 255, 255, 255}, uint8(1))                // str claiming 4GB
 	f.Add([]byte{7, 255, 255, 255, 255}, uint8(1))                // list claiming 4G items

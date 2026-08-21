@@ -20,6 +20,8 @@ enum {
     PK_LIST = 7,
     PK_TUPLE = 8,
     PK_DICT = 9,
+    PK_SET = 10,
+    PK_FROZENSET = 11,
 };
 
 #define PK_MAX_DEPTH (32)
