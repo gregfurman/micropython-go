@@ -17,67 +17,94 @@ const (
 
 const apiOK = 0
 
-// Error is a Python exception that escaped to the host, carrying the traceback
-// as MicroPython formatted it.
-type Error struct {
-	Text string
+func New() (*ABI, error) {
+	a := newABI()
+	if err := a.init(); err != nil {
+		return nil, err
+	}
+	return a, nil
 }
 
-func (e *Error) Error() string { return e.Text }
-
-// New instantiates the module and wraps it. The ABI has to build the module
-// rather than be handed one: wasi.New takes the val_* implementation as its
-// import object, and that is the ABI itself.
-func New() *ABI {
+// newABI instantiates the module without booting the interpreter, which is
+// what a restore wants: the memory it is about to lay down was taken after the
+// boot already happened.
+//
+// The stack base is read here, before anything has run, because that is the
+// one moment __stack_pointer is guaranteed to hold the value the linker gave
+// it. Reading it beats repeating WASM_STACK_SIZE on this side, where it would
+// drift.
+func newABI() *ABI {
 	a := &ABI{}
 	a.mod = wasi.New(env.New(), a)
-	// One of the module's constructors boots the interpreter.
-	a.mod.X_initialize()
+	a.base = *a.mod.X__stack_pointer()
 	return a
 }
 
+func (a *ABI) init() (err error) {
+	defer a.guard(&err)
+	a.mod.X_initialize()
+	return nil
+}
+
 // Eval runs src. In ModeValue the result is available from Value.
-func (a *ABI) Eval(src string, mode int32) error {
+func (a *ABI) Eval(src string, mode int32) (err error) {
+	if err := a.status(); err != nil {
+		return err
+	}
+	defer a.guard(&err)
+
+	a.dec.reset()
 	ptr, err := a.WriteString(src)
 	if err != nil {
 		return err
 	}
-	a.begin()
-	a.dec.reset()
 	return a.check(a.mod.Xmp_api_eval(ptr, int32(len(src)), mode))
 }
 
 // Value returns what the last ModeValue evaluation streamed back.
-func (a *ABI) Value() (any, error) { return a.dec.result() }
+func (a *ABI) Value() (any, error) {
+	return a.dec.result()
+}
 
 func (a *ABI) Output() string {
-	return a.ReadString(a.mod.Xmp_api_out(), a.mod.Xmp_api_out_len())
+	if a.mod == nil {
+		return ""
+	}
+	return a.str(a.mod.Xmp_api_out(), a.mod.Xmp_api_out_len())
 }
 
 // Func resolves a global callable to a handle, so repeated calls do not
 // re-intern the name and re-walk the globals.
-func (a *ABI) Func(name string) (int32, error) {
+func (a *ABI) Func(name string) (handle int32, err error) {
+	if err := a.status(); err != nil {
+		return 0, err
+	}
+	defer a.guard(&err)
+
 	ptr, err := a.WriteString(name)
 	if err != nil {
 		return 0, err
 	}
 
-	handle := a.mod.Xmp_api_func(ptr, int32(len(name)))
+	handle = a.mod.Xmp_api_func(ptr, int32(len(name)))
 	if handle < 0 {
 		if err := a.lastError(); err != nil {
 			return 0, err
 		}
-		return 0, &Error{Text: fmt.Sprintf("cannot resolve %q", name)}
+		return 0, &Exception{Message: fmt.Sprintf("micropython: cannot resolve %q", name)}
 	}
 	return handle, nil
 }
 
 // Call invokes a handle. Arguments go over encoded in one buffer, so the whole
 // invocation is a single crossing.
-func (a *ABI) Call(handle int32, args []any) (any, error) {
-	a.begin()
-	a.dec.reset()
+func (a *ABI) Call(handle int32, args []any) (_ any, err error) {
+	if err := a.status(); err != nil {
+		return nil, err
+	}
+	defer a.guard(&err)
 
+	a.dec.reset()
 	ptr, encoded, err := a.WriteArgs(args)
 	if err != nil {
 		return nil, err
@@ -89,22 +116,47 @@ func (a *ABI) Call(handle int32, args []any) (any, error) {
 	return a.dec.result()
 }
 
+// check turns a non-zero return code into the traceback the module recorded.
 func (a *ABI) check(rc int32) error {
 	if rc == apiOK {
 		return nil
 	}
+
+	interrupted := a.cancelled.Load()
+
 	if err := a.lastError(); err != nil {
+		err.interrupted = interrupted
 		return err
 	}
-	return &Error{Text: "unknown error"}
+	if interrupted {
+		return ErrInterrupted
+	}
+	return &Exception{Message: "micropython: unknown error"}
 }
 
-// lastError returns the traceback the module recorded, or nil if there is
+// lastError returns the exception the module recorded, or nil if there is
 // none.
-func (a *ABI) lastError() error {
-	text := a.ReadString(a.mod.Xmp_api_err(), a.mod.Xmp_api_err_len())
-	if text == "" {
+//
+// The traceback text is already waiting in the module's error buffer; the
+// structure has to be asked for, because walking the exception runs Python and
+// the module will not do that while it is still unwinding. The walk reuses the
+// value decoder, which is free at this point -- the call it belonged to failed,
+// so there is no result to collect.
+func (a *ABI) lastError() *Exception {
+	text := a.str(a.mod.Xmp_api_err(), a.mod.Xmp_api_err_len())
+
+	exc := &Exception{Raw: text}
+
+	a.dec.reset()
+	if a.mod.Xmp_api_err_value() == apiOK {
+		if v, err := a.dec.result(); err == nil {
+			exc.fill(v)
+		}
+	}
+	a.dec.reset()
+
+	if exc.Raw == "" && exc.Type == "" {
 		return nil
 	}
-	return &Error{Text: text}
+	return exc
 }

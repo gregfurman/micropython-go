@@ -18,7 +18,7 @@ func evalValue(t *testing.T, a *ABI, expr string) any {
 }
 
 func TestDecodeTypes(t *testing.T) {
-	a := New()
+	a, _ := New()
 	for _, tc := range []struct {
 		expr string
 		want any
@@ -35,6 +35,7 @@ func TestDecodeTypes(t *testing.T) {
 		{"[]", []any{}},
 		{"{}", map[string]any{}},
 		{"[[1, [2, [3]]]]", []any{[]any{int64(1), []any{int64(2), []any{int64(3)}}}}},
+		{"{'foo': {'bar': {'qux': 'oof'}}}", map[string]any{"foo": map[string]any{"bar": map[string]any{"qux": "oof"}}}},
 	} {
 		if got := evalValue(t, a, tc.expr); !reflect.DeepEqual(got, tc.want) {
 			t.Errorf("%s = %#v, want %#v", tc.expr, got, tc.want)
@@ -42,9 +43,8 @@ func TestDecodeTypes(t *testing.T) {
 	}
 }
 
-// A value with no Go equivalent arrives as its type and repr.
 func TestDecodeOther(t *testing.T) {
-	a := New()
+	a, _ := New()
 	got, ok := evalValue(t, a, "len").(Object)
 	if !ok {
 		t.Fatalf("got %T, want Object", got)

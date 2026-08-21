@@ -83,9 +83,10 @@ static void emit_value(mp_obj_t obj, int depth) {
         return;
     }
 
-    mp_int_t int_value;
-    if (mp_obj_is_int(obj) && mp_obj_get_int_maybe(obj, &int_value)) {
-        host_val_int(int_value);
+    if (mp_obj_is_int(obj)) {
+        // Raises OverflowError past int64, which is the same limit the host
+        // has; a small int takes the fast path inside.
+        host_val_int(mp_obj_get_ll(obj));
         return;
     }
 
@@ -145,4 +146,39 @@ static void emit_value(mp_obj_t obj, int depth) {
 
 void mp_api_emit_value(mp_obj_t obj) {
     emit_value(obj, 0);
+}
+
+// --- exceptions -------------------------------------------------------------
+
+/*
+ * An exception goes over as an ordinary value, in the shape
+ *
+ *     (type, message)
+ *
+ * which the host reassembles with the decoder it already has.  The traceback
+ * is not taken apart: it is already in the text mp_api_store_error printed,
+ * which is what a caller displays, and picking it into fields would mean
+ * walking .args and the frame list -- both of which run Python at a point
+ * where the module has just failed.
+ *
+ * Nothing here builds a Python object either; the callbacks are driven
+ * directly, so a walk that runs while memory is exhausted still gets through.
+ *
+ * Keep this in step with lastError in internal/host/exports.go.
+ */
+
+void mp_api_emit_error(mp_obj_t exc) {
+    host_val_tuple(2);
+
+    // Both of these work on whatever was raised, so there is no need to check
+    // that it is an exception instance -- anything at all can reach here.
+    const char *type = mp_obj_get_type_str(exc);
+    host_val_str(type, strlen(type));
+
+    // str(exc): the message alone, without the type name PRINT_EXC prefixes.
+    mp_api_buf_t msg = { 0 };
+    mp_print_t print = { &msg, mp_api_buf_print_strn };
+    mp_obj_print_helper(&print, exc, PRINT_STR);
+    host_val_str(msg.data ? msg.data : "", msg.len);
+    mp_api_buf_free(&msg);
 }

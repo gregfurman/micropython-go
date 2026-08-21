@@ -16,59 +16,30 @@ func newT(t *testing.T) *Instance {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { in.Close(context.Background()) })
+	t.Cleanup(func() { in.Close() })
 	return in
 }
 
-func TestDefineAndCall(t *testing.T) {
+func TestExecThenCall(t *testing.T) {
+	ctx := context.Background()
 	in := newT(t)
 
-	score, err := in.Define[map[string]any, map[string]any]("score", `
-def score(row):
-    total = row["a"] * 2 + row["b"]
-    return {"id": row["id"], "score": total, "ok": total > 10}
-`)
-	if err != nil {
+	if _, err := in.Exec(ctx, "def double(n):\n    return n * 2\n\ndef shout(s):\n    return s.upper()\n"); err != nil {
 		t.Fatal(err)
 	}
 
-	got, err := score(map[string]any{"id": "r-1", "a": 4, "b": 5})
-	if err != nil {
-		t.Fatal(err)
+	if got, err := in.Call(ctx, "double", 21); err != nil || got != int64(42) {
+		t.Errorf("double(21) = %#v, %v", got, err)
 	}
-	want := map[string]any{"id": "r-1", "score": int64(13), "ok": true}
-	if !reflect.DeepEqual(got, want) {
-		t.Errorf("score = %#v, want %#v", got, want)
-	}
-}
-
-func TestExecThenBind(t *testing.T) {
-	in := newT(t)
-
-	if _, err := in.Exec("def double(n):\n    return n * 2\n\ndef shout(s):\n    return s.upper()\n"); err != nil {
-		t.Fatal(err)
-	}
-
-	double, err := in.Bind[int, int]("double")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got, err := double(21); err != nil || got != 42 {
-		t.Errorf("double(21) = %v, %v", got, err)
-	}
-
-	shout, err := in.Bind[string, string]("shout")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got, err := shout("hi"); err != nil || got != "HI" {
-		t.Errorf("shout = %q, %v", got, err)
+	if got, err := in.Call(ctx, "shout", "hi"); err != nil || got != "HI" {
+		t.Errorf("shout(\"hi\") = %#v, %v", got, err)
 	}
 }
 
 func TestExecOutput(t *testing.T) {
+	ctx := context.Background()
 	in := newT(t)
-	out, err := in.Exec("print('hello')\n")
+	out, err := in.Exec(ctx, "print('hello')\n")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -78,11 +49,12 @@ func TestExecOutput(t *testing.T) {
 }
 
 func TestCallByName(t *testing.T) {
+	ctx := context.Background()
 	in := newT(t)
-	if _, err := in.Exec("def add(a, b):\n    return a + b\n"); err != nil {
+	if _, err := in.Exec(ctx, "def add(a, b):\n    return a + b\n"); err != nil {
 		t.Fatal(err)
 	}
-	got, err := in.Call("add", 20, 22)
+	got, err := in.Call(ctx, "add", 20, 22)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -93,34 +65,36 @@ func TestCallByName(t *testing.T) {
 
 // Close must release the interpreter and must not recurse.
 func TestClose(t *testing.T) {
+	ctx := context.Background()
 	in, err := NewInstance(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := in.Close(context.Background()); err != nil {
+	if err := in.Close(); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := in.Call("print"); err == nil {
+	if _, err := in.Call(ctx, "print"); err == nil {
 		t.Error("expected an error after Close")
 	}
-	if _, err := in.Exec("pass"); err == nil {
+	if _, err := in.Exec(ctx, "pass"); err == nil {
 		t.Error("expected an error after Close")
 	}
 }
 
 func TestPythonError(t *testing.T) {
+	ctx := context.Background()
 	in := newT(t)
-	if _, err := in.Exec("1/0\n"); err == nil {
+	if _, err := in.Exec(ctx, "1/0\n"); err == nil {
 		t.Fatal("expected a Python error")
 	}
 	// The instance must still work afterwards.
-	if got, err := in.Call("len", "abc"); err != nil || got != int64(3) {
+	if got, err := in.Call(ctx, "len", "abc"); err != nil || got != int64(3) {
 		t.Errorf("after error: %#v, %v", got, err)
 	}
 }
 
 func TestEval(t *testing.T) {
-	got, err := Eval("[1, 2, 3]")
+	got, err := newT(t).Eval(t.Context(), "[1, 2, 3]")
 	if err != nil {
 		t.Fatal(err)
 	}

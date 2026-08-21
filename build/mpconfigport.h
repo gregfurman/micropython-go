@@ -7,6 +7,10 @@
 // Raise this to _CORE_FEATURES or _EVERYTHING for a fuller build.
 #define MICROPY_CONFIG_ROM_LEVEL (MICROPY_CONFIG_ROM_LEVEL_MINIMUM)
 
+// Go's int is 64-bit, so without arbitrary-precision integers any value beyond
+// +/-2^30 fails to cross with "small int overflow".
+#define MICROPY_LONGINT_IMPL        (MICROPY_LONGINT_IMPL_MPZ)
+
 // Without this `1 / 2` is a TypeError, which is a confusing thing to meet in
 // the REPL.  Wasm has hardware doubles, so this is nearly free.
 #define MICROPY_FLOAT_IMPL          (MICROPY_FLOAT_IMPL_DOUBLE)
@@ -47,6 +51,18 @@
     }
 #define MICROPY_VM_HOOK_LOOP MICROPY_VM_HOOK_POLL
 #define MICROPY_VM_HOOK_RETURN MICROPY_VM_HOOK_POLL
+
+// f-strings, and __name__ on a type. Both are things a Python author reaches
+// for without thinking -- and without CPYTHON_COMPAT, type(e).__name__ inside
+// an except block raises AttributeError, which is a baffling way to find out
+// the build is trimmed.
+#define MICROPY_PY_FSTRINGS         (1)
+#define MICROPY_CPYTHON_COMPAT      (1)
+
+// Without this the compiler emits no line table, so every traceback frame the
+// host receives reports line 0 -- which is most of the value of having a
+// structured traceback at all.  The cost is a few bytes per bytecode chunk.
+#define MICROPY_ENABLE_SOURCE_LINE  (1)
 
 #define MICROPY_ALLOC_PATH_MAX      (256)
 

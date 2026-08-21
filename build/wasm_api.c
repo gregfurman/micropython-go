@@ -88,10 +88,45 @@ static const char *buf_cstr(const mp_api_buf_t *buf) {
     return buf->data != NULL ? buf->data : "";
 }
 
+// The exception the last failed call raised, kept alive so the host can ask
+// for its structure after the fact.  Always overwritten before the host is
+// told a call failed, so it is never stale when read.
+MP_REGISTER_ROOT_POINTER(mp_obj_t mp_api_last_exc);
+
+// Called from the failure branch of an nlr_push, where an escaping exception
+// would abort the module.  Printing runs Python -- __str__ on the exception,
+// __repr__ on its args -- so it gets its own guard, and a failure part-way
+// leaves the host whatever was written before it.
 void mp_api_store_error(mp_obj_t exc) {
     buf_reset(&err_buf);
-    mp_print_t print = { &err_buf, mp_api_buf_print_strn };
-    mp_obj_print_exception(&print, exc);
+    MP_STATE_VM(mp_api_last_exc) = exc;
+
+    nlr_buf_t nlr;
+    if (nlr_push(&nlr) == 0) {
+        mp_print_t print = { &err_buf, mp_api_buf_print_strn };
+        mp_obj_print_exception(&print, exc);
+        nlr_pop();
+    }
+}
+
+// Streams the last exception to the host as a native value; see the shape in
+// wasm_value.c.  Separate from mp_api_store_error so the host decides when the
+// walk happens: it runs Python code, and doing that while unwinding another
+// exception is how a module aborts.
+int32_t mp_api_err_value(void) {
+    MP_API_STACK_TOP();
+
+    mp_obj_t exc = MP_STATE_VM(mp_api_last_exc);
+    if (exc == MP_OBJ_NULL) {
+        return MP_API_ERR;
+    }
+
+    nlr_buf_t nlr;
+    if (nlr_push(&nlr) != 0) {
+        return MP_API_ERR;
+    }
+    mp_api_emit_error(exc);
+    MP_API_LEAVE();
 }
 
 // Asked by the VM hook every MICROPY_VM_HOOK_COUNT instructions; non-zero means

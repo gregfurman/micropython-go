@@ -3,6 +3,7 @@ package micropython
 import (
 	"context"
 	"encoding/binary"
+	"errors"
 	"math"
 	"reflect"
 	"strings"
@@ -22,20 +23,10 @@ import (
 
 const guestTimeout = 2 * time.Second
 
-// run executes fn with the guest bounded by guestTimeout, and reports whether
-// it finished on its own. Anything still running is interrupted rather than
-// abandoned.
-func run(t *testing.T, in *Instance, fn func()) bool {
-	t.Helper()
-
-	ctx, cancel := context.WithTimeout(context.Background(), guestTimeout)
-	defer cancel()
-
-	err := in.WithContext(ctx, func() error {
-		fn()
-		return nil
-	})
-	return err == nil
+// bounded gives the guest a deadline. Fuzzed Python readily contains
+// `while True:`, and the VM hook is what makes that survivable.
+func bounded() (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.Background(), guestTimeout)
 }
 
 func fuzzInstance(t *testing.T) *Instance {
@@ -72,18 +63,18 @@ func FuzzExec(f *testing.F) {
 
 	f.Fuzz(func(t *testing.T, src string) {
 		in := fuzzInstance(t)
-		defer in.Close(context.Background())
+		defer in.Close()
 
-		if !run(t, in, func() { in.Exec(src) }) {
+		ctx, cancel := bounded()
+		defer cancel()
+
+		if _, err := in.Exec(ctx, src); errors.Is(err, context.DeadlineExceeded) {
 			t.Skip("guest did not return")
 		}
 
 		// Whatever happened, the interpreter has to still work.
-		var (
-			got any
-			err error
-		)
-		if !run(t, in, func() { got, err = in.Call("len", "abc") }) {
+		got, err := in.Call(ctx, "len", "abc")
+		if errors.Is(err, context.DeadlineExceeded) {
 			t.Skip("guest did not return")
 		}
 		if err != nil {
@@ -95,30 +86,34 @@ func FuzzExec(f *testing.F) {
 	})
 }
 
-// FuzzEval drives the package-level one-shot path, which boots and closes an
-// interpreter per call.
+// FuzzEval drives the expression path, which parses in expression context
+// rather than statement context and streams a value back rather than output.
 func FuzzEval(f *testing.F) {
 	for _, seed := range []string{"1", "1+1", "[]", "{}", "'x'", "None", "(", "1/0", "len"} {
 		f.Add(seed)
 	}
 
 	f.Fuzz(func(t *testing.T, expr string) {
-		// Eval owns its interpreter, so there is nothing to cancel from here;
-		// bound it by running it on its own goroutine and skipping if the
-		// guest is still going.
-		done := make(chan any, 1)
-		go func() {
-			defer func() { done <- recover() }()
-			Eval(expr)
-		}()
+		in := fuzzInstance(t)
+		defer in.Close()
 
-		select {
-		case p := <-done:
-			if p != nil {
-				panic(p)
-			}
-		case <-time.After(guestTimeout):
+		ctx, cancel := bounded()
+		defer cancel()
+
+		if _, err := in.Eval(ctx, expr); errors.Is(err, context.DeadlineExceeded) {
 			t.Skip("guest did not return")
+		}
+
+		// Whatever happened, the interpreter has to still work.
+		got, err := in.Call(ctx, "len", "abc")
+		if errors.Is(err, context.DeadlineExceeded) {
+			t.Skip("guest did not return")
+		}
+		if err != nil {
+			t.Fatalf("interpreter unusable after Eval(%q): %v", expr, err)
+		}
+		if got != int64(3) {
+			t.Fatalf("interpreter wrong after Eval(%q): len('abc') = %#v", expr, got)
 		}
 	})
 }
@@ -137,20 +132,21 @@ func FuzzCallArgs(f *testing.F) {
 		want := genValue(&reader{buf: seed}, 0)
 
 		in := fuzzInstance(t)
-		defer in.Close(context.Background())
+		defer in.Close()
 
-		echo, err := in.Bind[any, any]("__nope__")
-		if err == nil {
-			t.Fatal("Bind resolved a name that does not exist")
+		if _, err := in.Call(t.Context(), "__nope__"); err == nil {
+			t.Fatal("Call resolved a name that does not exist")
 		}
 
-		echo, err = in.Define[any, any]("echo", "def echo(v):\n    return v\n")
-		if err != nil {
+		if _, err := in.Exec(t.Context(), "def echo(v):\n    return v\n"); err != nil {
 			t.Fatal(err)
 		}
 
-		var got any
-		if !run(t, in, func() { got, err = echo(want) }) {
+		ctx, cancel := bounded()
+		defer cancel()
+
+		got, err := in.Call(ctx, "echo", want)
+		if errors.Is(err, context.DeadlineExceeded) {
 			t.Skip("guest did not return")
 		}
 		if err != nil {
@@ -216,7 +212,9 @@ func genValue(r *reader, depth int) any {
 	case 5:
 		return r.bytes(int(r.byte() % 16))
 	case 6:
-		return int64(r.byte())
+		// Wide integers specifically: the small-int boundary is where the
+		// encoder used to give up.
+		return int64(binary.LittleEndian.Uint64(r.bytes(8))) >> (r.byte() % 64)
 	case 7:
 		n := int(r.byte() % 5)
 		out := make([]any, n)

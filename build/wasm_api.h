@@ -36,6 +36,11 @@ void mp_api_buf_print_strn(void *buf, const char *str, size_t len);
 // Walks obj and streams it to the host's val_* callbacks; see wasm_value.c.
 void mp_api_emit_value(mp_obj_t obj);
 
+// Streams exc to the host's val_* callbacks as a (type, message) tuple; see
+// wasm_value.c.  Printing the message runs Python, so it must be called under
+// an nlr_push.
+void mp_api_emit_error(mp_obj_t exc);
+
 // Records the C stack base for this host call. Every export that can run
 // Python needs it, because each host call starts a fresh C stack and the GC
 // scans down from here.
@@ -74,6 +79,7 @@ MP_API_EXPORT(mp_api_out) const char *mp_api_out(void);
 MP_API_EXPORT(mp_api_out_len) uint32_t mp_api_out_len(void);
 MP_API_EXPORT(mp_api_err) const char *mp_api_err(void);
 MP_API_EXPORT(mp_api_err_len) uint32_t mp_api_err_len(void);
+MP_API_EXPORT(mp_api_err_value) int32_t mp_api_err_value(void);
 
 // Turning host data into Python values; see wasm_build.c.  Arguments arrive
 // encoded in a single buffer.

@@ -1,134 +1,51 @@
-// Package api embeds MicroPython.
-//
-// It is layered on internal/host: ABI owns the module and does the crossing,
-// Instance is the API on top of it. A MicroPython value is an mp_obj_t, a
-// pointer into a garbage-collected heap that Go cannot keep rooted, so results
-// are streamed back through val_* callbacks and arguments are encoded into a
-// buffer the module decodes onto a stack its own GC traces.
 package api
 
 import (
 	"context"
 	"errors"
-	"sync"
+	"sync/atomic"
 
 	"github.com/gregfurman/micropython-wasi/internal/host"
-	"github.com/gregfurman/micropython-wasi/internal/value"
 )
 
-var (
-	errInvalidType = errors.New("invalid type evaluated")
-
-	// ErrClosed is returned by every operation on a closed Instance.
-	ErrClosed = errors.New("micropython: instance is closed")
-
-	// ErrStale is returned when a Func outlives the interpreter it was
-	// resolved against, which Reset and Close both end.
-	ErrStale = errors.New("micropython: function belongs to a superseded interpreter")
-)
-
+// Instance is one MicroPython interpreter.
+//
+// It is safe to use from several goroutines but it is not concurrent: the guest
+// is a single linear memory, so calls queue behind each other. Code that wants
+// parallelism wants more instances, not more callers -- they are cheap here,
+// since the module is compiled Go and starting one is an allocation plus
+// mp_init, with no runtime to spin up.
 type Instance struct {
-	mu  sync.Mutex
-	abi *host.ABI
-
-	// Guards abi alone, so Cancel and Close can reach it while a call holds mu.
-	abiMu sync.Mutex
-
-	gen uint64
+	lock chan struct{}
+	abi  atomic.Pointer[host.ABI]
 }
 
 func New() (*Instance, error) {
-	return &Instance{abi: host.New()}, nil
-}
-
-func (i *Instance) setABI(abi *host.ABI) {
-	i.abiMu.Lock()
-	defer i.abiMu.Unlock()
-	i.abi = abi
-}
-
-// Close releases the interpreter. If a call is in flight on another goroutine
-// it is interrupted first: taking the lock would otherwise mean waiting for
-// the very call being cancelled.
-func (i *Instance) Close() error {
-	if abi := i.current(); abi != nil {
-		abi.Cancel()
+	abi, err := host.New()
+	if err != nil {
+		return nil, err
 	}
 
-	i.mu.Lock()
-	defer i.mu.Unlock()
-
-	i.setABI(nil)
-	i.gen++
-	return nil
-}
-
-// Cancel interrupts a call in flight, without ending the interpreter. The
-// running Python sees a KeyboardInterrupt.
-func (i *Instance) Cancel() {
-	if abi := i.current(); abi != nil {
-		abi.Cancel()
+	i := &Instance{
+		lock: make(chan struct{}, 1),
 	}
+	i.abi.Store(abi)
+	return i, nil
 }
 
-// current reads the ABI without the main lock, which a cancelling goroutine
-// cannot take while the call it wants to stop is holding it.
-func (i *Instance) current() *host.ABI {
-	i.abiMu.Lock()
-	defer i.abiMu.Unlock()
-	return i.abi
-}
+// Exec runs src as a script and returns whatever is printed to stdout.
+func (i *Instance) Exec(ctx context.Context, src string) (string, error) {
+	var out string
+	err := i.run(ctx, func(abi *host.ABI) error {
+		evalErr := abi.Eval(src, host.ModeExec)
 
-// WithContext runs fn with cancellation wired to ctx, so a guest loop cannot
-// outlive it.
-func (i *Instance) WithContext(ctx context.Context, fn func() error) error {
-	if ctx.Done() == nil {
-		return fn()
-	}
-
-	done := make(chan struct{})
-	defer close(done)
-
-	go func() {
-		select {
-		case <-ctx.Done():
-			i.Cancel()
-		case <-done:
+		var trap *host.TrapError
+		if !errors.As(evalErr, &trap) {
+			out = abi.Output()
 		}
-	}()
-
-	err := fn()
-	if ctxErr := ctx.Err(); ctxErr != nil {
-		return ctxErr
-	}
-	return err
-}
-
-func (i *Instance) Reset() error {
-	i.mu.Lock()
-	defer i.mu.Unlock()
-
-	if i.abi == nil {
-		return ErrClosed
-	}
-	i.setABI(host.New())
-	i.gen++
-
-	return nil
-}
-
-// Exec runs src as a script and returns whatever it printed.
-func (i *Instance) Exec(src string) (string, error) {
-	i.mu.Lock()
-	defer i.mu.Unlock()
-
-	if i.abi == nil {
-		return "", ErrClosed
-	}
-	if err := i.abi.Eval(src, host.ModeExec); err != nil {
-		return "", err
-	}
-	return i.abi.Output(), nil
+		return evalErr
+	})
+	return out, err
 }
 
 // Eval evaluates a single expression and returns the result as a native Go
@@ -144,54 +61,202 @@ func (i *Instance) Exec(src string) (string, error) {
 //	tuple           Tuple
 //	dict            map[string]any, or map[any]any for non-string keys
 //	anything else   Object{Type, Repr}
-func (i *Instance) Eval(expr string) (any, error) {
-	i.mu.Lock()
-	defer i.mu.Unlock()
+func (i *Instance) Eval(ctx context.Context, expr string) (any, error) {
+	var out any
+	err := i.run(ctx, func(abi *host.ABI) error {
+		if err := abi.Eval(expr, host.ModeValue); err != nil {
+			return err
+		}
 
-	if i.abi == nil {
-		return nil, ErrClosed
-	}
-	if err := i.abi.Eval(expr, host.ModeValue); err != nil {
+		var err error
+		out, err = abi.Value()
+		return err
+	})
+	return out, err
+}
+
+// Call invokes a Python global by name.
+func (i *Instance) Call(ctx context.Context, name string, args ...any) (any, error) {
+	var out any
+	err := i.run(ctx, func(abi *host.ABI) error {
+		handle, err := abi.Func(name)
+		if err != nil {
+			return err
+		}
+		out, err = abi.Call(handle, args)
+		return err
+	})
+	return out, err
+}
+
+// ------------------------------------------------------------------------
+
+func (i *Instance) Cancel() {
+	i.abi.Load().Cancel()
+}
+
+// Err reports whether the interpreter is still usable: nil, or the trap that
+// killed it, or ErrClosed. A trapped instance recovers only through Reset or
+// Restore.
+func (i *Instance) Err() error {
+	return i.abi.Load().Err()
+}
+
+func (i *Instance) Close() error {
+	i.abi.Load().Close()
+
+	i.lock <- struct{}{}
+	defer i.release()
+
+	abi := i.abi.Load()
+	abi.Close()
+	abi.Release()
+
+	return nil
+}
+
+// ------------------------------------------------------------------------
+
+// Snapshot freezes the interpreter as it stands, so it can be restored into
+// this instance or handed to new ones. It takes the instance for the duration,
+// so it cannot run while a call is in flight.
+func (i *Instance) Snapshot(ctx context.Context) (*host.Snapshot, error) {
+	if err := i.acquire(ctx); err != nil {
 		return nil, err
 	}
-	return i.abi.Value()
+	defer i.release()
+
+	return i.abi.Load().Snapshot()
 }
 
-// TypedEval is a type safe version of Eval.
-func (i *Instance) TypedEval[T any](expr string) (T, error) {
-	var zero T
-	res, err := i.Eval(expr)
+// Reset replaces the interpreter with a fresh one, discarding every global and
+// definition, and invalidating any Func resolved before it.
+//
+// It is also how an instance recovers from a trap, so unlike every other
+// operation it is allowed on a dead one -- the replacement is a new module with
+// its own memory, and nothing carries over.
+func (i *Instance) Reset(ctx context.Context) error {
+	if err := i.acquire(ctx); err != nil {
+		return err
+	}
+	defer i.release()
+
+	old := i.abi.Load()
+
+	var trap *host.TrapError
+	if err := old.Err(); err != nil && !errors.As(err, &trap) {
+		return err
+	}
+
+	next, err := host.New()
 	if err != nil {
-		return zero, err
+		return err
 	}
 
-	return value.Coerce[T](res)
+	i.abi.Store(next)
+
+	old.Close()
+	old.Release()
+	return nil
 }
 
-// Call invokes a Python global by name. For a function called more than once,
-// resolve it with Func or Define instead and call that: the name lookup then
-// happens once rather than per call.
-func (i *Instance) Call(name string, args ...any) (any, error) {
-	i.mu.Lock()
-	defer i.mu.Unlock()
-
-	if i.abi == nil {
-		return nil, ErrClosed
+// Restore returns this instance to the snapshot, discarding every global and
+// definition made since, and invalidating any Func resolved before it.
+func (i *Instance) Restore(ctx context.Context, s *host.Snapshot) error {
+	if err := i.acquire(ctx); err != nil {
+		return err
 	}
-	handle, err := i.abi.Func(name)
+	defer i.release()
+
+	old := i.abi.Load()
+
+	err := old.Err()
+
+	var trap *host.TrapError
+	if err != nil && !errors.As(err, &trap) {
+		// Closed, not trapped. A closed instance stays closed.
+		return err
+	}
+
+	if err == nil {
+		if err := old.RestoreInto(s); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	// Trapped: the module cannot be trusted to hold the copy, so it is
+	// replaced rather than written over.
+	next, err := s.Restore()
+	if err != nil {
+		return err
+	}
+
+	i.abi.Store(next)
+
+	old.Close()
+	old.Release()
+	return nil
+}
+
+// ------------------------------------------------------------------------
+
+// acquire takes the instance, giving up if ctx ends first..
+func (i *Instance) acquire(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	select {
+	case i.lock <- struct{}{}:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func (i *Instance) release() {
+	<-i.lock
+}
+
+// run holds the instance for the duration of fn, with the guest interrupted if
+// ctx ends first.
+func (i *Instance) run(ctx context.Context, fn func(*host.ABI) error) error {
+	if err := i.acquire(ctx); err != nil {
+		return err
+	}
+	defer i.release()
+
+	abi := i.abi.Load()
+	if err := abi.Begin(); err != nil {
+		return err
+	}
+
+	if ctx.Done() != nil {
+		stop := context.AfterFunc(ctx, abi.Cancel)
+		defer stop()
+	}
+
+	err := fn(abi)
+
+	// A trap outranks the deadline: the instance is dead, and reporting only
+	// DeadlineExceeded would invite the caller to retry it forever.
+	var trap *host.TrapError
+	if ctxErr := ctx.Err(); ctxErr != nil && !errors.As(err, &trap) {
+		return ctxErr
+	}
+	return err
+}
+
+// FromSnapshot builds a new interpreter from a snapshot. It is independent of
+// the instance the snapshot came from and of every other one restored from it,
+// which is what makes a snapshot the way to fan out across goroutines.
+func FromSnapshot(s *host.Snapshot) (*Instance, error) {
+	abi, err := s.Restore()
 	if err != nil {
 		return nil, err
 	}
-	return i.abi.Call(handle, args)
-}
 
-// Output returns what the last call printed.
-func (i *Instance) Output() string {
-	i.mu.Lock()
-	defer i.mu.Unlock()
-
-	if i.abi == nil {
-		return ""
-	}
-	return i.abi.Output()
+	i := &Instance{lock: make(chan struct{}, 1)}
+	i.abi.Store(abi)
+	return i, nil
 }

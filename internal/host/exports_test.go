@@ -6,7 +6,7 @@ import (
 )
 
 func TestExecOutput(t *testing.T) {
-	a := New()
+	a, _ := New()
 	if err := a.Eval("for i in range(3):\n    print(i)\n", ModeExec); err != nil {
 		t.Fatal(err)
 	}
@@ -16,18 +16,24 @@ func TestExecOutput(t *testing.T) {
 }
 
 func TestPythonError(t *testing.T) {
-	a := New()
+	a, _ := New()
 	err := a.Eval("1/0", ModeValue)
 	if err == nil {
 		t.Fatal("expected an error")
 	}
 
-	var pyErr *Error
-	if !errors.As(err, &pyErr) {
-		t.Fatalf("got %T, want *Error", err)
+	var exc *Exception
+	if !errors.As(err, &exc) {
+		t.Fatalf("got %T, want *Exception", err)
 	}
-	if pyErr.Text == "" {
+	if exc.Raw == "" {
 		t.Error("empty traceback")
+	}
+	if exc.Type != "ZeroDivisionError" {
+		t.Errorf("Type = %q, want ZeroDivisionError", exc.Type)
+	}
+	if exc.Message != "divide by zero" {
+		t.Errorf("Message = %q", exc.Message)
 	}
 
 	// The interpreter must still work afterwards.
@@ -37,7 +43,7 @@ func TestPythonError(t *testing.T) {
 }
 
 func TestFuncAndCall(t *testing.T) {
-	a := New()
+	a, _ := New()
 	if err := a.Eval("def add(x, y):\n    return x + y\n", ModeExec); err != nil {
 		t.Fatal(err)
 	}
