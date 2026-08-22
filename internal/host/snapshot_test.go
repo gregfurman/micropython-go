@@ -31,8 +31,6 @@ func loaded(t *testing.T) (*ABI, *Snapshot) {
 	return a, snap
 }
 
-// A restored interpreter carries the compiled functions and the objects the
-// source built, and is independent of the one it came from.
 func TestRestore(t *testing.T) {
 	parent, snap := loaded(t)
 
@@ -68,8 +66,6 @@ func TestRestore(t *testing.T) {
 	}
 }
 
-// RestoreInto rewinds an interpreter to the snapshot, discarding what it has
-// done since while keeping what the snapshot contained.
 func TestRestoreInto(t *testing.T) {
 	a, snap := loaded(t)
 
@@ -88,8 +84,6 @@ func TestRestoreInto(t *testing.T) {
 	}
 }
 
-// A snapshot cannot be taken while the shadow stack is above its base, since
-// that means live C frames the restore would have no counterpart for.
 func TestSnapshotRejectsMidCall(t *testing.T) {
 	a, _ := loaded(t)
 

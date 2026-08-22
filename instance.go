@@ -9,7 +9,10 @@ import (
 )
 
 var (
-	ErrClosed                 = host.ErrClosed
+	ErrClosed = host.ErrClosed
+
+	ErrInterrupted = host.ErrInterrupted
+
 	ErrInstanceNotInitialised = errors.New("cannot perform operation on Instance that has not been initialised")
 )
 

@@ -6,10 +6,6 @@ import (
 	"testing"
 )
 
-// Everything here goes through the exported surface. The wrapper is written by
-// hand, so this is what stops a forwarding mistake -- a method calling itself,
-// or dropping its type arguments -- from shipping.
-
 func newT(t *testing.T) *Instance {
 	t.Helper()
 	in, err := NewInstance(context.Background())
@@ -63,7 +59,6 @@ func TestCallByName(t *testing.T) {
 	}
 }
 
-// Close must release the interpreter and must not recurse.
 func TestClose(t *testing.T) {
 	ctx := context.Background()
 	in, err := NewInstance(context.Background())

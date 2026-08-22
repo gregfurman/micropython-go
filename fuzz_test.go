@@ -4,11 +4,14 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"math"
-	"reflect"
 	"strings"
+	"sync"
 	"testing"
 	"time"
+
+	"github.com/gregfurman/micropython-wasi/internal/host"
 )
 
 // Fuzzing the exported API.
@@ -152,7 +155,9 @@ func FuzzCallArgs(f *testing.F) {
 		if err != nil {
 			t.Fatalf("echo(%#v): %v", want, err)
 		}
-		if !reflect.DeepEqual(got, want) {
+		// equalValue rather than DeepEqual: a Python set has no order, so its
+		// members come back in whatever order the hash table held them.
+		if !equalValue(got, want) {
 			t.Fatalf("round trip: got %#v, want %#v", got, want)
 		}
 	})
@@ -187,7 +192,7 @@ const maxGenDepth = 6
 // genValue builds a value the encoder is expected to accept, so that a failed
 // round trip means a real asymmetry rather than an unsupported type.
 func genValue(r *reader, depth int) any {
-	kind := r.byte() % 10
+	kind := r.byte() % 13
 	if depth >= maxGenDepth && kind >= 7 {
 		kind = kind % 7
 	}
@@ -229,6 +234,20 @@ func genValue(r *reader, depth int) any {
 			out[string(sanitise(r.bytes(int(r.byte()%8))))] = genValue(r, depth+1)
 		}
 		return out
+	case 9:
+		n := int(r.byte() % 4)
+		out := make(host.Tuple, n)
+		for i := range out {
+			out[i] = genValue(r, depth+1)
+		}
+		return out
+	case 10, 11:
+		// Set members must be hashable, so they come from the scalar half of
+		// the generator only -- a set of lists is a guest TypeError, which is
+		// correct behaviour and not what a round trip is testing.
+		return host.Set(genHashables(r))
+	case 12:
+		return host.Set(genHashables(r))
 	default:
 		n := int(r.byte() % 4)
 		out := make([]any, n)
@@ -236,6 +255,56 @@ func genValue(r *reader, depth int) any {
 			out[i] = genValue(r, depth+1)
 		}
 		return out
+	}
+}
+
+// genHashables builds set members that are distinct to Python, so the set that
+// holds them has the length it was given and the round trip can compare
+// element for element.
+func genHashables(r *reader) []any {
+	n := int(r.byte() % 5)
+	seen := make(map[string]bool, n)
+	out := make([]any, 0, n)
+	for range n {
+		v := genScalar(r)
+		k := pyKey(v)
+		if seen[k] {
+			continue
+		}
+		seen[k] = true
+		out = append(out, v)
+	}
+	return out
+}
+
+// pyKey identifies a value the way Python's set does, which is not the way Go
+// does: bool is a subclass of int there, so {False, 0} is one element and
+// {True, 1} is one element. Deduping on the Go type would build sets that
+// legitimately come back shorter than they went in.
+func pyKey(v any) string {
+	switch t := v.(type) {
+	case bool:
+		if t {
+			return "int/1"
+		}
+		return "int/0"
+	case int64:
+		return fmt.Sprintf("int/%d", t)
+	default:
+		return fmt.Sprintf("%T/%v", v, v)
+	}
+}
+
+func genScalar(r *reader) any {
+	switch r.byte() % 5 {
+	case 0:
+		return nil
+	case 1:
+		return r.byte()%2 == 1
+	case 2:
+		return int64(binary.LittleEndian.Uint64(r.bytes(8)))
+	default:
+		return string(sanitise(r.bytes(int(r.byte() % 12))))
 	}
 }
 
@@ -249,4 +318,61 @@ func sanitise(b []byte) []byte {
 		}
 	}
 	return b
+}
+
+// FuzzProgram drives the whole public path: compile arbitrary source, then
+// call arbitrary names on it with arbitrary arguments, concurrently.
+//
+// Compile plus a pool is where the parts interact -- a snapshot taken of a
+// half-broken interpreter, a restore that leaves state behind, a trapped
+// instance handed back out. None of that is reachable from the single-call
+// fuzzers above.
+func FuzzProgram(f *testing.F) {
+	f.Add("def f(v):\n    return v\n", "f", []byte{4, 3})
+	f.Add("x = 1\n", "f", []byte{0})
+	f.Add("def f(v):\n    raise ValueError(v)\n", "f", []byte{4, 2})
+	f.Add("def f(v):\n    global x\n    x = v\n    return x\n", "f", []byte{7, 2})
+	f.Add("def f(v):\n    while True:\n        pass\n", "f", []byte{0})
+	f.Add("import json\ndef f(v):\n    return json.dumps(v)\n", "f", []byte{8, 1})
+	f.Add("", "f", []byte{})
+
+	f.Fuzz(func(t *testing.T, src, name string, seed []byte) {
+		p, err := Compile(context.Background(), src)
+		if err != nil {
+			// Source that does not load is an ordinary answer, not a crash.
+			return
+		}
+		defer p.Close()
+
+		arg := genValue(&reader{buf: seed}, 0)
+
+		// Concurrently, so the pool has to grow from the snapshot and hand
+		// back interpreters that later calls can still use.
+		var wg sync.WaitGroup
+		for range 4 {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				ctx, cancel := bounded()
+				defer cancel()
+				p.Call(ctx, name, arg) //nolint:errcheck // any answer is fine; not panicking is the point
+			}()
+		}
+		wg.Wait()
+
+		// Whatever happened, the Program must still serve a call.
+		ctx, cancel := bounded()
+		defer cancel()
+
+		got, err := p.Call(ctx, "len", "abcd")
+		if errors.Is(err, context.DeadlineExceeded) {
+			t.Skip("guest did not return")
+		}
+		if err != nil {
+			t.Fatalf("Program unusable after Compile(%q)+Call(%q): %v", src, name, err)
+		}
+		if got != int64(4) {
+			t.Fatalf("Program wrong after Compile(%q)+Call(%q): len('abcd') = %#v", src, name, got)
+		}
+	})
 }

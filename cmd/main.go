@@ -5,55 +5,37 @@ package main
 import (
 	"context"
 	"fmt"
-	"os"
-	"os/signal"
-	"sync"
-	"time"
+	"strings"
 
 	micropython "github.com/gregfurman/micropython-wasi"
 )
 
-const guestBudget = 30 * time.Second
+const moduleFunction = `
+class module:
+    def __init__(self, name, **kwargs):
+        self.__name__ = name
+        for key, value in kwargs.items():
+            setattr(self, key, value)
 
-func main() {
-	if err := run(); err != nil {
-		fmt.Fprintln(os.Stderr, "error:", err)
-		os.Exit(1)
-	}
-}
+def load(*args):
+  # no-op
+  pass
 
-const src = `
-def louder(idx, v):
-  return f"{idx}: {v.upper()}"
+assert = module("name")
+
+print(assert)
 `
 
-func run() error {
-
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
-	defer stop()
-
-	prog, err := micropython.Compile(ctx, src)
+func main() {
+	in, err := micropython.NewInstance(context.TODO())
 	if err != nil {
-		return err
+		panic(err)
 	}
 
-	defer prog.Close()
-
-	var wg sync.WaitGroup
-	wg.Add(10)
-
-	for i := range 10 {
-		go func() {
-			defer wg.Done()
-			out, err := prog.Call(ctx, "louder", i, "hello")
-			if err != nil {
-				panic(err)
-			}
-			fmt.Printf("out: %v\n", out)
-		}()
+	out, err := in.Exec(context.TODO(), strings.ReplaceAll(string(moduleFunction), "assert", "_assert"))
+	if err != nil {
+		panic(err)
 	}
 
-	wg.Wait()
-
-	return nil
+	fmt.Printf("out: %v\n", out)
 }
