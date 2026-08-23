@@ -49,7 +49,7 @@ func TestProgramsAreIndependent(t *testing.T) {
 	}
 
 	// A name defined in one must not resolve in another.
-	if _, err := programs[0].Call(t.Context(), "exec", "extra = 1"); err == nil {
+	if _, err := programs[0].Call(t.Context(), "exec", Of("extra = 1")); err == nil {
 		t.Log("note: exec reachable as a global")
 	}
 	for i, p := range programs {
@@ -186,7 +186,7 @@ def handle(request):
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := p.Call(t.Context(), "handle", map[string]any{"body": tt.body})
+			got, err := p.Call(t.Context(), "handle", Of(map[string]any{"body": tt.body}))
 			if err != nil {
 				t.Fatalf("handle: %v", err)
 			}
@@ -201,7 +201,7 @@ def handle(request):
 	}
 
 	// Malformed JSON is the guest's error, not a crash.
-	if _, err := p.Call(t.Context(), "handle", map[string]any{"body": "{not json"}); err == nil {
+	if _, err := p.Call(t.Context(), "handle", Of(map[string]any{"body": "{not json"})); err == nil {
 		t.Error("malformed JSON was accepted")
 	}
 }

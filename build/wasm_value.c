@@ -32,7 +32,6 @@
 
 #include "wasm_api.h"
 #include "wasm_pack.h"
-#include "wasm_proxy.h"
 
 #define HOST_IMPORT(name) __attribute__((import_module("host"), import_name(#name)))
 
@@ -50,26 +49,24 @@ HOST_IMPORT(val_tuple) extern void host_val_tuple(uint32_t len);
 HOST_IMPORT(val_dict) extern void host_val_dict(uint32_t len);
 HOST_IMPORT(val_set) extern void host_val_set(uint32_t len, int32_t frozen);
 
-// Anything with no host equivalent: a reference the host can call and hand
-// back, plus the type name and repr() it would otherwise have had to ask for.
-HOST_IMPORT(val_other) extern void host_val_other(int32_t ref, int32_t callable,
-    const char *type, uint32_t type_len, const char *repr, uint32_t repr_len);
+// Anything with no host equivalent, passed as its type name plus repr().
+HOST_IMPORT(val_other) extern void host_val_other(const char *type, uint32_t type_len,
+    const char *repr, uint32_t repr_len);
+
+// An exception, as its class name and its message.
+HOST_IMPORT(val_exception) extern void host_val_exception(const char *type, uint32_t type_len,
+    const char *msg, uint32_t msg_len);
 
 // Guards against a self-referential container turning the walk into an
 // infinite recursion.  Python allows `a = []; a.append(a)`.
 #define MAX_DEPTH (32)
 
-// Emits obj as a reference the host holds, rather than as a copy it cannot
-// make.  The type name and repr go with it because they are what a host that
-// only wants to look at the value needs, and asking for them afterwards would
-// be a second crossing for the common case.
 static void emit_repr(mp_obj_t obj) {
     const char *type = mp_obj_get_type_str(obj);
     mp_api_buf_t repr = { 0 };
     mp_print_t print = { &repr, mp_api_buf_print_strn };
     mp_obj_print_helper(&print, obj, PRINT_REPR);
-    host_val_other(mp_api_ref_add(obj), mp_obj_is_callable(obj),
-        type, strlen(type), repr.data ? repr.data : "", repr.len);
+    host_val_other(type, strlen(type), repr.data ? repr.data : "", repr.len);
     mp_api_buf_free(&repr);
 }
 
@@ -224,34 +221,31 @@ void mp_api_emit_value(mp_obj_t obj) {
 // --- exceptions -------------------------------------------------------------
 
 /*
- * An exception goes over as an ordinary value, in the shape
+ * An exception goes over as an exception: its class name and its message, in
+ * one callback the host turns straight into the value it hands back.  It used
+ * to be a 2-tuple the host reassembled by convention, which worked and left
+ * nothing to say so -- this is the same information with a shape the other
+ * side can name.
  *
- *     (type, message)
+ * The traceback is not taken apart: it is already in the text
+ * mp_api_store_error printed, which is what a caller displays, and picking it
+ * into fields would mean walking .args and the frame list -- both of which run
+ * Python at a point where the module has just failed.
  *
- * which the host reassembles with the decoder it already has.  The traceback
- * is not taken apart: it is already in the text mp_api_store_error printed,
- * which is what a caller displays, and picking it into fields would mean
- * walking .args and the frame list -- both of which run Python at a point
- * where the module has just failed.
- *
- * Nothing here builds a Python object either; the callbacks are driven
- * directly, so a walk that runs while memory is exhausted still gets through.
- *
- * Keep this in step with lastError in internal/host/exports.go.
+ * Nothing here builds a Python object either; the callback is driven directly,
+ * so a walk that runs while memory is exhausted still gets through.
  */
 
 void mp_api_emit_error(mp_obj_t exc) {
-    host_val_tuple(2);
-
     // Both of these work on whatever was raised, so there is no need to check
     // that it is an exception instance -- anything at all can reach here.
     const char *type = mp_obj_get_type_str(exc);
-    host_val_str(type, strlen(type));
 
     // str(exc): the message alone, without the type name PRINT_EXC prefixes.
     mp_api_buf_t msg = { 0 };
     mp_print_t print = { &msg, mp_api_buf_print_strn };
     mp_obj_print_helper(&print, exc, PRINT_STR);
-    host_val_str(msg.data ? msg.data : "", msg.len);
+
+    host_val_exception(type, strlen(type), msg.data ? msg.data : "", msg.len);
     mp_api_buf_free(&msg);
 }

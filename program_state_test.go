@@ -42,7 +42,7 @@ def peek():
 	}
 
 	// A global created by one call must not exist for the next.
-	if _, err := p.Call(t.Context(), "stash", "dirty"); err != nil {
+	if _, err := p.Call(t.Context(), "stash", Of("dirty")); err != nil {
 		t.Fatal(err)
 	}
 	got, err := p.Call(t.Context(), "peek")

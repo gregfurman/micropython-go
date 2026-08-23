@@ -3,6 +3,8 @@ package host
 import (
 	"reflect"
 	"testing"
+
+	"github.com/gregfurman/micropython-wasi/internal/value"
 )
 
 func evalValue(t *testing.T, a *ABI, expr string) any {
@@ -18,7 +20,7 @@ func evalValue(t *testing.T, a *ABI, expr string) any {
 }
 
 func TestDecodeTypes(t *testing.T) {
-	a, _ := New(nil)
+	a, _ := New()
 	for _, tc := range []struct {
 		expr string
 		want any
@@ -30,7 +32,7 @@ func TestDecodeTypes(t *testing.T) {
 		{"'hi'", "hi"},
 		{"b'ab'", []byte("ab")},
 		{"[1, 'a', None]", []any{int64(1), "a", nil}},
-		{"(1, 2)", Tuple{int64(1), int64(2)}},
+		{"(1, 2)", value.Tuple{int64(1), int64(2)}},
 		{"{'a': 1, 'b': [2, 3]}", map[string]any{"a": int64(1), "b": []any{int64(2), int64(3)}}},
 		{"[]", []any{}},
 		{"{}", map[string]any{}},
@@ -44,7 +46,7 @@ func TestDecodeTypes(t *testing.T) {
 }
 
 func TestDecodeOther(t *testing.T) {
-	a, _ := New(nil)
+	a, _ := New()
 	got, ok := evalValue(t, a, "len").(Object)
 	if !ok {
 		t.Fatalf("got %T, want Object", got)

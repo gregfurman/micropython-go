@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gregfurman/micropython-wasi/internal/host"
+	"github.com/gregfurman/micropython-wasi/internal/value"
 )
 
 // Fuzzing the exported API.
@@ -76,7 +76,7 @@ func FuzzExec(f *testing.F) {
 		}
 
 		// Whatever happened, the interpreter has to still work.
-		got, err := in.Call(ctx, "len", "abc")
+		got, err := in.Call(ctx, "len", Of("abc"))
 		if errors.Is(err, context.DeadlineExceeded) {
 			t.Skip("guest did not return")
 		}
@@ -108,7 +108,7 @@ func FuzzEval(f *testing.F) {
 		}
 
 		// Whatever happened, the interpreter has to still work.
-		got, err := in.Call(ctx, "len", "abc")
+		got, err := in.Call(ctx, "len", Of("abc"))
 		if errors.Is(err, context.DeadlineExceeded) {
 			t.Skip("guest did not return")
 		}
@@ -148,7 +148,7 @@ func FuzzCallArgs(f *testing.F) {
 		ctx, cancel := bounded()
 		defer cancel()
 
-		got, err := in.Call(ctx, "echo", want)
+		got, err := in.Call(ctx, "echo", Of(want))
 		if errors.Is(err, context.DeadlineExceeded) {
 			t.Skip("guest did not return")
 		}
@@ -236,7 +236,7 @@ func genValue(r *reader, depth int) any {
 		return out
 	case 9:
 		n := int(r.byte() % 4)
-		out := make(host.Tuple, n)
+		out := make(value.Tuple, n)
 		for i := range out {
 			out[i] = genValue(r, depth+1)
 		}
@@ -245,9 +245,9 @@ func genValue(r *reader, depth int) any {
 		// Set members must be hashable, so they come from the scalar half of
 		// the generator only -- a set of lists is a guest TypeError, which is
 		// correct behaviour and not what a round trip is testing.
-		return host.Set(genHashables(r))
+		return value.Set(genHashables(r))
 	case 12:
-		return host.Set(genHashables(r))
+		return value.Set(genHashables(r))
 	default:
 		n := int(r.byte() % 4)
 		out := make([]any, n)
@@ -355,7 +355,7 @@ func FuzzProgram(f *testing.F) {
 				defer wg.Done()
 				ctx, cancel := bounded()
 				defer cancel()
-				p.Call(ctx, name, arg) //nolint:errcheck // any answer is fine; not panicking is the point
+				p.Call(ctx, name, Of(arg)) //nolint:errcheck // any answer is fine; not panicking is the point
 			}()
 		}
 		wg.Wait()
@@ -364,7 +364,7 @@ func FuzzProgram(f *testing.F) {
 		ctx, cancel := bounded()
 		defer cancel()
 
-		got, err := p.Call(ctx, "len", "abcd")
+		got, err := p.Call(ctx, "len", Of("abcd"))
 		if errors.Is(err, context.DeadlineExceeded) {
 			t.Skip("guest did not return")
 		}

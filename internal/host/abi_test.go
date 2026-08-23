@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/gregfurman/micropython-wasi/internal/value"
 )
 
 // The C and Go sides share a numbered table, and nothing but a comment has
@@ -21,11 +23,11 @@ func TestABIConstantsMatchC(t *testing.T) {
 		want   map[string]int
 	}{
 		{"wasm_pack.h", "PK_", map[string]int{
-			"PK_NONE": pkNone, "PK_FALSE": pkFalse, "PK_TRUE": pkTrue,
-			"PK_INT": pkInt, "PK_FLOAT": pkFloat, "PK_STR": pkStr,
-			"PK_BYTES": pkBytes, "PK_LIST": pkList, "PK_TUPLE": pkTuple,
-			"PK_DICT": pkDict, "PK_SET": pkSet, "PK_FROZENSET": pkFrozenSet,
-			"PK_OBJECT": pkObject, "PK_EXCEPTION": pkException,
+			"PK_NONE": value.TagNone, "PK_FALSE": value.TagFalse, "PK_TRUE": value.TagTrue,
+			"PK_INT": value.TagInt, "PK_FLOAT": value.TagFloat, "PK_STR": value.TagStr,
+			"PK_BYTES": value.TagBytes, "PK_LIST": value.TagList, "PK_TUPLE": value.TagTuple,
+			"PK_DICT": value.TagDict, "PK_SET": value.TagSet, "PK_FROZENSET": value.TagFrozenSet,
+			"PK_EXCEPTION": value.TagException,
 		}},
 	}
 

@@ -6,6 +6,7 @@ import (
 	"sync/atomic"
 
 	"github.com/gregfurman/micropython-wasi/internal/host"
+	"github.com/gregfurman/micropython-wasi/internal/value"
 )
 
 // Instance is one MicroPython interpreter.
@@ -16,21 +17,17 @@ import (
 // since the module is compiled Go and starting one is an allocation plus
 // mp_init, with no runtime to spin up.
 type Instance struct {
-	lock  chan struct{}
-	abi   atomic.Pointer[host.ABI]
-	funcs *host.Registry
+	lock chan struct{}
+	abi  atomic.Pointer[host.ABI]
 }
 
-func New(funcs *host.Registry) (*Instance, error) {
-	abi, err := host.New(funcs)
+func New() (*Instance, error) {
+	abi, err := host.New()
 	if err != nil {
 		return nil, err
 	}
 
-	i := &Instance{
-		lock:  make(chan struct{}, 1),
-		funcs: funcs,
-	}
+	i := &Instance{lock: make(chan struct{}, 1)}
 	i.abi.Store(abi)
 	return i, nil
 }
@@ -92,9 +89,9 @@ func (i *Instance) Call(ctx context.Context, name string, args ...any) (any, err
 }
 
 // Set binds a value to a Python global, without going through source text.
-func (i *Instance) Set(ctx context.Context, name string, value any) error {
+func (i *Instance) Set(ctx context.Context, name string, v value.Value) error {
 	return i.run(ctx, func(abi *host.ABI) error {
-		return abi.Set(name, value)
+		return abi.Set(name, v)
 	})
 }
 
@@ -157,7 +154,7 @@ func (i *Instance) Reset(ctx context.Context) error {
 		return err
 	}
 
-	next, err := host.New(i.funcs)
+	next, err := host.New()
 	if err != nil {
 		return err
 	}
@@ -265,7 +262,7 @@ func FromSnapshot(s *host.Snapshot) (*Instance, error) {
 		return nil, err
 	}
 
-	i := &Instance{lock: make(chan struct{}, 1), funcs: s.Funcs()}
+	i := &Instance{lock: make(chan struct{}, 1)}
 	i.abi.Store(abi)
 	return i, nil
 }

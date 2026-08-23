@@ -35,11 +35,6 @@ type Snapshot struct {
 	// so a restore can refuse a module laid out differently rather than
 	// scribble over it.
 	base int32
-
-	// The host functions the globals in that memory refer to. They are ids, so
-	// the memory alone would restore into an interpreter that resolved them
-	// against the wrong functions, or none.
-	funcs *Registry
 }
 
 // Snapshot copies the interpreter as it stands. The caller must hold the
@@ -59,7 +54,6 @@ func (a *ABI) Snapshot() (*Snapshot, error) {
 	return &Snapshot{
 		memory: bytes.Clone(a.mem()[a.base:]),
 		base:   a.base,
-		funcs:  a.funcs,
 	}, nil
 }
 
@@ -68,18 +62,13 @@ func (a *ABI) Snapshot() (*Snapshot, error) {
 // It skips _initialize, because the snapshot was taken after it ran: gc_init
 // and mp_init have already happened and their results are in the memory being
 // laid down.
-// The host functions come from the snapshot too, since the memory being laid
-// down already has them bound.
 func (s *Snapshot) Restore() (*ABI, error) {
-	a := newABI(s.funcs)
+	a := newABI()
 	if err := s.restore(a); err != nil {
 		return nil, err
 	}
 	return a, nil
 }
-
-// Funcs returns the registry the snapshot's ids resolve against.
-func (s *Snapshot) Funcs() *Registry { return s.funcs }
 
 // RestoreInto lays the snapshot back down over a running interpreter, which
 // afterwards is the snapshot: every global, definition and import it had, and
@@ -98,17 +87,8 @@ func (a *ABI) RestoreInto(s *Snapshot) error {
 	}
 
 	a.dec.reset()
-	a.enc.reset()
-	a.rep.reset()
-	a.saved = a.saved[:0]
+	a.enc.Reset()
 	a.cancelled.Store(false)
-
-	// Every reference handed out before this points into a table that has just
-	// been overwritten, so retire the generation they belong to. The guest
-	// would refuse them anyway -- the restored table is empty -- but only by
-	// accident of what the snapshot happened to contain, and only after a call
-	// into the guest to find out.
-	a.epoch++
 
 	return nil
 }
@@ -116,9 +96,6 @@ func (a *ABI) RestoreInto(s *Snapshot) error {
 func (s *Snapshot) restore(a *ABI) error {
 	if s.base != a.base {
 		return fmt.Errorf("micropython: snapshot is from a module with a %d-byte stack, this one has %d", s.base, a.base)
-	}
-	if s.funcs != a.funcs {
-		return fmt.Errorf("micropython: snapshot was taken with different host functions")
 	}
 
 	mem := a.mod.Xmemory()

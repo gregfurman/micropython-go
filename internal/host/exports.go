@@ -5,6 +5,7 @@ import (
 
 	"github.com/gregfurman/micropython-wasi/internal/env"
 	wasi "github.com/gregfurman/micropython-wasi/internal/micropython"
+	"github.com/gregfurman/micropython-wasi/internal/value"
 )
 
 // The module's exports, typed.
@@ -17,18 +18,11 @@ const (
 
 const apiOK = 0
 
-// New boots an interpreter with funcs bound into its globals. A nil Registry
-// means no host functions.
-func New(funcs *Registry) (*ABI, error) {
-	a := newABI(funcs)
+// New boots an interpreter.
+func New() (*ABI, error) {
+	a := newABI()
 	if err := a.init(); err != nil {
 		return nil, err
-	}
-
-	for id, fn := range funcs.all() {
-		if err := a.register(fn.Name, int32(id)); err != nil {
-			return nil, fmt.Errorf("micropython: cannot bind %s: %w", fn.Name, err)
-		}
 	}
 	return a, nil
 }
@@ -41,69 +35,49 @@ func New(funcs *Registry) (*ABI, error) {
 // one moment __stack_pointer is guaranteed to hold the value the linker gave
 // it. Reading it beats repeating WASM_STACK_SIZE on this side, where it would
 // drift.
-func newABI(funcs *Registry) *ABI {
-	a := &ABI{funcs: funcs}
+func newABI() *ABI {
+	a := &ABI{}
 	a.mod = wasi.New(env.New(), a)
 	a.base = *a.mod.X__stack_pointer()
 	return a
 }
 
-// register binds a host function to a global name. Only New calls it: the
-// binding lands in the globals a snapshot copies, so every interpreter
-// restored from one already has it.
-func (a *ABI) register(name string, id int32) (err error) {
-	defer a.guard(&err)
-
-	ptr, err := a.WriteString(name)
-	if err != nil {
-		return err
-	}
-	return a.check(a.mod.Xmp_api_register(ptr, int32(len(name)), id))
-}
-
 // Set binds a value to a global name, so a host can seed configuration into an
 // interpreter without going through source text.
-func (a *ABI) Set(name string, value any) (err error) {
+// Set binds a value to a global name, so a host can seed configuration into an
+// interpreter without going through source text.
+//
+// It takes a built value rather than any Go value: what a global may be is a
+// closed question, and internal/value is where it is answered.
+func (a *ABI) Set(name string, v value.Value) (err error) {
 	if err := a.status(); err != nil {
 		return err
 	}
 	defer a.guard(&err)
 
-	a.enc.reset()
-	a.enc.buf = append(a.enc.buf, name...)
-	if err := a.enc.value(value, 0); err != nil {
+	lowered, err := lower(v)
+	if err != nil {
 		return err
 	}
 
-	ptr, err := a.Write(a.enc.buf)
+	// One buffer, name and value together: the scratch moves when it grows, so
+	// a pointer taken before the second write would dangle after it.
+	buf := make([]byte, 0, len(name)+len(lowered))
+	buf = append(append(buf, name...), lowered...)
+
+	ptr, err := a.Write(buf)
 	if err != nil {
 		return err
 	}
 
 	n := int32(len(name))
-	return a.check(a.mod.Xmp_api_set(ptr, n, ptr+n, int32(len(a.enc.buf))-n))
+	return a.check(a.mod.Xmp_api_set(ptr, n, ptr+n, int32(len(lowered))))
 }
 
 func (a *ABI) init() (err error) {
 	defer a.guard(&err)
 	a.mod.X_initialize()
 	return nil
-}
-
-// newEpoch drops every object reference the guest was holding for the host and
-// starts a new generation, invalidating the Objects handed out under the last
-// one.
-//
-// This is where the design differs from proxy_c.c, which frees each reference
-// individually from a JavaScript finaliser. Nothing here can rely on a
-// finaliser running, and a pooled Program lays a snapshot back down between
-// calls -- after which an index means a different object, or none. So the
-// lifetime is the call, and it is ended explicitly.
-func (a *ABI) newEpoch() {
-	a.epoch++
-	a.enc.epoch = a.epoch
-	a.rep.epoch = a.epoch
-	a.mod.Xmp_api_refs_clear()
 }
 
 // Eval runs src. In ModeValue the result is available from Value.
@@ -113,7 +87,6 @@ func (a *ABI) Eval(src string, mode int32) (err error) {
 	}
 	defer a.guard(&err)
 
-	a.newEpoch()
 	a.dec.reset()
 	ptr, err := a.WriteString(src)
 	if err != nil {
@@ -149,10 +122,10 @@ func (a *ABI) Func(name string) (handle int32, err error) {
 
 	handle = a.mod.Xmp_api_func(ptr, int32(len(name)))
 	if handle < 0 {
-		if err := a.lastError(); err != nil {
+		if err := a.lastError(false); err != nil {
 			return 0, err
 		}
-		return 0, &Exception{Message: fmt.Sprintf("micropython: cannot resolve %q", name)}
+		return 0, value.NewException("NameError", fmt.Sprintf("cannot resolve %q", name))
 	}
 	return handle, nil
 }
@@ -165,7 +138,6 @@ func (a *ABI) Call(handle int32, args []any) (_ any, err error) {
 	}
 	defer a.guard(&err)
 
-	a.newEpoch()
 	a.dec.reset()
 	ptr, encoded, err := a.WriteArgs(args)
 	if err != nil {
@@ -173,39 +145,6 @@ func (a *ABI) Call(handle int32, args []any) (_ any, err error) {
 	}
 
 	if err := a.check(a.mod.Xmp_api_call(handle, ptr, encoded, int32(len(args)))); err != nil {
-		return nil, err
-	}
-	return a.dec.result()
-}
-
-// callRef invokes a reference the guest is holding for the host.
-//
-// It runs inside a call that is already in flight -- a host function reached
-// from Python -- so it nests the same way a host call does, on the decoder
-// that call is using, and leaves the guest's own C stack bookkeeping alone.
-func (a *ABI) callRef(abi *ABI, ref int32, epoch uint64, args []any) (_ any, err error) {
-	if err := a.status(); err != nil {
-		return nil, err
-	}
-	if abi != a || epoch != a.epoch {
-		return nil, fmt.Errorf("micropython: object reference is no longer live")
-	}
-	defer a.guard(&err)
-
-	a.saved = append(a.saved, a.dec)
-	a.dec = decoder{}
-	defer func() {
-		n := len(a.saved) - 1
-		a.dec, a.saved[n] = a.saved[n], decoder{}
-		a.saved = a.saved[:n]
-	}()
-
-	ptr, encoded, err := a.WriteArgs(args)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := a.check(a.mod.Xmp_api_ref_call(ref, ptr, encoded, int32(len(args)))); err != nil {
 		return nil, err
 	}
 	return a.dec.result()
@@ -219,14 +158,13 @@ func (a *ABI) check(rc int32) error {
 
 	interrupted := a.cancelled.Load()
 
-	if err := a.lastError(); err != nil {
-		err.interrupted = interrupted
+	if err := a.lastError(interrupted); err != nil {
 		return err
 	}
 	if interrupted {
 		return ErrInterrupted
 	}
-	return &Exception{Message: "micropython: unknown error"}
+	return value.NewException("RuntimeError", "unknown error")
 }
 
 // lastError returns the exception the module recorded, or nil if there is
@@ -237,20 +175,21 @@ func (a *ABI) check(rc int32) error {
 // the module will not do that while it is still unwinding. The walk reuses the
 // value decoder, which is free at this point -- the call it belonged to failed,
 // so there is no result to collect.
-func (a *ABI) lastError() *Exception {
+func (a *ABI) lastError(interrupted bool) *value.Exception {
 	text := a.str(a.mod.Xmp_api_err(), a.mod.Xmp_api_err_len())
 
-	exc := &Exception{raw: text}
-
+	var streamed any
 	a.dec.reset()
 	if a.mod.Xmp_api_err_value() == apiOK {
 		if v, err := a.dec.result(); err == nil {
-			exc.fill(v)
+			streamed = v
 		}
 	}
 	a.dec.reset()
 
-	if exc.Raw() == "" && exc.Type == "" {
+	exc := value.FromGuest(text, streamed, interrupted)
+
+	if exc.Raw() == "" && exc.Type() == "" {
 		return nil
 	}
 	return exc

@@ -25,7 +25,7 @@ func TestPoolBounded(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			<-start // all in flight at once, forcing the pool to grow
-			if _, err := p.Call(t.Context(), "f", int64(i)); err != nil {
+			if _, err := p.Call(t.Context(), "f", Of(int64(i))); err != nil {
 				t.Error(err)
 			}
 		}()
@@ -42,7 +42,7 @@ func TestPoolBounded(t *testing.T) {
 		t.Errorf("pool kept %d idle interpreters, want at most %d", idle, max)
 	}
 
-	if got, err := p.Call(t.Context(), "f", int64(7)); err != nil || got != int64(7) {
+	if got, err := p.Call(t.Context(), "f", Of(int64(7))); err != nil || got != int64(7) {
 		t.Errorf("after burst: %#v, %v", got, err)
 	}
 }

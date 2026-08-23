@@ -27,7 +27,9 @@ print(assert)
 `
 
 func main() {
-	in, err := micropython.NewInstance(context.TODO())
+	in, err := micropython.NewInstance(context.TODO(), micropython.WithGlobals(micropython.Globals{
+		"STUFF": micropython.Dict(),
+	}))
 	if err != nil {
 		panic(err)
 	}

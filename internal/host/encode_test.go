@@ -3,13 +3,15 @@ package host
 import (
 	"reflect"
 	"testing"
+
+	"github.com/gregfurman/micropython-wasi/internal/value"
 )
 
 // echo returns a handle to a Python function that hands its argument straight
 // back, so a call exercises the encoder and the decoder end to end.
 func echo(t *testing.T) (*ABI, int32) {
 	t.Helper()
-	a, _ := New(nil)
+	a, _ := New()
 	if err := a.Eval("def echo(v):\n    return v\n", ModeExec); err != nil {
 		t.Fatal(err)
 	}
@@ -27,7 +29,7 @@ func TestEncodeRoundTrip(t *testing.T) {
 		[]byte{0, 1, 2, 255},
 		[]any{int64(1), "two", nil, []any{true}},
 		map[string]any{"k": "v", "n": int64(3)},
-		Tuple{int64(1), "two"},
+		value.Tuple{int64(1), "two"},
 		[]any{}, map[string]any{},
 	} {
 		got, err := a.Call(handle, []any{want})
@@ -85,7 +87,7 @@ func TestNoInjection(t *testing.T) {
 func TestEncodeTooDeep(t *testing.T) {
 	a, handle := echo(t)
 	deep := any(int64(1))
-	for range maxEncodeDepth + 2 {
+	for range value.MaxDepth + 2 {
 		deep = []any{deep}
 	}
 	if _, err := a.Call(handle, []any{deep}); err == nil {
@@ -94,7 +96,7 @@ func TestEncodeTooDeep(t *testing.T) {
 }
 
 func TestEncodeMultipleArgs(t *testing.T) {
-	a, _ := New(nil)
+	a, _ := New()
 	if err := a.Eval("def join(a, b, c):\n    return [a, b, c]\n", ModeExec); err != nil {
 		t.Fatal(err)
 	}

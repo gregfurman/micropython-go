@@ -56,7 +56,7 @@ func TestCancelDeadline(t *testing.T) {
 		t.Errorf("took %v to stop, want promptly after the deadline", elapsed)
 	}
 
-	if got, err := p.Call(context.Background(), "double", int64(21)); err != nil || got != int64(42) {
+	if got, err := p.Call(context.Background(), "double", Of(int64(21))); err != nil || got != int64(42) {
 		t.Errorf("after cancellation: %#v, %v", got, err)
 	}
 }
@@ -71,7 +71,7 @@ func TestCancelBeforeCall(t *testing.T) {
 	if _, err := p.Call(ctx, "spin"); !errors.Is(err, context.Canceled) {
 		t.Fatalf("spin() = %v, want Canceled", err)
 	}
-	if got, err := p.Call(context.Background(), "double", int64(1)); err != nil || got != int64(2) {
+	if got, err := p.Call(context.Background(), "double", Of(int64(1))); err != nil || got != int64(2) {
 		t.Errorf("after a pre-cancelled call: %#v, %v", got, err)
 	}
 }
@@ -124,7 +124,7 @@ def spin():
 
 	long := make(chan error, 1)
 	go func() {
-		_, err := p.Call(context.Background(), "work", int64(2_000_000))
+		_, err := p.Call(context.Background(), "work", Of(int64(2_000_000)))
 		long <- err
 	}()
 
@@ -178,7 +178,7 @@ func TestInstanceCancel(t *testing.T) {
 	}
 
 	// Cancel is a request for one call, not a permanent state.
-	if got, err := in.Call(context.Background(), "double", int64(4)); err != nil || got != int64(8) {
+	if got, err := in.Call(context.Background(), "double", Of(int64(4))); err != nil || got != int64(8) {
 		t.Errorf("after Cancel: %#v, %v", got, err)
 	}
 }

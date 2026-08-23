@@ -5,6 +5,8 @@ import (
 	"errors"
 	"strings"
 	"testing"
+
+	"github.com/gregfurman/micropython-wasi/internal/value"
 )
 
 //go:embed testdata/exceptions.py
@@ -45,15 +47,15 @@ func TestExceptions(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			_, err := instance.Call(t.Context(), tt.fn)
 
-			var exc *Exception
+			var exc *value.Exception
 			if !errors.As(err, &exc) {
 				t.Fatalf("%s() returned %v (%T), want *Exception", tt.fn, err, err)
 			}
-			if exc.Type != tt.typ {
-				t.Errorf("Type = %q, want %q", exc.Type, tt.typ)
+			if exc.Type() != tt.typ {
+				t.Errorf("Type = %q, want %q", exc.Type(), tt.typ)
 			}
-			if exc.Message != tt.msg {
-				t.Errorf("Message = %q, want %q", exc.Message, tt.msg)
+			if exc.Message() != tt.msg {
+				t.Errorf("Message = %q, want %q", exc.Message(), tt.msg)
 			}
 
 			if !strings.Contains(exc.Error(), tt.typ) {
@@ -93,7 +95,7 @@ func TestTracebackText(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var exc *Exception
+	var exc *value.Exception
 	if _, err := instance.Call(t.Context(), "outer"); !errors.As(err, &exc) {
 		t.Fatalf("got %v (%T), want *Exception", err, err)
 	}

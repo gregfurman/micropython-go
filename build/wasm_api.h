@@ -90,20 +90,8 @@ MP_API_EXPORT(mp_api_call) int32_t mp_api_call(int32_t handle, const uint8_t *pt
 // progress; see wasm_build.c.
 mp_obj_t mp_api_unpack(const uint8_t *ptr, uint32_t len);
 
-// Builds the exception a PK_EXCEPTION names; see wasm_build.c.
-mp_obj_t mp_api_new_exception(mp_obj_t name, mp_obj_t message);
-
-// Decoding for an entry point nested inside another; see wasm_build.c and the
-// note in wasm_proxy.c about why it cannot clear the stack.
-mp_obj_t *mp_api_unpack_args(const uint8_t *ptr, uint32_t len, uint32_t n, size_t *mark);
-void mp_api_unpack_rewind(size_t mark);
-
-// Binding host functions and host values into the guest's globals; see
-// wasm_host.c.  mp_api_reply is where the host writes what a host function
-// returned.
-MP_API_EXPORT(mp_api_register) int32_t mp_api_register(const char *name, uint32_t name_len, int32_t id);
+// Binding a host value into the guest's globals; see wasm_build.c.
 MP_API_EXPORT(mp_api_set) int32_t mp_api_set(const char *name, uint32_t name_len, const uint8_t *ptr, uint32_t len);
-MP_API_EXPORT(mp_api_reply) void *mp_api_reply(uint32_t size);
 
 MP_API_EXPORT(mp_api_scratch) void *mp_api_scratch(uint32_t size);
 

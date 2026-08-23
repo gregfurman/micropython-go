@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 
 	wasi "github.com/gregfurman/micropython-wasi/internal/micropython"
+	val "github.com/gregfurman/micropython-wasi/internal/value"
 )
 
 // ABI is the crossing between Go and MicroPython, split by direction: it
@@ -27,20 +28,8 @@ type ABI struct {
 	base int32
 
 	dec decoder
-	enc encoder
+	enc writer
 
-	// Host functions the guest can call: the registry ids resolve against, the
-	// decodes call_begin put aside, and the reply call_end hands back. See
-	// funcs.go.
-	funcs *Registry
-	saved []decoder
-	rep   encoder
-
-	// Which generation of object references is live. Bumped at the start of
-	// every call, so a reference from an earlier one is refused rather than
-	// resolved against whatever now sits at that index. Values are unique
-	// across every ABI, so matching epochs also means matching interpreter.
-	epoch uint64
 
 	state atomic.Int32
 	trap  atomic.Pointer[TrapError]
@@ -56,7 +45,7 @@ const (
 
 var (
 	ErrClosed      = errors.New("micropython: instance is closed")
-	ErrInterrupted = errors.New("micropython: call was interrupted")
+	ErrInterrupted = val.ErrInterrupted
 )
 
 type TrapError struct {
@@ -121,7 +110,7 @@ func (a *ABI) Closed() bool { return a.state.Load() != stateOpen }
 func (a *ABI) Release() {
 	a.mod = nil
 	a.dec.reset()
-	a.enc.reset()
+	a.enc.Reset()
 }
 
 // Xpoll is called by the VM hook every MICROPY_VM_HOOK_COUNT bytecodes, on the
@@ -202,18 +191,25 @@ func (a *ABI) write[T ~[]byte | ~string](b T) (ptr int32, err error) {
 // WriteArgs encodes values into the module's scratch buffer, returning its
 // offset and length.
 func (a *ABI) WriteArgs(values []any) (ptr, n int32, err error) {
-	a.enc.reset()
+	a.enc.Reset()
 	for _, v := range values {
-		if err := a.enc.value(v, 0); err != nil {
+		x, err := toValue(v, 0)
+		if err != nil {
 			return 0, 0, err
 		}
+		val.Lower(x, &a.enc)
 	}
 
-	ptr, err = a.Write(a.enc.buf)
+	buf, err := a.enc.Bytes()
 	if err != nil {
 		return 0, 0, err
 	}
-	return ptr, int32(len(a.enc.buf)), nil
+
+	ptr, err = a.Write(buf)
+	if err != nil {
+		return 0, 0, err
+	}
+	return ptr, int32(len(buf)), nil
 }
 
 func (a *ABI) Err() error {

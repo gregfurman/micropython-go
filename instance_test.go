@@ -2,8 +2,12 @@ package micropython
 
 import (
 	"context"
+	"errors"
 	"reflect"
+	"strings"
 	"testing"
+
+	"github.com/gregfurman/micropython-wasi/internal/value"
 )
 
 func newT(t *testing.T) *Instance {
@@ -24,10 +28,10 @@ func TestExecThenCall(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if got, err := in.Call(ctx, "double", 21); err != nil || got != int64(42) {
+	if got, err := in.Call(ctx, "double", Of(21)); err != nil || got != int64(42) {
 		t.Errorf("double(21) = %#v, %v", got, err)
 	}
-	if got, err := in.Call(ctx, "shout", "hi"); err != nil || got != "HI" {
+	if got, err := in.Call(ctx, "shout", Of("hi")); err != nil || got != "HI" {
 		t.Errorf("shout(\"hi\") = %#v, %v", got, err)
 	}
 }
@@ -50,7 +54,7 @@ func TestCallByName(t *testing.T) {
 	if _, err := in.Exec(ctx, "def add(a, b):\n    return a + b\n"); err != nil {
 		t.Fatal(err)
 	}
-	got, err := in.Call(ctx, "add", 20, 22)
+	got, err := in.Call(ctx, "add", Of(20), Of(22))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -83,7 +87,7 @@ func TestPythonError(t *testing.T) {
 		t.Fatal("expected a Python error")
 	}
 	// The instance must still work afterwards.
-	if got, err := in.Call(ctx, "len", "abc"); err != nil || got != int64(3) {
+	if got, err := in.Call(ctx, "len", Of("abc")); err != nil || got != int64(3) {
 		t.Errorf("after error: %#v, %v", got, err)
 	}
 }
@@ -95,5 +99,219 @@ func TestEval(t *testing.T) {
 	}
 	if want := []any{int64(1), int64(2), int64(3)}; !reflect.DeepEqual(got, want) {
 		t.Errorf("Eval = %#v, want %#v", got, want)
+	}
+}
+
+// Globals are a closed set: WithGlobal takes a built value, so a Go type with
+// no Python equivalent -- a func, a channel, a struct -- does not compile
+// rather than failing at the encoder or, worse, being quietly accepted.
+func TestGlobals(t *testing.T) {
+	p, err := Compile(context.Background(), `
+def run():
+    return [
+        NAME,
+        LIMITS["retries"],
+        sorted(TAGS),
+        COUNTS,
+        FLAG,
+        RATIO,
+        RAW,
+        NOTHING,
+        sorted(UNIQUE),
+    ]
+`,
+		WithGlobals(Globals{
+			"NAME":    Str("service"),
+			"LIMITS":  Dict(Item{Key: Str("retries"), Val: Int(3)}),
+			"TAGS":    Strs("b", "a"),
+			"COUNTS":  Tuple(Int(1), Int(2)),
+			"FLAG":    Bool(true),
+			"RATIO":   Float(0.5),
+			"RAW":     Bytes([]byte("hi")),
+			"NOTHING": None(),
+			"UNIQUE":  Set(Int(2), Int(1), Int(2)),
+		}),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer p.Close()
+
+	got, err := p.Call(t.Context(), "run")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []any{
+		"service", int64(3), []any{"a", "b"},
+		value.Tuple{int64(1), int64(2)}, true, 0.5, []byte("hi"), nil,
+		[]any{int64(1), int64(2)},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("run() =\n\t%#v\nwant\n\t%#v", got, want)
+	}
+}
+
+// Lift is the other half of the pair: the plain Go value a built one stands
+// for, which must be what the guest sends back for the same value.
+func TestValueLiftMatchesRoundTrip(t *testing.T) {
+	values := []Value{
+		None(), Bool(true), Int(-7), Float(1.5), Str("x"), Bytes([]byte("ab")),
+		List(Int(1), Str("a")),
+		Tuple(Int(1)),
+		Dict(Item{Key: Str("k"), Val: Int(1)}),
+	}
+
+	p, err := Compile(context.Background(), "def echo(v):\n    return v\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer p.Close()
+
+	for _, v := range values {
+		t.Run(v.Type(), func(t *testing.T) {
+			in, err := NewInstance(t.Context())
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer in.Close()
+
+			if err := in.Set(t.Context(), "V", v); err != nil {
+				t.Fatal(err)
+			}
+			got, err := in.Eval(t.Context(), "V")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if want := v.lift(); !reflect.DeepEqual(got, want) {
+				t.Errorf("guest sent %#v, Lift says %#v", got, want)
+			}
+		})
+	}
+}
+
+// An Object carries a type name and a repr rather than the object it stands
+// for, so it cannot go back; the JSON fallback would have made it a dict of
+// those two strings. An Exception can, because its type and message are the
+// whole of it.
+func TestPythonValuesPassedBack(t *testing.T) {
+	in := newT(t)
+
+	got, err := in.Eval(t.Context(), "lambda: 1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	obj, ok := got.(Object)
+	if !ok {
+		t.Fatalf("got %#v (%T), want an Object", got, got)
+	}
+
+	if _, err := in.Exec(t.Context(), "def f(v):\n    return v\n"); err != nil {
+		t.Fatal(err)
+	}
+	_, err = in.Call(t.Context(), "f", Of(obj))
+	if err == nil {
+		t.Fatal("an Object was accepted as an argument")
+	}
+	if !strings.Contains(err.Error(), "cannot be passed back") {
+		t.Errorf("Call = %v, want it to say the Object cannot be passed back", err)
+	}
+
+	// An exception, by contrast, is fully described by its type and message,
+	// so it does go back -- as a real exception, not a dict of its fields.
+	_, callErr := in.Call(t.Context(), "f")
+	var exc *value.Exception
+	if !errors.As(callErr, &exc) {
+		t.Fatalf("got %v (%T), want *Exception", callErr, callErr)
+	}
+	if _, err := in.Exec(t.Context(), "def kind(e):\n    return type(e).__name__\n"); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := in.Call(t.Context(), "kind", Of(exc)); err != nil || got != exc.Type() {
+		t.Errorf("passing an Exception back = %#v, %v; want %q", got, err, exc.Type())
+	}
+
+	// And the instance is unharmed.
+	if got, err := in.Call(t.Context(), "f", Of(int64(1))); err != nil || got != int64(1) {
+		t.Errorf("after the refusals: %#v, %v", got, err)
+	}
+}
+
+// A host-built exception becomes a real Python exception: the guest raises it,
+// and `except ValueError` catches it because the type name was resolved
+// against builtins rather than pasted into a message.
+func TestExceptionLowers(t *testing.T) {
+	p, err := Compile(context.Background(), `
+def raise_it():
+    raise BAD
+
+def caught():
+    try:
+        raise BAD
+    except ValueError as e:
+        return "caught:" + str(e)
+
+def unknown():
+    try:
+        raise ODD
+    except RuntimeError as e:
+        return "fallback:" + str(e)
+`, WithGlobals(Globals{
+		"BAD": Exception("ValueError", "bad input"),
+		// A type the guest has never heard of falls back rather than failing
+		// twice on the way to reporting the first failure.
+		"ODD": Exception("NoSuchError", "still readable"),
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer p.Close()
+
+	if got, err := p.Call(t.Context(), "caught"); err != nil || got != "caught:bad input" {
+		t.Errorf("caught() = %#v, %v", got, err)
+	}
+	if got, err := p.Call(t.Context(), "unknown"); err != nil || got != "fallback:still readable" {
+		t.Errorf("unknown() = %#v, %v", got, err)
+	}
+
+	// Raised and uncaught, it comes back out as the same exception.
+	var exc *value.Exception
+	if _, err := p.Call(t.Context(), "raise_it"); !errors.As(err, &exc) {
+		t.Fatalf("got %v (%T), want *Exception", err, err)
+	} else if exc.Type() != "ValueError" || exc.Message() != "bad input" {
+		t.Errorf("round trip = %q / %q", exc.Type(), exc.Message())
+	}
+}
+
+// A built value passed as a call argument must arrive as itself. It used to
+// reach the encoder as a struct with one unexported field, which JSON rendered
+// as an empty dict without complaining.
+func TestBuiltValueAsCallArgument(t *testing.T) {
+	p, err := Compile(context.Background(), "def echo(v):\n    return v\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer p.Close()
+
+	tests := []struct {
+		arg  Value
+		want any
+	}{
+		{Int(3), int64(3)},
+		{Str("x"), "x"},
+		{None(), nil},
+		{List(Int(1), Int(2)), []any{int64(1), int64(2)}},
+		{Dict(Item{Key: Str("k"), Val: Int(1)}), map[string]any{"k": int64(1)}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.arg.Type(), func(t *testing.T) {
+			got, err := p.Call(t.Context(), "echo", tt.arg)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("echo(%s) = %#v, want %#v", tt.arg.Type(), got, tt.want)
+			}
+		})
 	}
 }

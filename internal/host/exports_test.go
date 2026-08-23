@@ -3,10 +3,12 @@ package host
 import (
 	"errors"
 	"testing"
+
+	"github.com/gregfurman/micropython-wasi/internal/value"
 )
 
 func TestExecOutput(t *testing.T) {
-	a, _ := New(nil)
+	a, _ := New()
 	if err := a.Eval("for i in range(3):\n    print(i)\n", ModeExec); err != nil {
 		t.Fatal(err)
 	}
@@ -16,24 +18,24 @@ func TestExecOutput(t *testing.T) {
 }
 
 func TestPythonError(t *testing.T) {
-	a, _ := New(nil)
+	a, _ := New()
 	err := a.Eval("1/0", ModeValue)
 	if err == nil {
 		t.Fatal("expected an error")
 	}
 
-	var exc *Exception
+	var exc *value.Exception
 	if !errors.As(err, &exc) {
 		t.Fatalf("got %T, want *Exception", err)
 	}
 	if exc.Raw() == "" {
 		t.Error("empty traceback")
 	}
-	if exc.Type != "ZeroDivisionError" {
-		t.Errorf("Type = %q, want ZeroDivisionError", exc.Type)
+	if exc.Type() != "ZeroDivisionError" {
+		t.Errorf("Type = %q, want ZeroDivisionError", exc.Type())
 	}
-	if exc.Message != "divide by zero" {
-		t.Errorf("Message = %q", exc.Message)
+	if exc.Message() != "divide by zero" {
+		t.Errorf("Message = %q", exc.Message())
 	}
 
 	// ensure the interpreter survives the exception...
@@ -43,7 +45,7 @@ func TestPythonError(t *testing.T) {
 }
 
 func TestFuncAndCall(t *testing.T) {
-	a, _ := New(nil)
+	a, _ := New()
 	if err := a.Eval("def add(x, y):\n    return x + y\n", ModeExec); err != nil {
 		t.Fatal(err)
 	}

@@ -46,16 +46,16 @@ func TestSets(t *testing.T) {
 		host.FrozenSet{int64(7)},
 		host.Set{},
 	} {
-		got, err := in.Call(t.Context(), "echo", in0)
+		got, err := in.Call(t.Context(), "echo", Of(in0))
 		if err != nil {
 			t.Errorf("echo(%#v) -> %v", in0, err)
 			continue
 		}
-		k, _ := in.Call(t.Context(), "kind", in0)
+		k, _ := in.Call(t.Context(), "kind", Of(in0))
 		t.Logf("%-34s -> python %-10v -> %T %v", fmt.Sprintf("%#v", in0), k, got, got)
 	}
 
-	_, err = in.Call(t.Context(), "echo", host.Set{[]any{int64(1)}})
+	_, err = in.Call(t.Context(), "echo", Of(host.Set{[]any{int64(1)}}))
 	t.Logf("set containing a list -> %v", err)
 	if in.Err() != nil {
 		t.Errorf("instance died: %v", in.Err())
@@ -75,14 +75,14 @@ func TestFrozenSetIsImmutable(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := in.Call(t.Context(), "mutate", host.FrozenSet{int64(1)}); err == nil {
+	if _, err := in.Call(t.Context(), "mutate", Of(host.FrozenSet{int64(1)})); err == nil {
 		t.Error("a frozenset accepted add()")
 	} else if !strings.Contains(err.Error(), "AttributeError") {
 		t.Errorf("mutating a frozenset: %v, want AttributeError", err)
 	}
 
 	// A set is the mutable one, so the same call succeeds.
-	if _, err := in.Call(t.Context(), "mutate", host.Set{int64(1)}); err != nil {
+	if _, err := in.Call(t.Context(), "mutate", Of(host.Set{int64(1)})); err != nil {
 		t.Errorf("a set refused add(): %v", err)
 	}
 }

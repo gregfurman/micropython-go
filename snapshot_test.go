@@ -84,7 +84,7 @@ func runSuite(t *testing.T, contents []byte) {
 			if err != nil {
 				var exc *host.Exception
 				if errors.As(err, &exc) {
-					switch exc.Type {
+					switch exc.Type() {
 					case "SystemExit":
 						t.Skip("Skipped in MicroPython test suite.")
 					case "NotImplementedError":

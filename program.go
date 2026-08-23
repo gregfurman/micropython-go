@@ -22,21 +22,18 @@ type Program struct {
 
 func Compile(ctx context.Context, src string, opts ...option) (*Program, error) {
 	// TODO(gregfurman): Consider catering for warm and cold starts
-	opt, err := newOptions(opts)
-	if err != nil {
-		return nil, err
-	}
+	opt := newOptions(opts)
 	if opt.programPoolSize == 0 {
 		opt.programPoolSize = max(runtime.NumCPU(), 1)
 	}
 
-	in, err := api.New(opt.funcs)
+	in, err := api.New()
 	if err != nil {
 		return nil, err
 	}
 
 	for _, g := range opt.globals {
-		if err := in.Set(ctx, g.name, g.value); err != nil {
+		if err := in.Set(ctx, g.name, g.value.val); err != nil {
 			in.Close()
 			return nil, err
 		}
@@ -65,7 +62,7 @@ func (p *Program) Instance(ctx context.Context) (*Instance, error) {
 	return fromSnapshot(p.snap)
 }
 
-func (p *Program) Call(ctx context.Context, name string, args ...any) (any, error) {
+func (p *Program) Call(ctx context.Context, name string, args ...Value) (any, error) {
 	in, err := p.acquire()
 	if err != nil {
 		return nil, err

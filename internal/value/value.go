@@ -1,223 +1,318 @@
-// Package value holds the Go side of the boundary's value model: the types a
-// Python value arrives as, and the coercion from one of those to whatever a
-// host function asked for.
-//
-// It does the coercion with a type switch and nothing else. Reflection would
-// take fewer lines and accept more types -- any slice, any map, any struct --
-// but it moves the checking to run time and puts a reflect.Value between every
-// argument and the function that wanted it. The types below are the ones the
-// decoder actually produces; anything richer is the host function's own
-// business, converted inside it where the compiler can still see it.
 package value
 
 import (
+	"errors"
 	"fmt"
 	"math"
 )
+
+// matching the PK_* enum in build/wasm_pack.h
+
+const (
+	TagNone = iota
+	TagFalse
+	TagTrue
+	TagInt
+	TagFloat
+	TagStr
+	TagBytes
+	TagList
+	TagTuple
+	TagDict
+	TagSet
+	TagFrozenSet
+	TagException
+)
+
+// MaxDepth matches PK_MAX_DEPTH. The guest refuses anything deeper, so there is
+// no point sending it.
+const MaxDepth = 32
+
+var ()
+
+// Value is a Python value the host has built. The set is closed: only the types
+// in this package implement it.
+// The method set is unexported apart from Type, which does two jobs: it seals
+// the interface, so only this package implements it, and it keeps the surface
+// clean on a type the public package aliases -- Exception is both a value and
+// an error, and a caller inspecting one should not see the wire format.
+type Value interface {
+	lower(w Writer)
+	lift() any
+	Type() string
+}
+
+// Lower writes v through w. A method would be neater, but an exported one
+// shows up on every aliased type.
+func Lower(v Value, w Writer) { v.lower(w) }
+
+// Lift returns the plain Go value v stands for.
+func Lift(v Value) any { return v.lift() }
+
+type (
+	// None is Python's None.
+	None struct{}
+
+	// Bool is a Python bool.
+	Bool bool
+
+	// Int is a Python int. One outside int64 cannot be built here, though the
+	// guest can still send one back.
+	Int int64
+
+	// Float is a Python float.
+	Float float64
+
+	// Str is a Python str.
+	Str string
+
+	// Bytes is a Python bytes.
+	Bytes []byte
+
+	// Callable is a Go function the guest could call. Declared but not
+	// supported: lowering one fails, since the guest side does not exist.
+	Callable struct {
+		Name string
+		Fn   func(args []Value, kwargs map[string]Value) (Value, error)
+	}
+
+	list      []Value
+	tuple     []Value
+	set       []Value
+	frozenSet []Value
+	dict      []Item
+)
+
+// Item is one entry of a Dict.
+type Item struct {
+	Key Value
+	Val Value
+}
+
+// What the decoder produces, and so what Lift returns.
 
 // Tuple is a Python tuple. It is distinct from []any so that the round trip
 // back into Python can preserve tuple-ness, which JSON could not.
 type Tuple []any
 
 // Set is a Python set. Go has no set type, so it arrives as a slice -- but a
-// distinct one, so a round trip back into Python stays a set rather than
-// becoming a list, and so a reader is not misled into depending on the order.
-// A set has none: these are the elements in whatever order the guest's hash
-// table held them.
+// distinct one, so a reader is not misled into depending on the order. A set
+// has none: these are the elements in whatever order the guest's hash table
+// held them.
 type Set []any
 
-// FrozenSet is a Python frozenset. It is separate from Set only so the round
-// trip preserves which one it was; nothing about it is immutable on this side.
+// FrozenSet is a Python frozenset, separate from Set only so a reader can tell
+// which one the guest had.
 type FrozenSet []any
 
-// Unpack assigns src to whatever dst points at, converting where Python and Go
-// disagree but Go itself would not.
+// NewList builds a Python list.
+func NewList(items ...Value) Value { return list(items) }
+
+// NewTuple builds a Python tuple.
+func NewTuple(items ...Value) Value { return tuple(items) }
+
+// NewSet builds a Python set. Duplicates are the guest's to collapse and an
+// unhashable member is the guest's to refuse, exactly as in Python.
+func NewSet(items ...Value) Value { return set(items) }
+
+// NewFrozenSet builds a Python frozenset.
+func NewFrozenSet(items ...Value) Value { return frozenSet(items) }
+
+// NewDict builds a Python dict, keeping the order it was given.
+func NewDict(entries ...Item) Value {
+	out := make(dict, len(entries))
+	copy(out, entries)
+	return out
+}
+
+func (None) Type() string      { return "NoneType" }
+func (Bool) Type() string      { return "bool" }
+func (Int) Type() string       { return "int" }
+func (Float) Type() string     { return "float" }
+func (Str) Type() string       { return "str" }
+func (Bytes) Type() string     { return "bytes" }
+func (Callable) Type() string  { return "callable" }
+func (list) Type() string      { return "list" }
+func (tuple) Type() string     { return "tuple" }
+func (set) Type() string       { return "set" }
+func (frozenSet) Type() string { return "frozenset" }
+func (dict) Type() string      { return "dict" }
+
+// ------------------------------------------------------------------
+
+func (None) lower(w Writer) { w.Tag(TagNone) }
+
+func (b Bool) lower(w Writer) {
+	if b {
+		w.Tag(TagTrue)
+		return
+	}
+	w.Tag(TagFalse)
+}
+
+func (i Int) lower(w Writer) {
+	w.Tag(TagInt)
+	w.U64(uint64(i))
+}
+
+func (f Float) lower(w Writer) {
+	w.Tag(TagFloat)
+	w.U64(math.Float64bits(float64(f)))
+}
+
+func (s Str) lower(w Writer) {
+	w.Tag(TagStr)
+	if blob(w, len(s)) {
+		w.RawString(string(s))
+	}
+}
+
+func (b Bytes) lower(w Writer) {
+	w.Tag(TagBytes)
+	if blob(w, len(b)) {
+		w.Raw(b)
+	}
+}
+
+// ErrNoCallable is what lowering a Callable reports
+var ErrNoCallable = errors.New("micropython: a Callable cannot be passed to the guest: host functions are not supported in this build")
+
+func (Callable) lower(w Writer) { w.Fail(ErrNoCallable) }
+
+func (l list) lower(w Writer)      { lowerItems(w, TagList, l) }
+func (t tuple) lower(w Writer)     { lowerItems(w, TagTuple, t) }
+func (s set) lower(w Writer)       { lowerItems(w, TagSet, s) }
+func (f frozenSet) lower(w Writer) { lowerItems(w, TagFrozenSet, f) }
+
+func (d dict) lower(w Writer) {
+	if !w.Enter() {
+		return
+	}
+	w.Tag(TagDict)
+	w.U32(uint32(len(d)))
+	for _, item := range d {
+		item.Key.lower(w)
+		item.Val.lower(w)
+	}
+	w.Leave()
+}
+
+// ------------------------------------------------------------------
+
+func (None) lift() any    { return nil }
+func (b Bool) lift() any  { return bool(b) }
+func (i Int) lift() any   { return int64(i) }
+func (f Float) lift() any { return float64(f) }
+func (s Str) lift() any   { return string(s) }
+func (b Bytes) lift() any { return []byte(b) }
+
+// Lift returns the Go function itself, which is the only thing it stands for:
+// nothing decodes into a Callable, since the guest cannot send one.
+func (c Callable) lift() any  { return c }
+func (l list) lift() any      { return lift(l) }
+func (t tuple) lift() any     { return Tuple(lift(t)) }
+func (s set) lift() any       { return Set(lift(s)) }
+func (f frozenSet) lift() any { return FrozenSet(lift(f)) }
+
+func (d dict) lift() any {
+	kv := make([]any, 0, 2*len(d))
+	for _, entry := range d {
+		kv = append(kv, entry.Key.lift(), entry.Val.lift())
+	}
+	return Map(kv)
+}
+
+func lift[S ~[]Value](s S) []any {
+	out := make([]any, len(s))
+	for i, v := range s {
+		out[i] = v.lift()
+	}
+	return out
+}
+
+// ------------------------------------------------------------------
+
+// Writer is what Lower writes through. The format is described here and
+// implemented by whoever is collecting the bytes; internal/host has the one
+// that fills the module's scratch buffer.
+type Writer interface {
+	Tag(byte)
+	U32(uint32)
+	U64(uint64)
+	Raw([]byte)
+	RawString(string)
+	Enter() bool
+	Leave()
+	Fail(error)
+}
+
+// blob writes a length and the bytes it counts.
+func blob(w Writer, n int) bool {
+	if int64(n) > math.MaxUint32 {
+		w.Fail(fmt.Errorf("micropython: %d bytes is too large to pass", n))
+		return false
+	}
+	w.U32(uint32(n))
+	return true
+}
+
+func lowerItems(w Writer, tag byte, values []Value) {
+	if !w.Enter() {
+		return
+	}
+	w.Tag(tag)
+	w.U32(uint32(len(values)))
+	for _, v := range values {
+		v.lower(w)
+	}
+	w.Leave()
+}
+
+// Map builds the Go map a Python dict becomes, from alternating lifted keys
+// and values. String keys give a map[string]any, anything else a map[any]any.
 //
-// It switches on the target, then on the source. Both switches are over
-// concrete types, so every destination type is checked where it is written and
-// a call costs a pair of interface comparisons. It is the primitive the whole
-// binding is built from -- starlark-go's unpackOneArg is the same function.
-func Unpack(src any, dst any) error {
-	switch p := dst.(type) {
-	case nil:
-		return fmt.Errorf("cannot unpack into a nil destination")
-
-	case *any:
-		*p = src
-		return nil
-
-	case *bool:
-		if v, ok := src.(bool); ok {
-			*p = v
-			return nil
-		}
-
-	case *int:
-		return toSigned(src, p, math.MinInt, math.MaxInt)
-	case *int8:
-		return toSigned(src, p, math.MinInt8, math.MaxInt8)
-	case *int16:
-		return toSigned(src, p, math.MinInt16, math.MaxInt16)
-	case *int32:
-		return toSigned(src, p, math.MinInt32, math.MaxInt32)
-	case *int64:
-		return toSigned(src, p, math.MinInt64, math.MaxInt64)
-
-	case *uint:
-		return toUnsigned(src, p, math.MaxUint)
-	case *uint8:
-		return toUnsigned(src, p, math.MaxUint8)
-	case *uint16:
-		return toUnsigned(src, p, math.MaxUint16)
-	case *uint32:
-		return toUnsigned(src, p, math.MaxUint32)
-	case *uint64:
-		return toUnsigned(src, p, math.MaxUint64)
-
-	// An int widens to a float, as it would passing one to a Go float
-	// parameter. A float never narrows to an int: that would drop part of the
-	// value without saying so.
-	case *float32:
-		switch v := src.(type) {
-		case int64:
-			*p = float32(v)
-			return nil
-		case float64:
-			*p = float32(v)
-			return nil
-		}
-	case *float64:
-		switch v := src.(type) {
-		case int64:
-			*p = float64(v)
-			return nil
-		case float64:
-			*p = v
-			return nil
-		}
-
-	case *string:
-		switch v := src.(type) {
-		case string:
-			*p = v
-			return nil
-		case []byte:
-			*p = string(v)
-			return nil
-		}
-
-	case *[]byte:
-		if v, ok := src.([]byte); ok {
-			*p = v
-			return nil
-		}
-
-	case *map[string]any:
-		if v, ok := src.(map[string]any); ok {
-			*p = v
-			return nil
-		}
-
-	case *map[any]any:
-		if v, ok := src.(map[any]any); ok {
-			*p = v
-			return nil
-		}
-
-	case *[]any:
-		if v, ok := items(src); ok {
-			*p = v
-			return nil
-		}
-	case *Tuple:
-		if v, ok := items(src); ok {
-			*p = Tuple(v)
-			return nil
-		}
-	case *Set:
-		if v, ok := items(src); ok {
-			*p = Set(v)
-			return nil
-		}
-	case *FrozenSet:
-		if v, ok := items(src); ok {
-			*p = FrozenSet(v)
-			return nil
+// Shared with the decoder, which must answer this the same way. The flat shape
+// is its: values arrive one callback at a time.
+func Map(kv []any) any {
+	strings := true
+	for i := 0; i+1 < len(kv); i += 2 {
+		if _, ok := kv[i].(string); !ok {
+			strings = false
+			break
 		}
 	}
 
-	return fmt.Errorf("cannot use %s as %T", Name(src), dst)
+	if strings {
+		out := make(map[string]any, len(kv)/2)
+		for i := 0; i+1 < len(kv); i += 2 {
+			out[kv[i].(string)] = kv[i+1]
+		}
+		return out
+	}
+
+	out := make(map[any]any, len(kv)/2)
+	for i := 0; i+1 < len(kv); i += 2 {
+		out[MapKey(kv[i])] = kv[i+1]
+	}
+	return out
 }
 
-// items reads anything the guest sends as a sequence. The four are the same
-// slice underneath, and which one it was is a fact about the guest's type
-// rather than about the elements.
-func items(src any) ([]any, bool) {
-	switch v := src.(type) {
-	case []any:
-		return v, true
-	case Tuple:
-		return v, true
-	case Set:
-		return v, true
-	case FrozenSet:
-		return v, true
+// MapKey makes a value usable as a Go map key. Python hashes tuples,
+// frozensets and bytes; Go panics on them, which a guest could trigger with
+// {(1, 2): "x"}, so those stand in as their rendering.
+func MapKey(v any) any {
+	switch v.(type) {
+	case []any, Tuple, Set, FrozenSet, []byte, map[string]any, map[any]any:
+		return fmt.Sprintf("%T%v", v, v)
 	}
-	return nil, false
+	return v
 }
 
-func toSigned[T ~int | ~int8 | ~int16 | ~int32 | ~int64](src any, dst *T, lo, hi int64) error {
-	v, ok := src.(int64)
-	if !ok {
-		return fmt.Errorf("cannot use %s as %T", Name(src), *dst)
-	}
-	if v < lo || v > hi {
-		return fmt.Errorf("%d does not fit in %T", v, *dst)
-	}
-	*dst = T(v)
-	return nil
-}
+// Invalid is a value that cannot be lowered, carrying the reason.
+func Invalid(err error) Value { return invalid{err} }
 
-func toUnsigned[T ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64](src any, dst *T, hi uint64) error {
-	v, ok := src.(int64)
-	if !ok {
-		return fmt.Errorf("cannot use %s as %T", Name(src), *dst)
-	}
-	if v < 0 || uint64(v) > hi {
-		return fmt.Errorf("%d does not fit in %T", v, *dst)
-	}
-	*dst = T(v)
-	return nil
-}
+type invalid struct{ err error }
 
-// Name names a value the way the guest would, so an error reads in the
-// language the call was written in.
-func Name(v any) string {
-	switch value := v.(type) {
-	case nil:
-		return "None"
-	case bool:
-		return "bool"
-	case int64:
-		return "int"
-	case float64:
-		return "float"
-	case string:
-		return "str"
-	case []byte:
-		return "bytes"
-	case []any:
-		return "list"
-	case Tuple:
-		return "tuple"
-	case Set:
-		return "set"
-	case FrozenSet:
-		return "frozenset"
-	case map[string]any, map[any]any:
-		return "dict"
-	case fmt.Stringer:
-		return value.String()
-	}
-	return fmt.Sprintf("%T", v)
-}
+func (i invalid) lower(w Writer) { w.Fail(i.err) }
+func (i invalid) lift() any      { return i.err }
+func (invalid) Type() string     { return "invalid" }

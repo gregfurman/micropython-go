@@ -92,7 +92,7 @@ func TestRoundTrip(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := in.Call(t.Context(), "echo", tt.send)
+			got, err := in.Call(t.Context(), "echo", Of(tt.send))
 			if err != nil {
 				t.Fatalf("echo(%#v): %v", tt.send, err)
 			}
@@ -166,7 +166,7 @@ func TestRoundTripRejects(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if _, err := in.Call(t.Context(), "echo", tt.send); err == nil {
+			if _, err := in.Call(t.Context(), "echo", Of(tt.send)); err == nil {
 				t.Errorf("echo(%#v) was accepted", tt.send)
 			}
 			if err := in.Err(); err != nil {

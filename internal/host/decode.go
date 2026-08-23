@@ -2,30 +2,14 @@ package host
 
 import (
 	"fmt"
-	"reflect"
+
+	"github.com/gregfurman/micropython-wasi/internal/value"
 )
 
 // Values coming out of the module.
-//
-// build/wasm_value.c walks the result and streams it through the val_*
-// callbacks at the bottom of this file. A container announces its length and
-// is followed by exactly that many values, twice that for a dict, so a stack
-// of partially filled frames rebuilds the tree with no intermediate
-// encoding.
-
-type frameKind int
-
-const (
-	frameList frameKind = iota
-	frameTuple
-	frameDict
-	frameSet
-	frameFrozenSet
-)
-
 type frame struct {
-	kind  frameKind
-	want  int // number of values still expected
+	kind  byte
+	want  int
 	items []any
 }
 
@@ -73,13 +57,13 @@ func (d *decoder) push(v any) {
 }
 
 // open starts a container of n values, or finishes an empty one outright.
-func (d *decoder) open(kind frameKind, n int32) {
+func (d *decoder) open(kind byte, n int32) {
 	if n == 0 {
 		d.push(collapse(frame{kind: kind, items: []any{}}))
 		return
 	}
 	want := int(n)
-	if kind == frameDict {
+	if kind == value.TagDict {
 		want *= 2
 	}
 	d.stack = append(d.stack, frame{kind: kind, want: want, items: make([]any, 0, want)})
@@ -87,62 +71,31 @@ func (d *decoder) open(kind frameKind, n int32) {
 
 func collapse(f frame) any {
 	switch f.kind {
-	case frameTuple:
-		return Tuple(f.items)
-	case frameDict:
-		return makeMap(f.items)
-	case frameSet:
-		return Set(f.items)
-	case frameFrozenSet:
-		return FrozenSet(f.items)
+	case value.TagTuple:
+		return value.Tuple(f.items)
+	case value.TagDict:
+		return value.Map(f.items)
+	case value.TagSet:
+		return value.Set(f.items)
+	case value.TagFrozenSet:
+		return value.FrozenSet(f.items)
 	default:
 		return f.items
 	}
-}
-
-func makeMap(kv []any) any {
-	strings := true
-	for i := 0; i+1 < len(kv); i += 2 {
-		if _, ok := kv[i].(string); !ok {
-			strings = false
-			break
-		}
-	}
-
-	if strings {
-		m := make(map[string]any, len(kv)/2)
-		for i := 0; i+1 < len(kv); i += 2 {
-			m[kv[i].(string)] = kv[i+1]
-		}
-		return m
-	}
-
-	m := make(map[any]any, len(kv)/2)
-	for i := 0; i+1 < len(kv); i += 2 {
-		m[key(kv[i])] = kv[i+1]
-	}
-	return m
-}
-
-func key(v any) any {
-	if v == nil || reflect.TypeOf(v).Comparable() {
-		return v
-	}
-	return fmt.Sprintf("%T%v", v, v)
 }
 
 func (a *ABI) Xval_none()           { a.dec.push(nil) }
 func (a *ABI) Xval_bool(v int32)    { a.dec.push(v != 0) }
 func (a *ABI) Xval_int(v int64)     { a.dec.push(v) }
 func (a *ABI) Xval_float(v float64) { a.dec.push(v) }
-func (a *ABI) Xval_list(n int32)    { a.dec.open(frameList, n) }
-func (a *ABI) Xval_tuple(n int32)   { a.dec.open(frameTuple, n) }
-func (a *ABI) Xval_dict(n int32)    { a.dec.open(frameDict, n) }
+func (a *ABI) Xval_list(n int32)    { a.dec.open(value.TagList, n) }
+func (a *ABI) Xval_tuple(n int32)   { a.dec.open(value.TagTuple, n) }
+func (a *ABI) Xval_dict(n int32)    { a.dec.open(value.TagDict, n) }
 
 func (a *ABI) Xval_set(n, frozen int32) {
-	kind := frameSet
+	kind := byte(value.TagSet)
 	if frozen != 0 {
-		kind = frameFrozenSet
+		kind = value.TagFrozenSet
 	}
 	a.dec.open(kind, n)
 }
@@ -157,16 +110,13 @@ func (a *ABI) Xval_bytes(ptr, length int32) {
 	a.dec.push(out)
 }
 
-func (a *ABI) Xval_other(ref, callable, typePtr, typeLen, reprPtr, reprLen int32) {
+func (a *ABI) Xval_exception(typePtr, typeLen, msgPtr, msgLen int32) {
+	a.dec.push(value.NewException(a.str(typePtr, typeLen), a.str(msgPtr, msgLen)))
+}
+
+func (a *ABI) Xval_other(typePtr, typeLen, reprPtr, reprLen int32) {
 	a.dec.push(Object{
-		Type:     a.str(typePtr, typeLen),
-		Repr:     a.str(reprPtr, reprLen),
-		callable: callable != 0,
-		abi:      a,
-		ref:      ref,
-		// Which generation the ref belongs to. The guest drops every
-		// reference at the start of the next call, so without this a stale
-		// index would resolve to whatever now sits at it.
-		epoch: a.epoch,
+		Type: a.str(typePtr, typeLen),
+		Repr: a.str(reprPtr, reprLen),
 	})
 }

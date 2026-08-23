@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"runtime"
 	"testing"
-
-	"github.com/gregfurman/micropython-wasi/internal/host"
 )
 
 // What the numbers are for.
@@ -118,24 +116,24 @@ func BenchmarkCall(b *testing.B) {
 	cases := []struct {
 		name string
 		fn   string
-		args []any
+		args []Value
 	}{
 		{"no args", "noop", nil},
-		{"one int", "echo", []any{int64(42)}},
-		{"two ints", "add", []any{int64(20), int64(22)}},
-		{"short string", "echo", []any{"hello"}},
-		{"1KB string", "echo", []any{string(make([]byte, 1024))}},
-		{"1KB bytes", "echo", []any{make([]byte, 1024)}},
-		{"small list", "echo", []any{[]any{int64(1), int64(2), int64(3)}}},
-		{"100 ints", "echo", []any{hundredInts()}},
-		{"small dict", "echo", []any{map[string]any{"a": int64(1), "b": "two"}}},
-		{"nested", "echo", []any{nested()}},
-		{"tuple", "echo", []any{host.Tuple{int64(1), int64(2)}}},
-		{"set", "echo", []any{host.Set{int64(1): struct{}{}, int64(2): struct{}{}, int64(3): struct{}{}}}},
-		{"struct via json", "echo", []any{struct {
+		{"one int", "echo", []Value{Int(42)}},
+		{"two ints", "add", []Value{Int(20), Int(22)}},
+		{"short string", "echo", []Value{Str("hello")}},
+		{"1KB string", "echo", []Value{Str(string(make([]byte, 1024)))}},
+		{"1KB bytes", "echo", []Value{Bytes(make([]byte, 1024))}},
+		{"small list", "echo", []Value{List(Int(1), Int(2), Int(3))}},
+		{"100 ints", "echo", []Value{Of(hundredInts())}},
+		{"small dict", "echo", []Value{Dict(Item{Key: Str("a"), Val: Int(1)}, Item{Key: Str("b"), Val: Str("two")})}},
+		{"nested", "echo", []Value{Of(nested())}},
+		{"tuple", "echo", []Value{Tuple(Int(1), Int(2))}},
+		{"set", "echo", []Value{Set(Int(1), Int(2), Int(3))}},
+		{"struct via json", "echo", []Value{Of(struct {
 			A int    `json:"a"`
 			B string `json:"b"`
-		}{1, "two"}}},
+		}{1, "two"})}},
 	}
 
 	for _, tc := range cases {
@@ -212,7 +210,7 @@ func BenchmarkGuestWork(b *testing.B) {
 		b.Run(fmt.Sprintf("range %d", n), func(b *testing.B) {
 			b.ReportAllocs()
 			for b.Loop() {
-				if _, err := in.Call(ctx, "work", n); err != nil {
+				if _, err := in.Call(ctx, "work", Of(n)); err != nil {
 					b.Fatal(err)
 				}
 			}
@@ -231,7 +229,7 @@ func BenchmarkCancellationOverhead(b *testing.B) {
 		ctx := context.Background()
 		b.ReportAllocs()
 		for b.Loop() {
-			if _, err := in.Call(ctx, "work", int64(10_000)); err != nil {
+			if _, err := in.Call(ctx, "work", Of(int64(10_000))); err != nil {
 				b.Fatal(err)
 			}
 		}
@@ -242,7 +240,7 @@ func BenchmarkCancellationOverhead(b *testing.B) {
 		defer cancel()
 		b.ReportAllocs()
 		for b.Loop() {
-			if _, err := in.Call(ctx, "work", int64(10_000)); err != nil {
+			if _, err := in.Call(ctx, "work", Of(int64(10_000))); err != nil {
 				b.Fatal(err)
 			}
 		}
@@ -261,7 +259,7 @@ func BenchmarkProgramVsInstance(b *testing.B) {
 		in := benchInstance(b)
 		b.ReportAllocs()
 		for b.Loop() {
-			if _, err := in.Call(ctx, "add", int64(1), int64(2)); err != nil {
+			if _, err := in.Call(ctx, "add", Of(int64(1)), Of(int64(2))); err != nil {
 				b.Fatal(err)
 			}
 		}
@@ -271,7 +269,7 @@ func BenchmarkProgramVsInstance(b *testing.B) {
 		p := benchProgram(b)
 		b.ReportAllocs()
 		for b.Loop() {
-			if _, err := p.Call(ctx, "add", int64(1), int64(2)); err != nil {
+			if _, err := p.Call(ctx, "add", Of(int64(1)), Of(int64(2))); err != nil {
 				b.Fatal(err)
 			}
 		}
@@ -289,7 +287,7 @@ func BenchmarkParallel(b *testing.B) {
 		b.ReportAllocs()
 		b.RunParallel(func(pb *testing.PB) {
 			for pb.Next() {
-				if _, err := in.Call(ctx, "work", int64(1000)); err != nil {
+				if _, err := in.Call(ctx, "work", Of(int64(1000))); err != nil {
 					b.Fatal(err)
 				}
 			}
@@ -301,7 +299,7 @@ func BenchmarkParallel(b *testing.B) {
 		b.ReportAllocs()
 		b.RunParallel(func(pb *testing.PB) {
 			for pb.Next() {
-				if _, err := p.Call(ctx, "work", int64(1000)); err != nil {
+				if _, err := p.Call(ctx, "work", Of(int64(1000))); err != nil {
 					b.Fatal(err)
 				}
 			}
@@ -318,7 +316,7 @@ func BenchmarkHandler(b *testing.B) {
 
 	b.ReportAllocs()
 	for b.Loop() {
-		if _, err := p.Call(ctx, "handle", req); err != nil {
+		if _, err := p.Call(ctx, "handle", Of(req)); err != nil {
 			b.Fatal(err)
 		}
 	}
@@ -335,7 +333,7 @@ func BenchmarkHandlerParallel(b *testing.B) {
 	b.ReportAllocs()
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			if _, err := p.Call(ctx, "handle", req); err != nil {
+			if _, err := p.Call(ctx, "handle", Of(req)); err != nil {
 				b.Fatal(err)
 			}
 		}
@@ -364,7 +362,7 @@ func BenchmarkManyPrograms(b *testing.B) {
 
 			var i int
 			for b.Loop() {
-				if _, err := programs[i%n].Call(ctx, "add", int64(1), int64(2)); err != nil {
+				if _, err := programs[i%n].Call(ctx, "add", Of(int64(1)), Of(int64(2))); err != nil {
 					b.Fatal(err)
 				}
 				i++

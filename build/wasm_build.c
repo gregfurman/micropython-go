@@ -30,7 +30,6 @@
 
 #include "wasm_api.h"
 #include "wasm_pack.h"
-#include "wasm_proxy.h"
 
 // The decode stack and the callables the host has resolved to handles. Both
 // are plain Python lists, so the GC traces them for free and they grow on
@@ -132,6 +131,25 @@ static void collect(uint8_t tag, size_t n) {
     push(collected);
 }
 
+
+static mp_obj_t new_exception(mp_obj_t name, mp_obj_t message) {
+    const mp_obj_type_t *type = &mp_type_RuntimeError;
+
+    if (mp_obj_is_str(name)) {
+        mp_map_elem_t *elem = mp_map_lookup(
+            (mp_map_t *)&mp_module_builtins_globals.map,
+            MP_OBJ_NEW_QSTR(mp_obj_str_get_qstr(name)), MP_MAP_LOOKUP);
+
+        if (elem != NULL && mp_obj_is_type(elem->value, &mp_type_type)
+            && mp_obj_is_subclass_fast(elem->value, MP_OBJ_FROM_PTR(&mp_type_BaseException))) {
+            type = MP_OBJ_TO_PTR(elem->value);
+        }
+    }
+
+    return mp_obj_new_exception_arg1(type,
+        mp_obj_is_str(message) ? message : MP_OBJ_NEW_QSTR(MP_QSTR_));
+}
+
 // Decodes one value and leaves it on the stack.
 static void unpack_one(unpacker_t *u, int depth) {
     mp_cstack_check();
@@ -194,16 +212,11 @@ static void unpack_one(unpacker_t *u, int depth) {
             unpack_one(u, depth + 1);
             unpack_one(u, depth + 1);
             size_t base = take(2);
-            mp_obj_t exc = mp_api_new_exception(stack()->items[base], stack()->items[base + 1]);
+            mp_obj_t exc = new_exception(stack()->items[base], stack()->items[base + 1]);
             stack()->len = base;
             push(exc);
             return;
         }
-
-        case PK_OBJECT:
-            // Something of the guest's own, coming back unchanged.
-            push(mp_api_ref_get((int32_t)read_u32(u)));
-            return;
 
         case PK_LIST:
         case PK_TUPLE:
@@ -222,29 +235,6 @@ static void unpack_one(unpacker_t *u, int depth) {
         default:
             mp_raise_ValueError(MP_ERROR_TEXT("bad argument tag"));
     }
-}
-
-// Builds the exception a PK_EXCEPTION names.
-//
-// The type is resolved against builtins, so `except ValueError` in the guest
-// means what it looks like it means.  A name that is not there, or is there
-// and is not an exception, falls back to RuntimeError rather than failing a
-// second time on the way to reporting the first.
-mp_obj_t mp_api_new_exception(mp_obj_t name, mp_obj_t message) {
-    const mp_obj_type_t *type = &mp_type_RuntimeError;
-
-    if (mp_obj_is_str(name)) {
-        mp_map_elem_t *elem = mp_map_lookup(
-            (mp_map_t *)&mp_module_builtins_globals.map,
-            MP_OBJ_NEW_QSTR(mp_obj_str_get_qstr(name)), MP_MAP_LOOKUP);
-
-        if (elem != NULL && mp_obj_is_type(elem->value, &mp_type_type)
-            && mp_obj_is_subclass_fast(elem->value, MP_OBJ_FROM_PTR(&mp_type_BaseException))) {
-            type = MP_OBJ_TO_PTR(elem->value);
-        }
-    }
-
-    return mp_obj_new_exception_arg1(type, mp_obj_is_str(message) ? message : MP_OBJ_NEW_QSTR(MP_QSTR_));
 }
 
 // Decodes n values onto a stack emptied first, so a call that failed part-way
@@ -300,24 +290,6 @@ int32_t mp_api_func(const char *name, uint32_t name_len) {
     return funcs()->len - 1;
 }
 
-// Decodes n values for a call that is already in flight, above whatever that
-// call has on the stack, and returns where they start. wasm_proxy.c is the
-// only caller: it is nested inside another entry point, so it cannot clear the
-// stack the way unpack_all does.
-mp_obj_t *mp_api_unpack_args(const uint8_t *ptr, uint32_t len, uint32_t n, size_t *mark) {
-    *mark = stack()->len;
-
-    unpacker_t u = { ptr, ptr + len };
-    for (uint32_t i = 0; i < n; i++) {
-        unpack_one(&u, 0);
-    }
-    return &stack()->items[*mark];
-}
-
-void mp_api_unpack_rewind(size_t mark) {
-    stack()->len = mark;
-}
-
 // The whole invocation in one crossing: decode the arguments, call, and stream
 // the result to the host's val_* callbacks.
 int32_t mp_api_call(int32_t handle, const uint8_t *ptr, uint32_t len, uint32_t n_args) {
@@ -333,6 +305,17 @@ int32_t mp_api_call(int32_t handle, const uint8_t *ptr, uint32_t len, uint32_t n
         &stack()->items[base]);
     stack()->len = 0;
     mp_api_emit_value(result);
+
+    MP_API_LEAVE();
+}
+
+// Binds a packed value to a global name, so a host can seed configuration into
+// an interpreter without going through source text.
+int32_t mp_api_set(const char *name, uint32_t name_len, const uint8_t *ptr, uint32_t len) {
+    MP_API_ENTER();
+
+    mp_obj_t value = mp_api_unpack(ptr, len);
+    mp_store_global(qstr_from_strn(name, name_len), value);
 
     MP_API_LEAVE();
 }
