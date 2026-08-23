@@ -31,6 +31,8 @@
 #include "py/runtime.h"
 
 #include "wasm_api.h"
+#include "wasm_pack.h"
+#include "wasm_proxy.h"
 
 #define HOST_IMPORT(name) __attribute__((import_module("host"), import_name(#name)))
 
@@ -48,37 +50,33 @@ HOST_IMPORT(val_tuple) extern void host_val_tuple(uint32_t len);
 HOST_IMPORT(val_dict) extern void host_val_dict(uint32_t len);
 HOST_IMPORT(val_set) extern void host_val_set(uint32_t len, int32_t frozen);
 
-// Anything with no host equivalent, passed as its type name plus repr().
-HOST_IMPORT(val_other) extern void host_val_other(const char *type, uint32_t type_len,
-    const char *repr, uint32_t repr_len);
+// Anything with no host equivalent: a reference the host can call and hand
+// back, plus the type name and repr() it would otherwise have had to ask for.
+HOST_IMPORT(val_other) extern void host_val_other(int32_t ref, int32_t callable,
+    const char *type, uint32_t type_len, const char *repr, uint32_t repr_len);
 
 // Guards against a self-referential container turning the walk into an
 // infinite recursion.  Python allows `a = []; a.append(a)`.
 #define MAX_DEPTH (32)
 
+// Emits obj as a reference the host holds, rather than as a copy it cannot
+// make.  The type name and repr go with it because they are what a host that
+// only wants to look at the value needs, and asking for them afterwards would
+// be a second crossing for the common case.
 static void emit_repr(mp_obj_t obj) {
     const char *type = mp_obj_get_type_str(obj);
     mp_api_buf_t repr = { 0 };
     mp_print_t print = { &repr, mp_api_buf_print_strn };
     mp_obj_print_helper(&print, obj, PRINT_REPR);
-    host_val_other(type, strlen(type), repr.data ? repr.data : "", repr.len);
+    host_val_other(mp_api_ref_add(obj), mp_obj_is_callable(obj),
+        type, strlen(type), repr.data ? repr.data : "", repr.len);
     mp_api_buf_free(&repr);
 }
 
 static void emit_value(mp_obj_t obj, int depth);
 
 #if MICROPY_PY_BUILTINS_SET
-
-// Emits obj if it is a set or a frozenset, reporting whether it did.
-static bool emit_set(mp_obj_t obj, int depth) {
-    bool frozen = false;
-    #if MICROPY_PY_BUILTINS_FROZENSET
-    frozen = mp_obj_is_type(obj, &mp_type_frozenset);
-    #endif
-    if (!frozen && !mp_obj_is_type(obj, &mp_type_set)) {
-        return false;
-    }
-
+static void emit_set(mp_obj_t obj, bool frozen, int depth) {
     host_val_set(MP_OBJ_SMALL_INT_VALUE(mp_obj_len(obj)), frozen);
 
     mp_obj_iter_buf_t iter_buf;
@@ -87,9 +85,33 @@ static bool emit_set(mp_obj_t obj, int depth) {
     while ((item = mp_iternext(iter)) != MP_OBJ_STOP_ITERATION) {
         emit_value(item, depth + 1);
     }
-    return true;
 }
 #endif
+
+static void emit_seq(mp_obj_t obj, bool is_list, int depth) {
+    size_t len;
+    mp_obj_t *items;
+    mp_obj_get_array(obj, &len, &items);
+
+    if (is_list) {
+        host_val_list(len);
+    } else {
+        host_val_tuple(len);
+    }
+    for (size_t i = 0; i < len; i++) {
+        emit_value(items[i], depth + 1);
+    }
+}
+
+static void emit_str_data(mp_obj_t obj, bool as_bytes) {
+    size_t len;
+    const char *str = mp_obj_str_get_data(obj, &len);
+    if (as_bytes) {
+        host_val_bytes(str, len);
+    } else {
+        host_val_str(str, len);
+    }
+}
 
 static void emit_value(mp_obj_t obj, int depth) {
     mp_cstack_check();
@@ -115,7 +137,8 @@ static void emit_value(mp_obj_t obj, int depth) {
             host_val_int(MP_OBJ_SMALL_INT_VALUE(obj));
             return;
         }
-
+        // Too big for the host's int64, so it goes over as a reference rather
+        // than silently truncated.
         long long value = mp_obj_get_ll(obj);
         if (mp_obj_equal(mp_obj_new_int_from_ll(value), obj)) {
             host_val_int(value);
@@ -134,24 +157,20 @@ static void emit_value(mp_obj_t obj, int depth) {
     #endif
 
     if (mp_obj_is_str(obj)) {
-        size_t len;
-        const char *str = mp_obj_str_get_data(obj, &len);
-        host_val_str(str, len);
+        emit_str_data(obj, false);
         return;
     }
 
     if (mp_obj_is_type(obj, &mp_type_bytes)) {
-        size_t len;
-        const char *str = mp_obj_str_get_data(obj, &len);
-        host_val_bytes(str, len);
+        emit_str_data(obj, true);
         return;
     }
 
     #if MICROPY_PY_BUILTINS_BYTEARRAY
     // Through the buffer protocol rather than mp_obj_str_get_data, which is
-    // for str and bytes only. A bytearray reaches the host as []byte, like
+    // for str and bytes only.  A bytearray reaches the host as []byte, like
     // bytes: Go has one byte-slice type, and the mutability the two differ by
-    // does not survive the copy in either case.
+    // does not survive the copy either way.
     if (mp_obj_is_type(obj, &mp_type_bytearray)) {
         mp_buffer_info_t buf;
         if (mp_get_buffer(obj, &buf, MP_BUFFER_READ)) {
@@ -174,25 +193,24 @@ static void emit_value(mp_obj_t obj, int depth) {
     }
 
     #if MICROPY_PY_BUILTINS_SET
-    if (emit_set(obj, depth)) {
+    #if MICROPY_PY_BUILTINS_FROZENSET
+    if (mp_obj_is_type(obj, &mp_type_frozenset)) {
+        emit_set(obj, true, depth);
+        return;
+    }
+    #endif
+    if (mp_obj_is_type(obj, &mp_type_set)) {
+        emit_set(obj, false, depth);
         return;
     }
     #endif
 
-    // mp_obj_get_array covers list and tuple in one call, so only the
-    // list-vs-tuple tag has to be decided here.
-    if (mp_obj_is_type(obj, &mp_type_list) || mp_obj_is_type(obj, &mp_type_tuple)) {
-        size_t len;
-        mp_obj_t *items;
-        mp_obj_get_array(obj, &len, &items);
-        if (mp_obj_is_type(obj, &mp_type_list)) {
-            host_val_list(len);
-        } else {
-            host_val_tuple(len);
-        }
-        for (size_t i = 0; i < len; i++) {
-            emit_value(items[i], depth + 1);
-        }
+    if (mp_obj_is_type(obj, &mp_type_list)) {
+        emit_seq(obj, true, depth);
+        return;
+    }
+    if (mp_obj_is_type(obj, &mp_type_tuple)) {
+        emit_seq(obj, false, depth);
         return;
     }
 

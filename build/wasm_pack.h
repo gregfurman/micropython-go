@@ -22,6 +22,8 @@ enum {
     PK_DICT = 9,
     PK_SET = 10,
     PK_FROZENSET = 11,
+    PK_OBJECT = 12,
+    PK_EXCEPTION = 13,
 };
 
 #define PK_MAX_DEPTH (32)

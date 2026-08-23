@@ -1,7 +1,6 @@
 package host
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"math"
@@ -29,6 +28,19 @@ type ABI struct {
 
 	dec decoder
 	enc encoder
+
+	// Host functions the guest can call: the registry ids resolve against, the
+	// decodes call_begin put aside, and the reply call_end hands back. See
+	// funcs.go.
+	funcs *Registry
+	saved []decoder
+	rep   encoder
+
+	// Which generation of object references is live. Bumped at the start of
+	// every call, so a reference from an earlier one is refused rather than
+	// resolved against whatever now sits at that index. Values are unique
+	// across every ABI, so matching epochs also means matching interpreter.
+	epoch uint64
 
 	state atomic.Int32
 	trap  atomic.Pointer[TrapError]
@@ -157,21 +169,6 @@ func (a *ABI) str(ptr, length int32) string {
 		return ""
 	}
 	return string(b)
-}
-
-func (a *ABI) ReadString(ptr, length int32) string {
-	return a.str(ptr, length)
-}
-
-// Bytes copies the guest bytes at ptr, reporting false if the range is bad. The
-// copy matters: the returned slice would otherwise alias linear memory, which
-// the next call overwrites.
-func (a *ABI) Bytes(ptr, length int32) ([]byte, bool) {
-	b, ok := a.slice(ptr, length)
-	if !ok {
-		return nil, false
-	}
-	return bytes.Clone(b), true
 }
 
 func (a *ABI) Write(b []byte) (int32, error) { return a.write(b) }

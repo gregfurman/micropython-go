@@ -9,7 +9,7 @@ import (
 // back, so a call exercises the encoder and the decoder end to end.
 func echo(t *testing.T) (*ABI, int32) {
 	t.Helper()
-	a, _ := New()
+	a, _ := New(nil)
 	if err := a.Eval("def echo(v):\n    return v\n", ModeExec); err != nil {
 		t.Fatal(err)
 	}
@@ -94,7 +94,7 @@ func TestEncodeTooDeep(t *testing.T) {
 }
 
 func TestEncodeMultipleArgs(t *testing.T) {
-	a, _ := New()
+	a, _ := New(nil)
 	if err := a.Eval("def join(a, b, c):\n    return [a, b, c]\n", ModeExec); err != nil {
 		t.Fatal(err)
 	}

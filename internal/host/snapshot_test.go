@@ -17,7 +17,7 @@ def handle(payload):
 
 func loaded(t *testing.T) (*ABI, *Snapshot) {
 	t.Helper()
-	a, err := New()
+	a, err := New(nil)
 	if err != nil {
 		t.Fatal(err)
 	}

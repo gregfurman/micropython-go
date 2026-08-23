@@ -1,28 +1,32 @@
 package host
 
+import "github.com/gregfurman/micropython-wasi/internal/value"
+
 // Object is a Python value with no Go equivalent — a function, a class, an
-// arbitrary instance. Only its type and repr survive the crossing.
+// arbitrary instance.
 type Object struct {
 	Type string
 	Repr string
+
+	callable bool
+	abi      *ABI
+	ref      int32
+	epoch    uint64
 }
 
 func (o Object) String() string { return o.Repr }
 
-// Tuple is a Python tuple. It is distinct from []any so that the round trip
-// back into Python can preserve tuple-ness, which JSON could not.
-type Tuple []any
+// Callable reports whether Call will work.
+func (o Object) Callable() bool { return o.callable }
 
-// Set is a Python set. Go has no set type, so it arrives as a slice -- but a
-// distinct one, so a round trip back into Python stays a set rather than
-// becoming a list, and so a reader is not misled into depending on the order.
-// A set has none: these are the elements in whatever order the guest's hash
-// table held them.
-type Set []any
-
-// FrozenSet is a Python frozenset. It is separate from Set only so the round
-// trip preserves which one it was; nothing about it is immutable on this side.
-type FrozenSet []any
+// The containers Go has no type for. They are defined in internal/value,
+// because that is where the coercion switches on them, and aliased here so
+// there is one set of types rather than two that look alike.
+type (
+	Tuple     = value.Tuple
+	Set       = value.Set
+	FrozenSet = value.FrozenSet
+)
 
 // Exception is a Python exception that reached the host. It is the error every
 // failing Eval, Exec and Call returns.

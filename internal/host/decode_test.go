@@ -18,7 +18,7 @@ func evalValue(t *testing.T, a *ABI, expr string) any {
 }
 
 func TestDecodeTypes(t *testing.T) {
-	a, _ := New()
+	a, _ := New(nil)
 	for _, tc := range []struct {
 		expr string
 		want any
@@ -44,7 +44,7 @@ func TestDecodeTypes(t *testing.T) {
 }
 
 func TestDecodeOther(t *testing.T) {
-	a, _ := New()
+	a, _ := New(nil)
 	got, ok := evalValue(t, a, "len").(Object)
 	if !ok {
 		t.Fatalf("got %T, want Object", got)

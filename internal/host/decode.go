@@ -152,15 +152,21 @@ func (a *ABI) Xval_str(ptr, length int32) {
 }
 
 func (a *ABI) Xval_bytes(ptr, length int32) {
-	// Copy: the module's linear memory is reused as soon as we return.
 	out := make([]byte, length)
 	copy(out, a.mem()[ptr:ptr+length])
 	a.dec.push(out)
 }
 
-func (a *ABI) Xval_other(typePtr, typeLen, reprPtr, reprLen int32) {
+func (a *ABI) Xval_other(ref, callable, typePtr, typeLen, reprPtr, reprLen int32) {
 	a.dec.push(Object{
-		Type: a.str(typePtr, typeLen),
-		Repr: a.str(reprPtr, reprLen),
+		Type:     a.str(typePtr, typeLen),
+		Repr:     a.str(reprPtr, reprLen),
+		callable: callable != 0,
+		abi:      a,
+		ref:      ref,
+		// Which generation the ref belongs to. The guest drops every
+		// reference at the start of the next call, so without this a stale
+		// index would resolve to whatever now sits at it.
+		epoch: a.epoch,
 	})
 }

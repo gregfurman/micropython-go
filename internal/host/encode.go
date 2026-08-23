@@ -26,6 +26,8 @@ const (
 
 	pkSet       = 10
 	pkFrozenSet = 11
+	pkObject    = 12
+	pkException = 13
 )
 
 const maxEncodeDepth = 32
@@ -33,6 +35,10 @@ const maxEncodeDepth = 32
 // encoder is the mirror of decoder. It is NOT thread safe.
 type encoder struct {
 	buf []byte
+
+	// The reference generation an Object must belong to for its index to mean
+	// anything. Set from the ABI before each use.
+	epoch uint64
 }
 
 func (e *encoder) reset() { e.buf = e.buf[:0] }
@@ -108,6 +114,16 @@ func (e *encoder) value(v any, depth int) error {
 	case []byte:
 		e.tag(pkBytes)
 		e.blobBytes(value)
+		return nil
+
+	case Object:
+		// Back the way it came: the guest still holds it, so the index is
+		// enough and nothing has to be rebuilt from the repr.
+		if value.abi == nil || value.epoch != e.epoch {
+			return fmt.Errorf("micropython: %s reference is no longer live", value.Type)
+		}
+		e.tag(pkObject)
+		e.u32(uint32(value.ref))
 		return nil
 
 	case Tuple:

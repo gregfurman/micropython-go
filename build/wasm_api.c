@@ -22,6 +22,7 @@
 #include "py/runtime.h"
 
 #include "wasm_api.h"
+#include "wasm_proxy.h"
 
 static char heap[MICROPY_HEAP_SIZE];
 
@@ -152,6 +153,7 @@ __attribute__((constructor)) static void mp_api_boot(void) {
     gc_init(heap, heap + sizeof(heap));
     mp_init();
     mp_api_stack_init();
+    mp_api_proxy_init();
 }
 
 int32_t mp_api_eval(const char *src, uint32_t src_len, uint32_t mode) {

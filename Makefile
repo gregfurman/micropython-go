@@ -114,6 +114,8 @@ SRC_C = \
 	build/wasm_api.c \
 	build/wasm_value.c \
 	build/wasm_build.c \
+	build/wasm_host.c \
+	build/wasm_proxy.c \
 	build/wasm_sjlj.c \
 
 # Just include json and re packages.
@@ -121,7 +123,8 @@ SRC_C += \
 	micropython/extmod/modjson.c \
 	micropython/extmod/modre.c \
 
-SRC_QSTR += build/wasm_api.c build/wasm_build.c
+SRC_QSTR += build/wasm_api.c build/wasm_build.c build/wasm_host.c
+SRC_QSTR += build/wasm_proxy.c
 SRC_QSTR += micropython/extmod/modjson.c micropython/extmod/modre.c
 
 OBJ += $(PY_CORE_O)

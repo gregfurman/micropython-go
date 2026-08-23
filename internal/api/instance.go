@@ -16,18 +16,20 @@ import (
 // since the module is compiled Go and starting one is an allocation plus
 // mp_init, with no runtime to spin up.
 type Instance struct {
-	lock chan struct{}
-	abi  atomic.Pointer[host.ABI]
+	lock  chan struct{}
+	abi   atomic.Pointer[host.ABI]
+	funcs *host.Registry
 }
 
-func New() (*Instance, error) {
-	abi, err := host.New()
+func New(funcs *host.Registry) (*Instance, error) {
+	abi, err := host.New(funcs)
 	if err != nil {
 		return nil, err
 	}
 
 	i := &Instance{
-		lock: make(chan struct{}, 1),
+		lock:  make(chan struct{}, 1),
+		funcs: funcs,
 	}
 	i.abi.Store(abi)
 	return i, nil
@@ -89,6 +91,13 @@ func (i *Instance) Call(ctx context.Context, name string, args ...any) (any, err
 	return out, err
 }
 
+// Set binds a value to a Python global, without going through source text.
+func (i *Instance) Set(ctx context.Context, name string, value any) error {
+	return i.run(ctx, func(abi *host.ABI) error {
+		return abi.Set(name, value)
+	})
+}
+
 // ------------------------------------------------------------------------
 
 func (i *Instance) Cancel() {
@@ -148,7 +157,7 @@ func (i *Instance) Reset(ctx context.Context) error {
 		return err
 	}
 
-	next, err := host.New()
+	next, err := host.New(i.funcs)
 	if err != nil {
 		return err
 	}
@@ -256,7 +265,7 @@ func FromSnapshot(s *host.Snapshot) (*Instance, error) {
 		return nil, err
 	}
 
-	i := &Instance{lock: make(chan struct{}, 1)}
+	i := &Instance{lock: make(chan struct{}, 1), funcs: s.Funcs()}
 	i.abi.Store(abi)
 	return i, nil
 }

@@ -23,16 +23,18 @@
 #include <stdint.h>
 #include <string.h>
 
+#include "py/builtin.h"
 #include "py/objlist.h"
 #include "py/objstr.h"
 #include "py/runtime.h"
 
 #include "wasm_api.h"
 #include "wasm_pack.h"
+#include "wasm_proxy.h"
 
-// The decode stack, and the callables the host has resolved to handles. Both
+// The decode stack and the callables the host has resolved to handles. Both
 // are plain Python lists, so the GC traces them for free and they grow on
-// demand.
+// demand. The objects the host holds by reference live in wasm_proxy.c.
 MP_REGISTER_ROOT_POINTER(mp_obj_t mp_api_stack);
 MP_REGISTER_ROOT_POINTER(mp_obj_t mp_api_funcs);
 
@@ -48,6 +50,7 @@ static mp_obj_list_t *stack(void) {
 static mp_obj_list_t *funcs(void) {
     return MP_OBJ_TO_PTR(MP_STATE_VM(mp_api_funcs));
 }
+
 
 static void push(mp_obj_t value) {
     mp_obj_list_append(MP_STATE_VM(mp_api_stack), value);
@@ -186,6 +189,22 @@ static void unpack_one(unpacker_t *u, int depth) {
             return;
         }
 
+        case PK_EXCEPTION: {
+            // Two strings follow: the exception's type name and its message.
+            unpack_one(u, depth + 1);
+            unpack_one(u, depth + 1);
+            size_t base = take(2);
+            mp_obj_t exc = mp_api_new_exception(stack()->items[base], stack()->items[base + 1]);
+            stack()->len = base;
+            push(exc);
+            return;
+        }
+
+        case PK_OBJECT:
+            // Something of the guest's own, coming back unchanged.
+            push(mp_api_ref_get((int32_t)read_u32(u)));
+            return;
+
         case PK_LIST:
         case PK_TUPLE:
         case PK_SET:
@@ -205,6 +224,29 @@ static void unpack_one(unpacker_t *u, int depth) {
     }
 }
 
+// Builds the exception a PK_EXCEPTION names.
+//
+// The type is resolved against builtins, so `except ValueError` in the guest
+// means what it looks like it means.  A name that is not there, or is there
+// and is not an exception, falls back to RuntimeError rather than failing a
+// second time on the way to reporting the first.
+mp_obj_t mp_api_new_exception(mp_obj_t name, mp_obj_t message) {
+    const mp_obj_type_t *type = &mp_type_RuntimeError;
+
+    if (mp_obj_is_str(name)) {
+        mp_map_elem_t *elem = mp_map_lookup(
+            (mp_map_t *)&mp_module_builtins_globals.map,
+            MP_OBJ_NEW_QSTR(mp_obj_str_get_qstr(name)), MP_MAP_LOOKUP);
+
+        if (elem != NULL && mp_obj_is_type(elem->value, &mp_type_type)
+            && mp_obj_is_subclass_fast(elem->value, MP_OBJ_FROM_PTR(&mp_type_BaseException))) {
+            type = MP_OBJ_TO_PTR(elem->value);
+        }
+    }
+
+    return mp_obj_new_exception_arg1(type, mp_obj_is_str(message) ? message : MP_OBJ_NEW_QSTR(MP_QSTR_));
+}
+
 // Decodes n values onto a stack emptied first, so a call that failed part-way
 // through cannot leave anything behind for the next one.
 static void unpack_all(const uint8_t *ptr, uint32_t len, uint32_t n) {
@@ -213,6 +255,25 @@ static void unpack_all(const uint8_t *ptr, uint32_t len, uint32_t n) {
     for (uint32_t i = 0; i < n; i++) {
         unpack_one(&u, 0);
     }
+}
+
+// Decodes a single value, leaving the stack as it found it.
+//
+// Unlike unpack_all this one runs *during* a call rather than in front of one
+// -- it is how a host function's reply comes back (wasm_host.c) -- and the
+// arguments of every call it is nested inside are still sitting on the stack
+// below.  So it works above them and rewinds, rather than clearing.
+mp_obj_t mp_api_unpack(const uint8_t *ptr, uint32_t len) {
+    size_t base = stack()->len;
+
+    unpacker_t u = { ptr, ptr + len };
+    unpack_one(&u, 0);
+
+    // Above the rewound length, but the list's item block is traced whole, so
+    // the value stays rooted until the next push overwrites the slot.
+    mp_obj_t value = stack()->items[stack()->len - 1];
+    stack()->len = base;
+    return value;
 }
 
 // --- exports ---------------------------------------------------------------
@@ -237,6 +298,24 @@ int32_t mp_api_func(const char *name, uint32_t name_len) {
 
     nlr_pop();
     return funcs()->len - 1;
+}
+
+// Decodes n values for a call that is already in flight, above whatever that
+// call has on the stack, and returns where they start. wasm_proxy.c is the
+// only caller: it is nested inside another entry point, so it cannot clear the
+// stack the way unpack_all does.
+mp_obj_t *mp_api_unpack_args(const uint8_t *ptr, uint32_t len, uint32_t n, size_t *mark) {
+    *mark = stack()->len;
+
+    unpacker_t u = { ptr, ptr + len };
+    for (uint32_t i = 0; i < n; i++) {
+        unpack_one(&u, 0);
+    }
+    return &stack()->items[*mark];
+}
+
+void mp_api_unpack_rewind(size_t mark) {
+    stack()->len = mark;
 }
 
 // The whole invocation in one crossing: decode the arguments, call, and stream

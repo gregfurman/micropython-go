@@ -22,16 +22,24 @@ type Program struct {
 
 func Compile(ctx context.Context, src string, opts ...option) (*Program, error) {
 	// TODO(gregfurman): Consider catering for warm and cold starts
-	opt := &options{
-		programPoolSize: max(runtime.NumCPU(), 1),
-	}
-	for _, o := range opts {
-		o(opt)
-	}
-
-	in, err := api.New()
+	opt, err := newOptions(opts)
 	if err != nil {
 		return nil, err
+	}
+	if opt.programPoolSize == 0 {
+		opt.programPoolSize = max(runtime.NumCPU(), 1)
+	}
+
+	in, err := api.New(opt.funcs)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, g := range opt.globals {
+		if err := in.Set(ctx, g.name, g.value); err != nil {
+			in.Close()
+			return nil, err
+		}
 	}
 
 	if _, err := in.Exec(ctx, src); err != nil {

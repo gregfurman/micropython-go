@@ -16,7 +16,7 @@ func FuzzDecodeArgs(f *testing.F) {
 	f.Add([]byte{9, 255, 255, 255, 255}, uint8(1))                // dict claiming 4G pairs
 	f.Add([]byte{99}, uint8(1))                                   // unknown tag
 
-	a, _ := New()
+	a, _ := New(nil)
 	if err := a.Eval("def echo(*a):\n    return a\n", ModeExec); err != nil {
 		f.Fatal(err)
 	}

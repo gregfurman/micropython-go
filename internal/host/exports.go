@@ -17,10 +17,18 @@ const (
 
 const apiOK = 0
 
-func New() (*ABI, error) {
-	a := newABI()
+// New boots an interpreter with funcs bound into its globals. A nil Registry
+// means no host functions.
+func New(funcs *Registry) (*ABI, error) {
+	a := newABI(funcs)
 	if err := a.init(); err != nil {
 		return nil, err
+	}
+
+	for id, fn := range funcs.all() {
+		if err := a.register(fn.Name, int32(id)); err != nil {
+			return nil, fmt.Errorf("micropython: cannot bind %s: %w", fn.Name, err)
+		}
 	}
 	return a, nil
 }
@@ -33,17 +41,69 @@ func New() (*ABI, error) {
 // one moment __stack_pointer is guaranteed to hold the value the linker gave
 // it. Reading it beats repeating WASM_STACK_SIZE on this side, where it would
 // drift.
-func newABI() *ABI {
-	a := &ABI{}
+func newABI(funcs *Registry) *ABI {
+	a := &ABI{funcs: funcs}
 	a.mod = wasi.New(env.New(), a)
 	a.base = *a.mod.X__stack_pointer()
 	return a
+}
+
+// register binds a host function to a global name. Only New calls it: the
+// binding lands in the globals a snapshot copies, so every interpreter
+// restored from one already has it.
+func (a *ABI) register(name string, id int32) (err error) {
+	defer a.guard(&err)
+
+	ptr, err := a.WriteString(name)
+	if err != nil {
+		return err
+	}
+	return a.check(a.mod.Xmp_api_register(ptr, int32(len(name)), id))
+}
+
+// Set binds a value to a global name, so a host can seed configuration into an
+// interpreter without going through source text.
+func (a *ABI) Set(name string, value any) (err error) {
+	if err := a.status(); err != nil {
+		return err
+	}
+	defer a.guard(&err)
+
+	a.enc.reset()
+	a.enc.buf = append(a.enc.buf, name...)
+	if err := a.enc.value(value, 0); err != nil {
+		return err
+	}
+
+	ptr, err := a.Write(a.enc.buf)
+	if err != nil {
+		return err
+	}
+
+	n := int32(len(name))
+	return a.check(a.mod.Xmp_api_set(ptr, n, ptr+n, int32(len(a.enc.buf))-n))
 }
 
 func (a *ABI) init() (err error) {
 	defer a.guard(&err)
 	a.mod.X_initialize()
 	return nil
+}
+
+// newEpoch drops every object reference the guest was holding for the host and
+// starts a new generation, invalidating the Objects handed out under the last
+// one.
+//
+// This is where the design differs from proxy_c.c, which frees each reference
+// individually from a JavaScript finaliser. Nothing here can rely on a
+// finaliser running, and a pooled Program lays a snapshot back down between
+// calls -- after which an index means a different object, or none. So the
+// lifetime is the call, and it is ended explicitly.
+func (a *ABI) newEpoch() {
+	a.epoch++
+	a.enc.epoch = a.epoch
+	a.rep.epoch = a.epoch
+	a.mod.Xmp_api_refs_clear()
 }
 
 // Eval runs src. In ModeValue the result is available from Value.
@@ -53,6 +113,7 @@ func (a *ABI) Eval(src string, mode int32) (err error) {
 	}
 	defer a.guard(&err)
 
+	a.newEpoch()
 	a.dec.reset()
 	ptr, err := a.WriteString(src)
 	if err != nil {
@@ -104,6 +165,7 @@ func (a *ABI) Call(handle int32, args []any) (_ any, err error) {
 	}
 	defer a.guard(&err)
 
+	a.newEpoch()
 	a.dec.reset()
 	ptr, encoded, err := a.WriteArgs(args)
 	if err != nil {
@@ -111,6 +173,39 @@ func (a *ABI) Call(handle int32, args []any) (_ any, err error) {
 	}
 
 	if err := a.check(a.mod.Xmp_api_call(handle, ptr, encoded, int32(len(args)))); err != nil {
+		return nil, err
+	}
+	return a.dec.result()
+}
+
+// callRef invokes a reference the guest is holding for the host.
+//
+// It runs inside a call that is already in flight -- a host function reached
+// from Python -- so it nests the same way a host call does, on the decoder
+// that call is using, and leaves the guest's own C stack bookkeeping alone.
+func (a *ABI) callRef(abi *ABI, ref int32, epoch uint64, args []any) (_ any, err error) {
+	if err := a.status(); err != nil {
+		return nil, err
+	}
+	if abi != a || epoch != a.epoch {
+		return nil, fmt.Errorf("micropython: object reference is no longer live")
+	}
+	defer a.guard(&err)
+
+	a.saved = append(a.saved, a.dec)
+	a.dec = decoder{}
+	defer func() {
+		n := len(a.saved) - 1
+		a.dec, a.saved[n] = a.saved[n], decoder{}
+		a.saved = a.saved[:n]
+	}()
+
+	ptr, encoded, err := a.WriteArgs(args)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := a.check(a.mod.Xmp_api_ref_call(ref, ptr, encoded, int32(len(args)))); err != nil {
 		return nil, err
 	}
 	return a.dec.result()
