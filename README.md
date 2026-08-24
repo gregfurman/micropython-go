@@ -86,7 +86,7 @@ fmt.Println(val) // Output: 10
 
 ### 3. Passing data in
 
-Arguments are ordinary Go values. Where Go has one type for two Python ones — a slice could be a `list` or a `tuple` — build the value instead:
+Arguments are ordinary Go values. Where Go has one type for two Python, e.g a slice could be a `list` or a `tuple`, build the value instead using the public SDK:
 
 ```go
 p.Call(ctx, "f", []any{1, 2})                              // list
@@ -140,7 +140,7 @@ Go and Python types cross as a compact binary format rather than JSON, except fo
 | `struct{...}` | *JSON round-trip to* `dict` |
 | `micropython.Of(v)` | whatever the rules above make of `v`, explicitly |
 
-Results come back the same way. A Python `tuple` arrives as `micropython.Tuple` and a `set` as `micropython.Set` — distinct slice types, so a tuple is still recognisable as one.
+Results come back the same way. A Python `tuple` arrives as `micropython.Tuple` and a `set` as `micropython.Set` -- distinct slice types, so a tuple is still recognisable as one.
 
 ## Building the Wasm Module (For Contributors)
 
@@ -178,7 +178,7 @@ The gap is the isolation: a `Program` rewinds the interpreter's memory after eve
 
 ### Tuning the heap
 
-The Python heap is most of what an interpreter costs — to create, and to rewind between calls. It defaults to 2 MB and is set per `Program` or `Instance`:
+The Python heap is most of what an interpreter costs to create, and to rewind between calls via snapshotting. It defaults to 2 MB and is set per `Program` or `Instance`:
 
 ```go
 p, err := micropython.Compile(ctx, src, micropython.WithHeapSize(256*1024))
@@ -191,13 +191,13 @@ p, err := micropython.Compile(ctx, src, micropython.WithHeapSize(256*1024))
 | 1 MB | 20.8 µs | ~48,000 |
 | 2 MB (default) | 39.5 µs | ~25,000 |
 
-Too small and the guest raises `MemoryError` — cleanly, and the `Program` stays usable. Size it to what your script actually allocates.
+Too small and the guest raises `MemoryError` and the `Program` stays usable. Size it to what your script actually allocates.
 
 The shadow stack is fixed at build time (`WASM_STACK_SIZE`) because the linker places it, and it bounds recursion depth together with `MICROPY_C_STACK_SIZE`.
 
 ## Limitations
 
 * **No standard I/O or filesystem:** `import` cannot reach real files, `open()` raises `OSError`, `os` and `sys.stdout` are absent, and `print()` output is captured by `Exec` rather than written to `stdout`.
-* **Stack depth:** recursion is bounded by the host C stack — about 359 Python frames at the default `MICROPY_C_STACK_SIZE`.
+* **Stack depth:** recursion is bounded by the host C stack to about 359 Python frames at the default `MICROPY_C_STACK_SIZE`.
 * **Structs via JSON:** primitives, maps and slices use the binary format; custom Go structs go through `encoding/json`. Use `map[string]any` on a hot path.
 * **No host functions:** Python cannot call back into Go.
