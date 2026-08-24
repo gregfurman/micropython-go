@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gregfurman/micropython-wasi/internal/value"
+	"github.com/gregfurman/micropython-go/internal/value"
 )
 
 const handlerSrc = `

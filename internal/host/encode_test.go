@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/gregfurman/micropython-wasi/internal/value"
+	"github.com/gregfurman/micropython-go/internal/value"
 )
 
 func echo(t *testing.T) (*ABI, int32) {

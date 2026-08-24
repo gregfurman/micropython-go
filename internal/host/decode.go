@@ -3,7 +3,7 @@ package host
 import (
 	"fmt"
 
-	"github.com/gregfurman/micropython-wasi/internal/value"
+	"github.com/gregfurman/micropython-go/internal/value"
 )
 
 // frame is a container for the raw values emitted from a module.

@@ -1,8 +1,8 @@
 package micropython
 
 import (
-	"github.com/gregfurman/micropython-wasi/internal/host"
-	"github.com/gregfurman/micropython-wasi/internal/value"
+	"github.com/gregfurman/micropython-go/internal/host"
+	"github.com/gregfurman/micropython-go/internal/value"
 )
 
 // Value is a Python value the host has built. It wraps the internal one so

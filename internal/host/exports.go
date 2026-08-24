@@ -3,9 +3,9 @@ package host
 import (
 	"fmt"
 
-	"github.com/gregfurman/micropython-wasi/internal/env"
-	wasi "github.com/gregfurman/micropython-wasi/internal/micropython"
-	"github.com/gregfurman/micropython-wasi/internal/value"
+	"github.com/gregfurman/micropython-go/internal/env"
+	wasi "github.com/gregfurman/micropython-go/internal/micropython"
+	"github.com/gregfurman/micropython-go/internal/value"
 )
 
 // The module's exports, typed.

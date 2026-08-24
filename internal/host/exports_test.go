@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/gregfurman/micropython-wasi/internal/value"
+	"github.com/gregfurman/micropython-go/internal/value"
 )
 
 func TestExecOutput(t *testing.T) {

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gregfurman/micropython-wasi"
+	micropython "github.com/gregfurman/micropython-go"
 )
 
 func TestSets(t *testing.T) {

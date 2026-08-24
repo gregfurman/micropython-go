@@ -1,4 +1,4 @@
-module github.com/gregfurman/micropython-wasi
+module github.com/gregfurman/micropython-go
 
 go 1.27.0
 

@@ -7,8 +7,8 @@ import (
 	"slices"
 	"sync"
 
-	"github.com/gregfurman/micropython-wasi/internal/api"
-	"github.com/gregfurman/micropython-wasi/internal/host"
+	"github.com/gregfurman/micropython-go/internal/api"
+	"github.com/gregfurman/micropython-go/internal/host"
 )
 
 // Program represents a pre-compiled MicroPython script that is safe for

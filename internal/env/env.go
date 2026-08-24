@@ -4,7 +4,7 @@ package env
 // See build/wasm_sjlj.c for more information on this whacky longjmp approach.
 
 import (
-	wasi "github.com/gregfurman/micropython-wasi/internal/micropython"
+	wasi "github.com/gregfurman/micropython-go/internal/micropython"
 )
 
 // longjmp is the panic value used for a module-initiated unwind. Anything else

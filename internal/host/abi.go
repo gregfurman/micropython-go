@@ -7,8 +7,8 @@ import (
 	"runtime/debug"
 	"sync/atomic"
 
-	wasi "github.com/gregfurman/micropython-wasi/internal/micropython"
-	val "github.com/gregfurman/micropython-wasi/internal/value"
+	wasi "github.com/gregfurman/micropython-go/internal/micropython"
+	val "github.com/gregfurman/micropython-go/internal/value"
 )
 
 // ABI is the crossing between Go and MicroPython, split by direction: it

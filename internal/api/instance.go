@@ -5,8 +5,8 @@ import (
 	"errors"
 	"sync/atomic"
 
-	"github.com/gregfurman/micropython-wasi/internal/host"
-	"github.com/gregfurman/micropython-wasi/internal/value"
+	"github.com/gregfurman/micropython-go/internal/host"
+	"github.com/gregfurman/micropython-go/internal/value"
 )
 
 // Instance is one MicroPython interpreter.

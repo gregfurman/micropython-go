@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gregfurman/micropython-wasi/internal/value"
+	"github.com/gregfurman/micropython-go/internal/value"
 )
 
 func TestRoundTrip(t *testing.T) {

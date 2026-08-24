@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	micropython "github.com/gregfurman/micropython-wasi"
+	micropython "github.com/gregfurman/micropython-go"
 )
 
 // Compile once, call many times. A Program holds the interpreter as it stood

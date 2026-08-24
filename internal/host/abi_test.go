@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gregfurman/micropython-wasi/internal/value"
+	"github.com/gregfurman/micropython-go/internal/value"
 )
 
 // The C and Go sides share a numbered table, and nothing but a comment has

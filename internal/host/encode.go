@@ -8,8 +8,8 @@ import (
 	"math"
 	"strings"
 
-	"github.com/gregfurman/micropython-wasi/internal/value"
-	val "github.com/gregfurman/micropython-wasi/internal/value"
+	"github.com/gregfurman/micropython-go/internal/value"
+	val "github.com/gregfurman/micropython-go/internal/value"
 )
 
 // ToValue converts a Go value to the Python one it most closely resembles, otherwise

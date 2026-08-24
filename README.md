@@ -12,7 +12,7 @@ This package allows you to embed a full MicroPython interpreter directly into yo
 ## Installation
 
 ```bash
-go get github.com/gregfurman/micropython-wasi
+go get github.com/gregfurman/micropython-go
 
 ```
 
@@ -34,7 +34,7 @@ import (
 	"fmt"
 	"log"
 
-	micropython "github.com/gregfurman/micropython-wasi"
+	micropython "github.com/gregfurman/micropython-go"
 )
 
 func main() {

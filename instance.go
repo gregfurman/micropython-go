@@ -6,8 +6,8 @@ import (
 	"maps"
 	"slices"
 
-	"github.com/gregfurman/micropython-wasi/internal/api"
-	"github.com/gregfurman/micropython-wasi/internal/host"
+	"github.com/gregfurman/micropython-go/internal/api"
+	"github.com/gregfurman/micropython-go/internal/host"
 )
 
 var (
