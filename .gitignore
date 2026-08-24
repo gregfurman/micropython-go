@@ -3,3 +3,6 @@ out/
 
 # Unpack a wasi-sdk release here, or set WASI_SDK_PATH.
 wasi-sdk-*/
+
+.claude
+.vscode
