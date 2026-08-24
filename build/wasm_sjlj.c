@@ -22,7 +22,7 @@
  * buffers constantly, and every Python try/except depends on landing at the
  * innermost handler rather than the outermost one.
  *
- * The host side is small; see run.mjs for a reference implementation.
+ * The host side is internal/env in Go.
  */
 
 #include <stdint.h>

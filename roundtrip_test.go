@@ -1,26 +1,17 @@
 package micropython
 
 import (
+	"context"
 	"fmt"
+	"math/big"
 	"reflect"
 	"sort"
+	"strings"
 	"testing"
 
-	"github.com/gregfurman/micropython-wasi/internal/host"
+	"github.com/gregfurman/micropython-wasi/internal/value"
 )
 
-// What survives the crossing, in both directions.
-//
-// The encoder and decoder are written independently -- one packs a tag stream
-// for build/wasm_build.c, the other reassembles what build/wasm_value.c
-// streams back -- so nothing but a test holds them to the same idea of a type.
-// Both directions are checked because they have failed separately before: Go
-// int64 past the small-int boundary was an encoder bug, and Python ints past
-// int64 arriving as their low 64 bits was a decoder one.
-
-// TestRoundTrip sends a Go value into Python and gets it back, checking what
-// it is on the way out. Several Go types deliberately land on one Python type
-// and come back as its canonical Go form, which is why want is separate.
 func TestRoundTrip(t *testing.T) {
 	in := newT(t)
 	if _, err := in.Exec(t.Context(), "def echo(v):\n    return v\n"); err != nil {
@@ -36,8 +27,6 @@ func TestRoundTrip(t *testing.T) {
 		{"true", true, true},
 		{"false", false, false},
 
-		// Every Go integer width narrows onto one Python int, and comes back
-		// as int64 -- the only Go type that can hold what Python might send.
 		{"int", int(7), int64(7)},
 		{"int8", int8(-8), int64(-8)},
 		{"int16", int16(-16), int64(-16)},
@@ -52,7 +41,6 @@ func TestRoundTrip(t *testing.T) {
 
 		{"int64 max", int64(1<<63 - 1), int64(1<<63 - 1)},
 		{"int64 min", int64(-1 << 63), int64(-1 << 63)},
-		// Past the small-int boundary, which needs MICROPY_LONGINT_IMPL_MPZ.
 		{"beyond small int", int64(1) << 40, int64(1) << 40},
 
 		{"float32", float32(0.5), float64(0.5)},
@@ -69,19 +57,18 @@ func TestRoundTrip(t *testing.T) {
 		{"list empty", []any{}, []any{}},
 		{"list nested", []any{[]any{int64(1)}}, []any{[]any{int64(1)}}},
 
-		{"tuple", host.Tuple{int64(1), "two"}, host.Tuple{int64(1), "two"}},
-		{"tuple empty", host.Tuple{}, host.Tuple{}},
+		{"tuple", Tuple(Int(1), Str("two")), value.Tuple{int64(1), "two"}},
+		{"tuple empty", Tuple(), value.Tuple{}},
 
-		{"dict", map[string]any{"a": int64(1)}, map[string]any{"a": int64(1)}},
-		{"dict empty", map[string]any{}, map[string]any{}},
+		{"map", map[string]any{"a": int64(1)}, map[string]any{"a": int64(1)}},
+		{"map empty", map[string]any{}, map[string]any{}},
+		{"dict", Dict(Item{Key: Str("a"), Val: Int(1)}), map[string]any{"a": int64(1)}},
+		{"dict empty", Dict(), map[string]any{}},
 
-		{"set", host.Set{int64(1), int64(2)}, host.Set{int64(1), int64(2)}},
-		{"set empty", host.Set{}, host.Set{}},
-		{"frozenset", host.FrozenSet{int64(3)}, host.FrozenSet{int64(3)}},
+		{"set", Set(Int(1), Int(2)), value.Set{int64(1), int64(2)}},
+		{"set empty", Set(), value.Set{}},
+		{"frozenset", FrozenSet(Int(3)), value.FrozenSet{int64(3)}},
 
-		// Anything the encoder does not name goes through JSON, which is how a
-		// struct or a concrete slice reaches Python at all. UseNumber is what
-		// keeps the ints from becoming floats on the way.
 		{"struct", struct {
 			Name string `json:"name"`
 			N    int    `json:"n"`
@@ -92,7 +79,7 @@ func TestRoundTrip(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := in.Call(t.Context(), "echo", Of(tt.send))
+			got, err := in.Call(t.Context(), "echo", tt.send)
 			if err != nil {
 				t.Fatalf("echo(%#v): %v", tt.send, err)
 			}
@@ -103,8 +90,6 @@ func TestRoundTrip(t *testing.T) {
 	}
 }
 
-// TestRoundTripFromPython is the other direction: a Python literal evaluated
-// into a Go value, with no encoder involved.
 func TestRoundTripFromPython(t *testing.T) {
 	in := newT(t)
 
@@ -121,16 +106,14 @@ func TestRoundTripFromPython(t *testing.T) {
 		{"'text'", "text"},
 		{"b'\\x00\\xff'", []byte{0, 255}},
 		{"[1, 'a', None]", []any{int64(1), "a", nil}},
-		{"(1, 2)", host.Tuple{int64(1), int64(2)}},
-		{"()", host.Tuple{}},
+
+		{"(1, 2)", value.Tuple{int64(1), int64(2)}},
+		{"()", value.Tuple{}},
 		{"{'k': 1}", map[string]any{"k": int64(1)}},
 		{"{}", map[string]any{}},
-		{"{1, 2}", host.Set{int64(1), int64(2)}},
-		{"frozenset({1})", host.FrozenSet{int64(1)}},
-
-		// Nested, so the decoder's frame stack has to close containers in the
-		// right order rather than just accumulate.
-		{"[{'a': (1, [2])}]", []any{map[string]any{"a": host.Tuple{int64(1), []any{int64(2)}}}}},
+		{"{1, 2}", value.Set{int64(1), int64(2)}},
+		{"frozenset({1})", value.FrozenSet{int64(1)}},
+		{"[{'a': (1, [2])}]", []any{map[string]any{"a": value.Tuple{int64(1), []any{int64(2)}}}}},
 	}
 
 	for _, tt := range tests {
@@ -146,8 +129,6 @@ func TestRoundTripFromPython(t *testing.T) {
 	}
 }
 
-// TestRoundTripRejects covers what cannot cross, which must be an error rather
-// than a wrong value or a dead interpreter.
 func TestRoundTripRejects(t *testing.T) {
 	in := newT(t)
 	if _, err := in.Exec(t.Context(), "def echo(v):\n    return v\n"); err != nil {
@@ -161,12 +142,12 @@ func TestRoundTripRejects(t *testing.T) {
 		{"uint64 past int64", uint64(1 << 63)},
 		{"channel", make(chan int)},
 		{"func", func() {}},
-		{"unhashable set member", host.Set{[]any{int64(1)}}},
+		{"unhashable set member", Set(List(Int(1)))},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if _, err := in.Call(t.Context(), "echo", Of(tt.send)); err == nil {
+			if _, err := in.Call(t.Context(), "echo", tt.send); err == nil {
 				t.Errorf("echo(%#v) was accepted", tt.send)
 			}
 			if err := in.Err(); err != nil {
@@ -176,8 +157,6 @@ func TestRoundTripRejects(t *testing.T) {
 	}
 }
 
-// TestRoundTripValuesWithNoGoEquivalent checks the fallback: a Python value the
-// host has no type for arrives as its type name and repr rather than failing.
 func TestRoundTripValuesWithNoGoEquivalent(t *testing.T) {
 	in := newT(t)
 
@@ -187,7 +166,7 @@ func TestRoundTripValuesWithNoGoEquivalent(t *testing.T) {
 			if err != nil {
 				t.Fatalf("%s: %v", expr, err)
 			}
-			obj, ok := got.(host.Object)
+			obj, ok := got.(value.Object)
 			if !ok {
 				t.Fatalf("%s = %#v (%T), want host.Object", expr, got, got)
 			}
@@ -198,23 +177,97 @@ func TestRoundTripValuesWithNoGoEquivalent(t *testing.T) {
 	}
 }
 
-// equalValue is reflect.DeepEqual except that sets are compared as sets: a
-// Python set has no order, so its elements come back in whatever order the
-// hash table held them.
-//
-// It recurses, because a set can be nested anywhere -- inside a tuple, a list
-// or a dict value -- and DeepEqual would compare those inner sets by order.
+func TestFrozenSetIsImmutable(t *testing.T) {
+	in := newT(t)
+
+	if _, err := in.Exec(t.Context(), "def mutate(v):\n    v.add(99)\n"); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := in.Call(t.Context(), "mutate", FrozenSet(Int(1))); err == nil {
+		t.Error("a frozenset accepted add() but should be immutable")
+	} else if !strings.Contains(err.Error(), "AttributeError") {
+		t.Errorf("mutating a frozenset: %v, want AttributeError", err)
+	}
+
+	// A set is the mutable one, so the same call succeeds.
+	if _, err := in.Call(t.Context(), "mutate", Set(Int(1))); err != nil {
+		t.Errorf("a set refused add(): %v", err)
+	}
+}
+
+func TestCompositeDictKeys(t *testing.T) {
+	for _, expr := range []string{
+		"{(1, 2): 'x'}",
+		"{frozenset({1}): 'y'}",
+		"{b'k': 'z'}",
+		"{(1, 2): 'x', 'plain': 'v'}",
+	} {
+		t.Run(expr, func(t *testing.T) {
+			in := newT(t)
+
+			got, err := in.Eval(t.Context(), expr)
+			if err != nil {
+				t.Fatalf("%s: %v", expr, err)
+			}
+			if _, ok := got.(map[any]any); !ok {
+				t.Errorf("%s = %#v (%T), want map[any]any", expr, got, got)
+			}
+		})
+	}
+}
+
+func TestBigIntsDoNotTruncate(t *testing.T) {
+	in, _ := NewInstance(context.Background())
+	defer in.Close()
+
+	for _, tc := range []struct{ expr, want string }{
+		{"1 << 100", "1267650600228229401496703205376"},
+		{"(1<<70) + 1", "1180591620717411303425"},
+		{"int('9'*30)", "999999999999999999999999999999"},
+		{"-(1 << 100)", "-1267650600228229401496703205376"},
+		{"2**64", "18446744073709551616"},
+		{"2**63 - 1", "9223372036854775807"}, // largest that still fits int64
+		{"-(2**63)", "-9223372036854775808"},
+	} {
+		got, err := in.Eval(t.Context(), tc.expr)
+		if err != nil {
+			t.Errorf("%s -> %v", tc.expr, err)
+			continue
+		}
+
+		var text string
+		switch v := got.(type) {
+		case int64:
+			text = big.NewInt(v).String()
+		default:
+			text = stringOf(v)
+		}
+		if text != tc.want {
+			t.Errorf("%-16s = %v (%T), want %s", tc.expr, got, got, tc.want)
+		}
+	}
+}
+
+func stringOf(v any) string {
+	type stringer interface{ String() string }
+	if s, ok := v.(stringer); ok {
+		return s.String()
+	}
+	return ""
+}
+
 func equalValue(got, want any) bool {
 	switch w := want.(type) {
-	case host.Set:
-		g, ok := got.(host.Set)
+	case value.Set:
+		g, ok := got.(value.Set)
 		return ok && sameElements(g, w)
-	case host.FrozenSet:
-		g, ok := got.(host.FrozenSet)
+	case value.FrozenSet:
+		g, ok := got.(value.FrozenSet)
 		return ok && sameElements(g, w)
 
-	case host.Tuple:
-		g, ok := got.(host.Tuple)
+	case value.Tuple:
+		g, ok := got.(value.Tuple)
 		return ok && sameSequence(g, w)
 	case []any:
 		g, ok := got.([]any)

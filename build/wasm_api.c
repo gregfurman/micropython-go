@@ -1,16 +1,12 @@
 /*
  * The embedding API: everything the host can call on this module.
  *
- * The ABI is deliberately narrow -- every export takes and returns scalars,
- * and anything larger is passed as (pointer, length) into linear memory. That
- * is the same discipline ncruces/go-sqlite3-wasm applies with its `_go` shims:
- * wasm2go can only carry i32/i64/f32/f64 across the boundary, so function
- * pointers, structs and varargs get bound here in C rather than being
- * expressed from Go.
+ * Every export takes and returns scalars, with anything larger passed as
+ * (pointer, length) into linear memory -- wasm2go carries only i32/i64/f32/f64,
+ * so structs, varargs and function pointers are bound here rather than in Go.
  *
- * The module is a reactor (-mexec-model=reactor): wasi-libc's _initialize runs
- * the constructors, one of which boots the interpreter, and from then on the
- * host drives everything from here.  There is no main().
+ * The module is a reactor (-mexec-model=reactor): _initialize runs the
+ * constructors, one of which boots the interpreter.  There is no main().
  */
 
 #include <stdlib.h>
@@ -94,9 +90,7 @@ static const char *buf_cstr(const mp_api_buf_t *buf) {
 MP_REGISTER_ROOT_POINTER(mp_obj_t mp_api_last_exc);
 
 // Called from the failure branch of an nlr_push, where an escaping exception
-// would abort the module.  Printing runs Python -- __str__ on the exception,
-// __repr__ on its args -- so it gets its own guard, and a failure part-way
-// leaves the host whatever was written before it.
+// would abort the module.  Printing runs Python, so it gets its own guard.
 void mp_api_store_error(mp_obj_t exc) {
     buf_reset(&err_buf);
     MP_STATE_VM(mp_api_last_exc) = exc;
@@ -109,10 +103,9 @@ void mp_api_store_error(mp_obj_t exc) {
     }
 }
 
-// Streams the last exception to the host as a native value; see the shape in
-// wasm_value.c.  Separate from mp_api_store_error so the host decides when the
-// walk happens: it runs Python code, and doing that while unwinding another
-// exception is how a module aborts.
+// Streams the last exception to the host.  Separate from mp_api_store_error so
+// the host decides when the walk happens: it runs Python, and doing that while
+// unwinding another exception aborts the module.
 int32_t mp_api_err_value(void) {
     MP_API_STACK_TOP();
 
@@ -205,10 +198,9 @@ uint32_t mp_api_err_len(void) {
     return err_buf.len;
 }
 
-// Somewhere for the host to put the bytes it is about to hand over: source
-// text, a packed argument list, a name.  Every consumer copies out of it
-// before returning, so one buffer is enough.  It can move when it grows, so
-// the host must ask for it again each time.
+// Where the host puts bytes it is handing over.  Every consumer copies out
+// before returning, so one buffer is enough; it moves when it grows, so the
+// host must ask again each time.
 static mp_api_buf_t scratch;
 
 void *mp_api_scratch(uint32_t size) {

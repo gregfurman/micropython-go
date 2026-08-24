@@ -15,21 +15,13 @@ import (
 // implements the module's val_* imports (decode.go), encodes arguments for it
 // (encode.go), and calls its exports (exports.go). This file is what those
 // share.
-//
-// An ABI is not safe for concurrent use. The module is one linear memory and
-// one call scribbles over another's scratch, so exactly one of Eval, Call and
-// Func may be in flight at a time; the caller owns that exclusion. Cancel,
-// Close, Closed and Xpoll are the exceptions and are safe from any goroutine.
 type ABI struct {
 	mod *wasi.Module
 
-	// Where the shadow stack ends and the rest of linear memory begins; see
-	// newABI. Fixed for the life of the module.
 	base int32
 
 	dec decoder
 	enc writer
-
 
 	state atomic.Int32
 	trap  atomic.Pointer[TrapError]
@@ -71,12 +63,6 @@ func (a *ABI) status() error {
 }
 
 // Begin readies the ABI for one call and reports whether it may proceed.
-//
-// The caller holds the instance lock and must call Begin before arming any
-// cancellation. Clearing the stale request here, rather than inside the call,
-// is what makes Cancel unambiguous: context.AfterFunc on an already-expired
-// context fires immediately, and a clear that happened later would erase the
-// very request it was armed for.
 func (a *ABI) Begin() error {
 	if err := a.status(); err != nil {
 		return err
@@ -87,15 +73,6 @@ func (a *ABI) Begin() error {
 
 // Cancel asks a running call to stop. Safe from any goroutine, and safe when
 // nothing is running; the guest sees a KeyboardInterrupt.
-//
-// It is best effort and cooperative. The request lands at the next VM hook, so
-// a guest sitting in one long C-level operation -- a regex match, a big-int
-// multiply, a sort -- does not stop until that operation finishes.
-//
-// The request is also sticky for the rest of the call, since Xpoll keeps
-// reporting it: a bare `except KeyboardInterrupt` in the guest cannot swallow a
-// cancellation. The cost is that `finally` blocks are interrupted too, so guest
-// cleanup does not run.
 func (a *ABI) Cancel() {
 	a.cancelled.Store(true)
 }
@@ -188,8 +165,6 @@ func (a *ABI) write[T ~[]byte | ~string](b T) (ptr int32, err error) {
 	return ptr, nil
 }
 
-// WriteArgs encodes values into the module's scratch buffer, returning its
-// offset and length.
 func (a *ABI) WriteArgs(values []any) (ptr, n int32, err error) {
 	a.enc.Reset()
 	for _, v := range values {

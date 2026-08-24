@@ -13,21 +13,7 @@ const (
 	maxMemoryPages = 65536
 )
 
-// Snapshot is an interpreter frozen at a point in time: its heap, its globals,
-// every module it had imported and every function it had compiled.
-//
-// Restoring one is how several interpreters share the cost of starting.
-// Everything MicroPython owns lives in linear memory -- the GC heap is a static
-// array in it, and an mp_obj_t is an offset into it rather than a host pointer
-// -- so a copy of that memory laid back down at the same addresses is an exact
-// replica, with no fixups to apply. What a Snapshot does not carry is host-side
-// state: the decoder, the trap record and the cancellation flag all start
-// fresh, which is what makes a restored interpreter independent of the one it
-// came from.
-//
-// A Snapshot is immutable and safe to restore from several goroutines at once.
-// It holds its own copy of the memory, so it costs about what a live instance
-// does, less the shadow stack.
+// Snapshot is an immutable interpreter frozen at a point in time.
 type Snapshot struct {
 	memory []byte
 
@@ -71,13 +57,7 @@ func (s *Snapshot) Restore() (*ABI, error) {
 }
 
 // RestoreInto lays the snapshot back down over a running interpreter, which
-// afterwards is the snapshot: every global, definition and import it had, and
-// nothing that has happened since.
-//
-// This is the cheap path, and the reason Snapshot is worth having at all.
-// Building an interpreter is mostly the 3MB of linear memory and the indirect
-// function table, neither of which depends on what the interpreter has been
-// doing -- so reusing them leaves only the copy.
+// afterwards is the snapshot.
 func (a *ABI) RestoreInto(s *Snapshot) error {
 	if err := a.status(); err != nil {
 		return err
@@ -102,8 +82,8 @@ func (s *Snapshot) restore(a *ABI) error {
 	want := int(s.base) + len(s.memory)
 
 	if grow := want - len(*mem.Slice()); grow > 0 {
-		// The guest can call sbrk -- the malloc-backed output and scratch
-		// buffers do -- so a snapshot may be wider than the module it lands in.
+		// The guest can call sbrk (the malloc-backed output and scratch
+		// buffers do) so a snapshot may be wider than the module it lands in.
 		pages := int64((grow + wasmPageSize - 1) / wasmPageSize)
 		if mem.Grow(pages, maxMemoryPages) < 0 {
 			return fmt.Errorf("micropython: cannot grow memory to %d bytes to restore", want)

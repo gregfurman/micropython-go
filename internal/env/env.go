@@ -1,24 +1,7 @@
-// Package env is the host half of MicroPython's setjmp/longjmp.
-//
-// Wasm cannot unwind its own call stack, and this module is deliberately built
-// without the exception handling proposal (see ../../README.md), so LLVM's
-// Emscripten-style SjLj lowering routes every call made from a function
-// containing an nlr_push through one of the invoke_* trampolines below. The
-// unwind itself happens here, in Go:
-//
-//   - longjmp() reaches X_emscripten_throw_longjmp, which panics;
-//   - the panic unwinds the generated Go frames, standing in for the C frames
-//     the module cannot unwind itself;
-//   - the invoke_* that made the call recovers, rewinds __stack_pointer to
-//     where the call started, and calls the module's setThrew();
-//   - back in the module, the generated code sees __THREW__ set and either
-//     dispatches to the matching setjmp label or falls through to the next
-//     invoke_* out, which is what makes nested handlers work.
-//
-// Every Python try/except depends on that last step landing at the innermost
-// matching handler, so a "setjmp always returns 0, longjmp panics to the top"
-// shortcut is not sufficient here.
 package env
+
+// TODO: This is POTENTIALLY a vibe-coded mess that should be properly auidited.
+// See build/wasm_sjlj.c for more information on this whacky longjmp approach.
 
 import (
 	wasi "github.com/gregfurman/micropython-wasi/internal/micropython"

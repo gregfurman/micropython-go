@@ -12,15 +12,8 @@ import (
 	val "github.com/gregfurman/micropython-wasi/internal/value"
 )
 
-// Go values going into the module.
-//
-// Everything here answers one question -- which Python value is this Go one? --
-// and internal/value writes the answer. Nothing in this file knows the wire
-// format.
-
-// ToValue converts a Go value to the Python one it stands for. It is the open
-// end of the boundary: Go type to the obvious Python type, with JSON for
-// anything unrecognised.
+// ToValue converts a Go value to the Python one it most closely resembles, otherwise
+// fallback to JSON.
 func ToValue(v any) (val.Value, error) { return toValue(v, 0) }
 
 func toValue(v any, depth int) (val.Value, error) {
@@ -71,48 +64,78 @@ func toValue(v any, depth int) (val.Value, error) {
 
 	case []any:
 		return seq(val.NewList, v, depth)
-	case value.Tuple:
+	case val.Tuple:
 		return seq(val.NewTuple, v, depth)
-	case value.Set:
+	case val.Set:
 		return seq(val.NewSet, v, depth)
-	case value.FrozenSet:
+	case val.FrozenSet:
 		return seq(val.NewFrozenSet, v, depth)
 
-	case map[string]any:
-		items := make([]val.Item, 0, len(v))
-		for k, item := range v {
-			x, err := toValue(item, depth+1)
-			if err != nil {
-				return nil, err
-			}
-			items = append(items, val.Item{Key: val.Str(k), Val: x})
+	// Maps
+	case map[string]struct{}:
+		// Special case: treating map[string]struct{} as a Set
+		items := make([]val.Value, 0, len(v))
+		for k := range v {
+			items = append(items, val.Str(k))
 		}
-		return val.NewDict(items...), nil
+		return val.NewSet(items...), nil
+	case map[any]any:
+		return mapToDict(v, depth)
+	case map[string]any:
+		return mapToDict(v, depth)
+	case map[string]string: // Added this as a bonus since it's very common
+		return mapToDict(v, depth)
 
-	case value.Value:
+	case val.Value:
 		return v, nil
 
-	case Object:
+	case value.Object:
 		return nil, fmt.Errorf("micropython: %s came from Python and cannot be passed back", v.Type)
-
-	// The slices worth not routing through JSON.
 	case []string:
-		return slice(v, depth)
+		return sliceToList(v, depth)
 	case []int:
-		return slice(v, depth)
+		return sliceToList(v, depth)
 	case []int64:
-		return slice(v, depth)
+		return sliceToList(v, depth)
 	case []float64:
-		return slice(v, depth)
+		return sliceToList(v, depth)
 	case []bool:
-		return slice(v, depth)
+		return sliceToList(v, depth)
 	case []map[string]any:
-		return slice(v, depth)
+		return sliceToList(v, depth)
 	case [][]byte:
-		return slice(v, depth)
+		return sliceToList(v, depth)
 	}
 
 	return viaJSON(v, depth)
+}
+
+func mapToDict[K comparable, V any](m map[K]V, depth int) (val.Value, error) {
+	items := make([]val.Item, 0, len(m))
+	for k, v := range m {
+		keyVal, err := toValue(k, depth+1)
+		if err != nil {
+			return nil, err
+		}
+		valVal, err := toValue(v, depth+1)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, val.Item{Key: keyVal, Val: valVal})
+	}
+	return val.NewDict(items...), nil
+}
+
+func sliceToList[T any, S ~[]T](s S, depth int) (val.Value, error) {
+	out := make([]val.Value, len(s))
+	for i, item := range s {
+		v, err := toValue(item, depth+1)
+		if err != nil {
+			return nil, err
+		}
+		out[i] = v
+	}
+	return val.NewList(out...), nil
 }
 
 func toInt(v uint64) (val.Value, error) {
@@ -140,6 +163,7 @@ func toNumber(n json.Number) (val.Value, error) {
 	return val.Float(f), nil
 }
 
+// seq is used for untyped slices/arrays like []any, Tuple, Set, etc.
 func seq(build func(...val.Value) val.Value, items []any, depth int) (val.Value, error) {
 	out := make([]val.Value, len(items))
 	for i, item := range items {
@@ -150,18 +174,6 @@ func seq(build func(...val.Value) val.Value, items []any, depth int) (val.Value,
 		out[i] = v
 	}
 	return build(out...), nil
-}
-
-func slice[T any, S ~[]T](s S, depth int) (val.Value, error) {
-	out := make([]val.Value, len(s))
-	for i, item := range s {
-		v, err := toValue(item, depth+1)
-		if err != nil {
-			return nil, err
-		}
-		out[i] = v
-	}
-	return val.NewList(out...), nil
 }
 
 // viaJSON is the open end: anything else is whatever JSON makes of it.

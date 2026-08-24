@@ -1,16 +1,9 @@
 package micropython
 
-import "sort"
-
 type options struct {
 	programPoolSize int
 
-	globals []global
-}
-
-type global struct {
-	name  string
-	value Value
+	globals map[string]Value
 }
 
 type option func(o *options)
@@ -36,19 +29,7 @@ type Globals map[string]Value
 // configuration reaches it without being spliced into the text.
 func WithGlobals(g Globals) option {
 	return func(o *options) {
-		// Sorted, so the globals land in the same order every time. They are
-		// independent of each other, but the snapshot is a copy of memory, and
-		// one that differed run to run would be a poor thing to cache or
-		// compare.
-		names := make([]string, 0, len(g))
-		for name := range g {
-			names = append(names, name)
-		}
-		sort.Strings(names)
-
-		for _, name := range names {
-			o.globals = append(o.globals, global{name, g[name]})
-		}
+		o.globals = g
 	}
 }
 

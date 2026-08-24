@@ -14,20 +14,8 @@ import (
 	"github.com/gregfurman/micropython-wasi/internal/value"
 )
 
-// Fuzzing the exported API.
-//
-// The contract being checked is narrow and absolute: whatever you hand this
-// package, it returns a value or an error. It never panics, never wedges the
-// interpreter for the next call, and never keeps working after Close.
-//
-// Fuzzed Python readily contains `while True:`, so every guest call is bounded
-// by a context. The VM hook makes that real: without it a single input would
-// hang the fuzzer forever and be reported as a crash.
+const guestTimeout = 50 * time.Millisecond
 
-const guestTimeout = 2 * time.Second
-
-// bounded gives the guest a deadline. Fuzzed Python readily contains
-// `while True:`, and the VM hook is what makes that survivable.
 func bounded() (context.Context, context.CancelFunc) {
 	return context.WithTimeout(context.Background(), guestTimeout)
 }
@@ -41,10 +29,6 @@ func fuzzInstance(t *testing.T) *Instance {
 	return in
 }
 
-// FuzzExec runs arbitrary text as Python. Almost all of it is a syntax error,
-// which is the point: the parser, the compiler and the NLR unwind that carries
-// the error back out are the machinery under test, and none of them may take
-// the interpreter with them.
 func FuzzExec(f *testing.F) {
 	for _, seed := range []string{
 		"", "\n", "pass", "1/0", "x = 1",
@@ -76,7 +60,7 @@ func FuzzExec(f *testing.F) {
 		}
 
 		// Whatever happened, the interpreter has to still work.
-		got, err := in.Call(ctx, "len", Of("abc"))
+		got, err := in.Call(ctx, "len", "abc")
 		if errors.Is(err, context.DeadlineExceeded) {
 			t.Skip("guest did not return")
 		}
@@ -89,8 +73,6 @@ func FuzzExec(f *testing.F) {
 	})
 }
 
-// FuzzEval drives the expression path, which parses in expression context
-// rather than statement context and streams a value back rather than output.
 func FuzzEval(f *testing.F) {
 	for _, seed := range []string{"1", "1+1", "[]", "{}", "'x'", "None", "(", "1/0", "len"} {
 		f.Add(seed)
@@ -108,7 +90,7 @@ func FuzzEval(f *testing.F) {
 		}
 
 		// Whatever happened, the interpreter has to still work.
-		got, err := in.Call(ctx, "len", Of("abc"))
+		got, err := in.Call(ctx, "len", "abc")
 		if errors.Is(err, context.DeadlineExceeded) {
 			t.Skip("guest did not return")
 		}
@@ -121,9 +103,6 @@ func FuzzEval(f *testing.F) {
 	})
 }
 
-// FuzzCallArgs pushes arbitrary Go values through Python and back. Anything the
-// encoder accepts must survive the round trip unchanged, and anything it
-// rejects must come back as an error.
 func FuzzCallArgs(f *testing.F) {
 	f.Add([]byte{})
 	f.Add([]byte{0})
@@ -148,7 +127,7 @@ func FuzzCallArgs(f *testing.F) {
 		ctx, cancel := bounded()
 		defer cancel()
 
-		got, err := in.Call(ctx, "echo", Of(want))
+		got, err := in.Call(ctx, "echo", want)
 		if errors.Is(err, context.DeadlineExceeded) {
 			t.Skip("guest did not return")
 		}
@@ -163,7 +142,57 @@ func FuzzCallArgs(f *testing.F) {
 	})
 }
 
-// --- a value generator driven by the fuzzer's bytes -------------------------
+func FuzzProgram(f *testing.F) {
+	f.Add("def f(v):\n    return v\n", "f", []byte{4, 3})
+	f.Add("x = 1\n", "f", []byte{0})
+	f.Add("def f(v):\n    raise ValueError(v)\n", "f", []byte{4, 2})
+	f.Add("def f(v):\n    global x\n    x = v\n    return x\n", "f", []byte{7, 2})
+	f.Add("def f(v):\n    while True:\n        pass\n", "f", []byte{0})
+	f.Add("import json\ndef f(v):\n    return json.dumps(v)\n", "f", []byte{8, 1})
+	f.Add("", "f", []byte{})
+
+	f.Fuzz(func(t *testing.T, src, name string, seed []byte) {
+		p, err := Compile(context.Background(), src)
+		if err != nil {
+			// Source that does not load is an ordinary answer, not a crash.
+			return
+		}
+		defer p.Close()
+
+		arg := genValue(&reader{buf: seed}, 0)
+
+		// Concurrently, so the pool has to grow from the snapshot and hand
+		// back interpreters that later calls can still use.
+		var wg sync.WaitGroup
+		for range 4 {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				ctx, cancel := bounded()
+				defer cancel()
+				p.Call(ctx, name, arg) //nolint:errcheck // any answer is fine; not panicking is the point
+			}()
+		}
+		wg.Wait()
+
+		// Whatever happened, the Program must still serve a call.
+		ctx, cancel := bounded()
+		defer cancel()
+
+		got, err := p.Call(ctx, "len", "abcd")
+		if errors.Is(err, context.DeadlineExceeded) {
+			t.Skip("guest did not return")
+		}
+		if err != nil {
+			t.Fatalf("Program unusable after Compile(%q)+Call(%q): %v", src, name, err)
+		}
+		if got != int64(4) {
+			t.Fatalf("Program wrong after Compile(%q)+Call(%q): len('abcd') = %#v", src, name, got)
+		}
+	})
+}
+
+// -------------------------------------------------------------
 
 type reader struct {
 	buf []byte
@@ -236,17 +265,12 @@ func genValue(r *reader, depth int) any {
 		return out
 	case 9:
 		n := int(r.byte() % 4)
-		out := make(value.Tuple, n)
+		out := make([]any, n)
 		for i := range out {
 			out[i] = genValue(r, depth+1)
 		}
-		return out
-	case 10, 11:
-		// Set members must be hashable, so they come from the scalar half of
-		// the generator only -- a set of lists is a guest TypeError, which is
-		// correct behaviour and not what a round trip is testing.
-		return value.Set(genHashables(r))
-	case 12:
+		return value.Tuple(out)
+	case 10, 11, 12:
 		return value.Set(genHashables(r))
 	default:
 		n := int(r.byte() % 4)
@@ -258,9 +282,6 @@ func genValue(r *reader, depth int) any {
 	}
 }
 
-// genHashables builds set members that are distinct to Python, so the set that
-// holds them has the length it was given and the round trip can compare
-// element for element.
 func genHashables(r *reader) []any {
 	n := int(r.byte() % 5)
 	seen := make(map[string]bool, n)
@@ -277,10 +298,6 @@ func genHashables(r *reader) []any {
 	return out
 }
 
-// pyKey identifies a value the way Python's set does, which is not the way Go
-// does: bool is a subclass of int there, so {False, 0} is one element and
-// {True, 1} is one element. Deduping on the Go type would build sets that
-// legitimately come back shorter than they went in.
 func pyKey(v any) string {
 	switch t := v.(type) {
 	case bool:
@@ -318,61 +335,4 @@ func sanitise(b []byte) []byte {
 		}
 	}
 	return b
-}
-
-// FuzzProgram drives the whole public path: compile arbitrary source, then
-// call arbitrary names on it with arbitrary arguments, concurrently.
-//
-// Compile plus a pool is where the parts interact -- a snapshot taken of a
-// half-broken interpreter, a restore that leaves state behind, a trapped
-// instance handed back out. None of that is reachable from the single-call
-// fuzzers above.
-func FuzzProgram(f *testing.F) {
-	f.Add("def f(v):\n    return v\n", "f", []byte{4, 3})
-	f.Add("x = 1\n", "f", []byte{0})
-	f.Add("def f(v):\n    raise ValueError(v)\n", "f", []byte{4, 2})
-	f.Add("def f(v):\n    global x\n    x = v\n    return x\n", "f", []byte{7, 2})
-	f.Add("def f(v):\n    while True:\n        pass\n", "f", []byte{0})
-	f.Add("import json\ndef f(v):\n    return json.dumps(v)\n", "f", []byte{8, 1})
-	f.Add("", "f", []byte{})
-
-	f.Fuzz(func(t *testing.T, src, name string, seed []byte) {
-		p, err := Compile(context.Background(), src)
-		if err != nil {
-			// Source that does not load is an ordinary answer, not a crash.
-			return
-		}
-		defer p.Close()
-
-		arg := genValue(&reader{buf: seed}, 0)
-
-		// Concurrently, so the pool has to grow from the snapshot and hand
-		// back interpreters that later calls can still use.
-		var wg sync.WaitGroup
-		for range 4 {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				ctx, cancel := bounded()
-				defer cancel()
-				p.Call(ctx, name, Of(arg)) //nolint:errcheck // any answer is fine; not panicking is the point
-			}()
-		}
-		wg.Wait()
-
-		// Whatever happened, the Program must still serve a call.
-		ctx, cancel := bounded()
-		defer cancel()
-
-		got, err := p.Call(ctx, "len", Of("abcd"))
-		if errors.Is(err, context.DeadlineExceeded) {
-			t.Skip("guest did not return")
-		}
-		if err != nil {
-			t.Fatalf("Program unusable after Compile(%q)+Call(%q): %v", src, name, err)
-		}
-		if got != int64(4) {
-			t.Fatalf("Program wrong after Compile(%q)+Call(%q): len('abcd') = %#v", src, name, got)
-		}
-	})
 }

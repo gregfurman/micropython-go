@@ -6,14 +6,13 @@ import (
 	"github.com/gregfurman/micropython-wasi/internal/value"
 )
 
-// Values coming out of the module.
+// frame is a container for the raw values emitted from a module.
 type frame struct {
 	kind  byte
 	want  int
 	items []any
 }
 
-// decoder is the mirror of encoder.
 type decoder struct {
 	stack []frame
 	root  any
@@ -115,7 +114,7 @@ func (a *ABI) Xval_exception(typePtr, typeLen, msgPtr, msgLen int32) {
 }
 
 func (a *ABI) Xval_other(typePtr, typeLen, reprPtr, reprLen int32) {
-	a.dec.push(Object{
+	a.dec.push(value.Object{
 		Type: a.str(typePtr, typeLen),
 		Repr: a.str(reprPtr, reprLen),
 	})

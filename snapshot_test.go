@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gregfurman/micropython-wasi/internal/host"
+	"github.com/gregfurman/micropython-wasi/internal/value"
 )
 
 //go:embed micropython/tests/basics micropython/tests/float micropython/tests/stress
@@ -82,7 +82,7 @@ func runSuite(t *testing.T, contents []byte) {
 
 			resp, err := in.Exec(t.Context(), string(src))
 			if err != nil {
-				var exc *host.Exception
+				var exc *value.Exception
 				if errors.As(err, &exc) {
 					switch exc.Type() {
 					case "SystemExit":

@@ -31,7 +31,7 @@ func TestExecThenCall(t *testing.T) {
 	if got, err := in.Call(ctx, "double", Of(21)); err != nil || got != int64(42) {
 		t.Errorf("double(21) = %#v, %v", got, err)
 	}
-	if got, err := in.Call(ctx, "shout", Of("hi")); err != nil || got != "HI" {
+	if got, err := in.Call(ctx, "shout", "hi"); err != nil || got != "HI" {
 		t.Errorf("shout(\"hi\") = %#v, %v", got, err)
 	}
 }
@@ -87,7 +87,7 @@ func TestPythonError(t *testing.T) {
 		t.Fatal("expected a Python error")
 	}
 	// The instance must still work afterwards.
-	if got, err := in.Call(ctx, "len", Of("abc")); err != nil || got != int64(3) {
+	if got, err := in.Call(ctx, "len", "abc"); err != nil || got != int64(3) {
 		t.Errorf("after error: %#v, %v", got, err)
 	}
 }
@@ -102,9 +102,6 @@ func TestEval(t *testing.T) {
 	}
 }
 
-// Globals are a closed set: WithGlobal takes a built value, so a Go type with
-// no Python equivalent -- a func, a channel, a struct -- does not compile
-// rather than failing at the encoder or, worse, being quietly accepted.
 func TestGlobals(t *testing.T) {
 	p, err := Compile(context.Background(), `
 def run():
@@ -189,10 +186,6 @@ func TestValueLiftMatchesRoundTrip(t *testing.T) {
 	}
 }
 
-// An Object carries a type name and a repr rather than the object it stands
-// for, so it cannot go back; the JSON fallback would have made it a dict of
-// those two strings. An Exception can, because its type and message are the
-// whole of it.
 func TestPythonValuesPassedBack(t *testing.T) {
 	in := newT(t)
 
@@ -200,7 +193,8 @@ func TestPythonValuesPassedBack(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	obj, ok := got.(Object)
+	// NOTE: we don't export this for now.
+	obj, ok := got.(value.Object)
 	if !ok {
 		t.Fatalf("got %#v (%T), want an Object", got, got)
 	}
@@ -208,7 +202,7 @@ func TestPythonValuesPassedBack(t *testing.T) {
 	if _, err := in.Exec(t.Context(), "def f(v):\n    return v\n"); err != nil {
 		t.Fatal(err)
 	}
-	_, err = in.Call(t.Context(), "f", Of(obj))
+	_, err = in.Call(t.Context(), "f", obj)
 	if err == nil {
 		t.Fatal("an Object was accepted as an argument")
 	}
@@ -226,12 +220,12 @@ func TestPythonValuesPassedBack(t *testing.T) {
 	if _, err := in.Exec(t.Context(), "def kind(e):\n    return type(e).__name__\n"); err != nil {
 		t.Fatal(err)
 	}
-	if got, err := in.Call(t.Context(), "kind", Of(exc)); err != nil || got != exc.Type() {
+	if got, err := in.Call(t.Context(), "kind", exc); err != nil || got != exc.Type() {
 		t.Errorf("passing an Exception back = %#v, %v; want %q", got, err, exc.Type())
 	}
 
 	// And the instance is unharmed.
-	if got, err := in.Call(t.Context(), "f", Of(int64(1))); err != nil || got != int64(1) {
+	if got, err := in.Call(t.Context(), "f", int64(1)); err != nil || got != int64(1) {
 		t.Errorf("after the refusals: %#v, %v", got, err)
 	}
 }

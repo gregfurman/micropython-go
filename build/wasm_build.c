@@ -1,23 +1,14 @@
 /*
  * Turning host data into Python values.
  *
- * The obvious way to pass a value in is to render it as a literal and let the
- * module parse it.  That is the wrong shape: it makes the host responsible for
- * quoting, escaping and float round-tripping, it turns every argument into a
- * parse, and a bug in the rendering becomes code injection.
+ * The host sends a flat prefix walk of the value, one byte of tag each
+ * (wasm_pack.h), and this file decodes it -- the whole argument list in one
+ * crossing, since an nlr_push per value costs more than the decoding does.
  *
- * Instead the host sends a flat prefix walk of the value, one byte of tag each,
- * and this file decodes it.  That is still serialisation, but a fixed binary
- * format has no quoting, no parse ambiguity, and no path by which a string in
- * the data becomes code.  It also arrives in a single crossing: an earlier
- * version pushed one value per call, and each of those paid for an nlr_push
- * whose setjmp forces every call inside it through an invoke_* trampoline,
- * which cost more than the decoding does.
- *
- * Decoding assembles values on a stack that is a Python list registered as a
- * GC root.  That is the part that has to be right: an mp_obj_t is a pointer
- * into the GC heap, so a half-built container held anywhere the collector
- * cannot see would be freed underneath us by the next allocation.
+ * Values are assembled on a stack that is a Python list registered as a GC
+ * root.  That is the part that has to be right: an mp_obj_t is a pointer into
+ * the GC heap, so a half-built container held anywhere the collector cannot
+ * see would be freed by the next allocation.
  */
 
 #include <stdint.h>
@@ -33,7 +24,7 @@
 
 // The decode stack and the callables the host has resolved to handles. Both
 // are plain Python lists, so the GC traces them for free and they grow on
-// demand. The objects the host holds by reference live in wasm_proxy.c.
+// demand.
 MP_REGISTER_ROOT_POINTER(mp_obj_t mp_api_stack);
 MP_REGISTER_ROOT_POINTER(mp_obj_t mp_api_funcs);
 
@@ -247,12 +238,8 @@ static void unpack_all(const uint8_t *ptr, uint32_t len, uint32_t n) {
     }
 }
 
-// Decodes a single value, leaving the stack as it found it.
-//
-// Unlike unpack_all this one runs *during* a call rather than in front of one
-// -- it is how a host function's reply comes back (wasm_host.c) -- and the
-// arguments of every call it is nested inside are still sitting on the stack
-// below.  So it works above them and rewinds, rather than clearing.
+// Decodes a single value, leaving the stack as it found it rather than
+// clearing it, so it is safe to call while something else is decoding.
 mp_obj_t mp_api_unpack(const uint8_t *ptr, uint32_t len) {
     size_t base = stack()->len;
 

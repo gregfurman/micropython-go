@@ -7,8 +7,6 @@ import (
 	"github.com/gregfurman/micropython-wasi/internal/value"
 )
 
-// echo returns a handle to a Python function that hands its argument straight
-// back, so a call exercises the encoder and the decoder end to end.
 func echo(t *testing.T) (*ABI, int32) {
 	t.Helper()
 	a, _ := New()
@@ -43,8 +41,6 @@ func TestEncodeRoundTrip(t *testing.T) {
 	}
 }
 
-// Concrete container types reach Python through the encoder's JSON fallback,
-// which has to keep whole numbers integers rather than making them float64.
 func TestEncodeConcreteGoTypes(t *testing.T) {
 	a, handle := echo(t)
 	for _, tc := range []struct {
@@ -71,7 +67,6 @@ func TestEncodeConcreteGoTypes(t *testing.T) {
 	}
 }
 
-// Arguments are encoded, never pasted into source; this is what that buys.
 func TestNoInjection(t *testing.T) {
 	a, handle := echo(t)
 	evil := "'; import sys; x = 'pwned"

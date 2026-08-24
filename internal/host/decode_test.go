@@ -47,7 +47,7 @@ func TestDecodeTypes(t *testing.T) {
 
 func TestDecodeOther(t *testing.T) {
 	a, _ := New()
-	got, ok := evalValue(t, a, "len").(Object)
+	got, ok := evalValue(t, a, "len").(value.Object)
 	if !ok {
 		t.Fatalf("got %T, want Object", got)
 	}

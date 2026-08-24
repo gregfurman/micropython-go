@@ -1,4 +1,4 @@
-package micropython
+package micropython_test
 
 import (
 	"context"
@@ -6,11 +6,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gregfurman/micropython-wasi/internal/host"
+	"github.com/gregfurman/micropython-wasi"
 )
 
 func TestSets(t *testing.T) {
-	in, err := NewInstance(context.Background())
+	in, err := micropython.NewInstance(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -40,22 +40,24 @@ func TestSets(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// Use the public micropython constructors instead of the internal lifted types.
 	for _, in0 := range []any{
-		host.Set{int64(1), int64(2), int64(3)},
-		host.Set{"a", "b"},
-		host.FrozenSet{int64(7)},
-		host.Set{},
+		micropython.Set(micropython.Int(1), micropython.Int(2), micropython.Int(3)),
+		micropython.Set(micropython.Str("a"), micropython.Str("b")),
+		micropython.FrozenSet(micropython.Int(7)),
+		micropython.Set(),
 	} {
-		got, err := in.Call(t.Context(), "echo", Of(in0))
+		got, err := in.Call(t.Context(), "echo", in0)
 		if err != nil {
 			t.Errorf("echo(%#v) -> %v", in0, err)
 			continue
 		}
-		k, _ := in.Call(t.Context(), "kind", Of(in0))
+		k, _ := in.Call(t.Context(), "kind", in0)
 		t.Logf("%-34s -> python %-10v -> %T %v", fmt.Sprintf("%#v", in0), k, got, got)
 	}
 
-	_, err = in.Call(t.Context(), "echo", Of(host.Set{[]any{int64(1)}}))
+	// Python sets cannot contain unhashable types like lists
+	_, err = in.Call(t.Context(), "echo", micropython.Set(micropython.List(micropython.Int(1))))
 	t.Logf("set containing a list -> %v", err)
 	if in.Err() != nil {
 		t.Errorf("instance died: %v", in.Err())
@@ -65,7 +67,7 @@ func TestSets(t *testing.T) {
 // A frozenset stays immutable across the crossing, and unlike a set it can be
 // a dict key -- which is the only reason the two are distinct types here.
 func TestFrozenSetIsImmutable(t *testing.T) {
-	in, err := NewInstance(context.Background())
+	in, err := micropython.NewInstance(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -75,14 +77,14 @@ func TestFrozenSetIsImmutable(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := in.Call(t.Context(), "mutate", Of(host.FrozenSet{int64(1)})); err == nil {
+	if _, err := in.Call(t.Context(), "mutate", micropython.FrozenSet(micropython.Int(1))); err == nil {
 		t.Error("a frozenset accepted add()")
 	} else if !strings.Contains(err.Error(), "AttributeError") {
 		t.Errorf("mutating a frozenset: %v, want AttributeError", err)
 	}
 
 	// A set is the mutable one, so the same call succeeds.
-	if _, err := in.Call(t.Context(), "mutate", Of(host.Set{int64(1)})); err != nil {
+	if _, err := in.Call(t.Context(), "mutate", micropython.Set(micropython.Int(1))); err != nil {
 		t.Errorf("a set refused add(): %v", err)
 	}
 }
@@ -97,7 +99,7 @@ func TestCompositeDictKeys(t *testing.T) {
 		"{(1, 2): 'x', 'plain': 'v'}",
 	} {
 		t.Run(expr, func(t *testing.T) {
-			in, err := NewInstance(context.Background())
+			in, err := micropython.NewInstance(context.Background())
 			if err != nil {
 				t.Fatal(err)
 			}

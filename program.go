@@ -2,14 +2,23 @@ package micropython
 
 import (
 	"context"
+	"maps"
 	"runtime"
+	"slices"
 	"sync"
 
 	"github.com/gregfurman/micropython-wasi/internal/api"
 	"github.com/gregfurman/micropython-wasi/internal/host"
 )
 
-// Program
+// Program represents a pre-compiled MicroPython script that is safe for
+// concurrent use.
+//
+// When a Program is compiled, it executes the source code once and captures a
+// snapshot of the resulting interpreter state. This snapshot serves as a pristine
+// baseline for all future function calls.
+//
+// To prevent memory leaks, Close must be called when the Program is no longer needed.
 type Program struct {
 	snap *host.Snapshot
 
@@ -20,6 +29,10 @@ type Program struct {
 	closed bool
 }
 
+// Compile evaluates the provided Python source code and captures its initial state.
+//
+// The resulting Program manages an idle pool of interpreters sized by WithPoolSize
+// (which defaults to the number of logical CPUs via runtime.NumCPU).
 func Compile(ctx context.Context, src string, opts ...option) (*Program, error) {
 	// TODO(gregfurman): Consider catering for warm and cold starts
 	opt := newOptions(opts)
@@ -32,8 +45,8 @@ func Compile(ctx context.Context, src string, opts ...option) (*Program, error) 
 		return nil, err
 	}
 
-	for _, g := range opt.globals {
-		if err := in.Set(ctx, g.name, g.value.val); err != nil {
+	for _, key := range slices.Sorted(maps.Keys(opt.globals)) {
+		if err := in.Set(ctx, key, opt.globals[key].val); err != nil {
 			in.Close()
 			return nil, err
 		}
@@ -57,12 +70,22 @@ func Compile(ctx context.Context, src string, opts ...option) (*Program, error) 
 	}, nil
 }
 
+// Instance spawns a standalone Python interpreter initialized with the compiled
+// source's state.
+//
+// Unlike Call, an Instance is stateful: variable mutations and definitions will
+// persist across evaluations. The returned Instance is completely detached from
+// the Program's pool and must be closed by the caller.
 func (p *Program) Instance(ctx context.Context) (*Instance, error) {
-	// NOTE: this is not from the pool
 	return fromSnapshot(p.snap)
 }
 
-func (p *Program) Call(ctx context.Context, name string, args ...Value) (any, error) {
+// Call invokes a named Python function with the provided arguments.
+//
+// The function executes in total isolation. Any changes made to Python's global
+// state during the execution are discarded before the underlying interpreter is
+// returned to the internal pool.
+func (p *Program) Call(ctx context.Context, name string, args ...any) (any, error) {
 	in, err := p.acquire()
 	if err != nil {
 		return nil, err
@@ -73,6 +96,8 @@ func (p *Program) Call(ctx context.Context, name string, args ...Value) (any, er
 	return in.Call(ctx, name, args...)
 }
 
+// Close releases every interpreter the Program is holding. Calls after it
+// return ErrClosed.
 func (p *Program) Close() error {
 	p.mu.Lock()
 	free := p.free
@@ -112,7 +137,9 @@ func (p *Program) acquire() (*Instance, error) {
 	}
 }
 
-// release rewinds the interpreter and returns it to the pool.
+// release rewinds the interpreter to the compiled source and puts it back, so
+// the pool holds nothing a call left behind. Beyond maxIdle it is closed
+// instead, which is what bounds the pool.
 func (p *Program) release(in *Instance) {
 	if err := in.restore(p.snap); err != nil {
 		in.Close()

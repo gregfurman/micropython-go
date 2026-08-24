@@ -44,11 +44,6 @@ func newABI() *ABI {
 
 // Set binds a value to a global name, so a host can seed configuration into an
 // interpreter without going through source text.
-// Set binds a value to a global name, so a host can seed configuration into an
-// interpreter without going through source text.
-//
-// It takes a built value rather than any Go value: what a global may be is a
-// closed question, and internal/value is where it is answered.
 func (a *ABI) Set(name string, v value.Value) (err error) {
 	if err := a.status(); err != nil {
 		return err

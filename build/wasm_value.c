@@ -1,26 +1,12 @@
 /*
- * Handing Python values to the host as native host values.
+ * Handing Python values to the host.
  *
- * A MicroPython value is an mp_obj_t: a tagged pointer into the GC heap. The
- * host cannot hold one, because it has no way to keep it rooted across a
- * collection, so something has to cross the boundary instead of the pointer.
- *
- * Serialising to JSON would work, but it costs an encode on this side and a
- * parse on the other, and it flattens types the host cares about: ints and
- * floats both become JSON numbers, bytes have no representation, and tuples
- * and lists become indistinguishable.
- *
- * Instead the value is walked here and streamed to the host through imported
- * callbacks, the same way ncruces/go-sqlite3-wasm calls back into Go for its
- * VFS. Each callback carries one already-decoded scalar, so the host builds
- * its own native values directly, with no intermediate encoding. Containers
- * announce their length first and are then followed by exactly that many
- * values (twice that, alternating key and value, for a dict), which is enough
- * for the host to reassemble the tree with a small explicit stack.
- *
- * The type dispatch below leans on py/obj.c rather than reimplementing itself:
- * mp_obj_get_array() handles lists and tuples (and subclasses of them) in one
- * call, and the *_maybe() accessors do the int/float unwrapping.
+ * An mp_obj_t is a tagged pointer into the GC heap, and the host has no way to
+ * keep one rooted across a collection, so the value is walked here and streamed
+ * through the val_* callbacks instead.  Each carries one decoded scalar, so the
+ * host builds its own values with no intermediate encoding.  A container
+ * announces its length and is followed by exactly that many values, twice that
+ * for a dict, which is enough to reassemble the tree with a small stack.
  */
 
 #include <stdint.h>
@@ -164,10 +150,8 @@ static void emit_value(mp_obj_t obj, int depth) {
     }
 
     #if MICROPY_PY_BUILTINS_BYTEARRAY
-    // Through the buffer protocol rather than mp_obj_str_get_data, which is
-    // for str and bytes only.  A bytearray reaches the host as []byte, like
-    // bytes: Go has one byte-slice type, and the mutability the two differ by
-    // does not survive the copy either way.
+    // Through the buffer protocol: mp_obj_str_get_data is for str and bytes
+    // only.  Reaches the host as []byte, same as bytes.
     if (mp_obj_is_type(obj, &mp_type_bytearray)) {
         mp_buffer_info_t buf;
         if (mp_get_buffer(obj, &buf, MP_BUFFER_READ)) {

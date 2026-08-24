@@ -61,8 +61,6 @@ func TestABIConstantsMatchC(t *testing.T) {
 
 var constantRE = regexp.MustCompile(`^\s*(\w+)\s*=\s*(\d+)\s*,`)
 
-// constants reads `NAME = N,` enum members with the given prefix, ignoring the
-// comments between them.
 func constants(header, prefix string) (map[string]int, error) {
 	src, err := os.ReadFile("../../build/" + header)
 	if err != nil {
