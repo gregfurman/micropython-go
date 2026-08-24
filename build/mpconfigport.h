@@ -110,6 +110,8 @@
 
 // Parsing a request body and matching a pattern are the bread and butter of
 // the use case this port exists for. See SRC_C in the Makefile.
+#define MICROPY_PY_MATH                  (1)
+#define MICROPY_PY_BUILTINS_COMPILE         (1)
 #define MICROPY_PY_JSON (1)
 #define MICROPY_PY_RE   (1)
 #define MICROPY_PY_RE_SUB                  (1)

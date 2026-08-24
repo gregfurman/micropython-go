@@ -120,6 +120,9 @@ func skipReason(testPath string) string {
 	case "bytes_compare3.py":
 		return "expected output is a ######## wildcard, not a literal"
 
+	case "builtin_compile.py":
+		return "needs func.__globals__, which MICROPY_PY_FUNCTION_ATTRS would add"
+
 	case "recursive_data.py":
 		return "needs print(file=...), which would move print off the host's output hook"
 	}
