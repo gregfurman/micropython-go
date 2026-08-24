@@ -28,19 +28,17 @@ func TestSets(t *testing.T) {
 		"2 in {1, 2}",
 		"{'a', 'b'}",
 	} {
-		got, err := in.Eval(t.Context(), expr)
+		_, err := in.Eval(t.Context(), expr)
 		if err != nil {
-			t.Errorf("%-22s -> %v", expr, err)
+			t.Fatalf("Failed to evaluate expression %s: %s", expr, err)
 			continue
 		}
-		t.Logf("%-22s -> %#v", expr, got)
 	}
 
 	if _, err := in.Exec(t.Context(), "def echo(v):\n    return v\ndef kind(v):\n    return type(v).__name__\n"); err != nil {
 		t.Fatal(err)
 	}
 
-	// Use the public micropython constructors instead of the internal lifted types.
 	for _, in0 := range []any{
 		micropython.Set(micropython.Int(1), micropython.Int(2), micropython.Int(3)),
 		micropython.Set(micropython.Str("a"), micropython.Str("b")),
@@ -63,9 +61,6 @@ func TestSets(t *testing.T) {
 		t.Errorf("instance died: %v", in.Err())
 	}
 }
-
-// A frozenset stays immutable across the crossing, and unlike a set it can be
-// a dict key -- which is the only reason the two are distinct types here.
 func TestFrozenSetIsImmutable(t *testing.T) {
 	in, err := micropython.NewInstance(context.Background())
 	if err != nil {
@@ -88,9 +83,6 @@ func TestFrozenSetIsImmutable(t *testing.T) {
 		t.Errorf("a set refused add(): %v", err)
 	}
 }
-
-// Composite dict keys must not take the interpreter down. A Go map cannot hold
-// a slice as a key, and Tuple, Set and FrozenSet are all slices underneath.
 func TestCompositeDictKeys(t *testing.T) {
 	for _, expr := range []string{
 		"{(1, 2): 'x'}",

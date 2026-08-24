@@ -421,11 +421,6 @@ func TestCompileRejects(t *testing.T) {
 	}
 }
 
-// Cancellation is the only way to stop a guest. There is no scheduler, no
-// signal and no second thread inside the module, so a `while True:` runs until
-// the VM hook asks the host whether to stop -- and if that hook is ever lost,
-// a single call wedges the process. These tests are what would notice.
-
 func spinner(t *testing.T) *Program {
 	t.Helper()
 	p, err := Compile(context.Background(), spinSrc)
@@ -436,7 +431,6 @@ func spinner(t *testing.T) *Program {
 	return p
 }
 
-// A deadline stops a runaway guest, and the Program is usable afterwards.
 func TestCancelDeadline(t *testing.T) {
 	p := spinner(t)
 
@@ -459,7 +453,6 @@ func TestCancelDeadline(t *testing.T) {
 	}
 }
 
-// A context already dead on arrival must not run the guest at all.
 func TestCancelBeforeCall(t *testing.T) {
 	p := spinner(t)
 
@@ -474,10 +467,6 @@ func TestCancelBeforeCall(t *testing.T) {
 	}
 }
 
-// Cancellation is a level, not an edge. A guest with a bare `except:` catches
-// the KeyboardInterrupt the hook raises, so a one-shot request would be
-// swallowed and the loop would run forever; the request has to stay set for
-// the rest of the call.
 func TestCancelIsNotSwallowedByBareExcept(t *testing.T) {
 	p := spinner(t)
 
@@ -500,9 +489,6 @@ func TestCancelIsNotSwallowedByBareExcept(t *testing.T) {
 	}
 }
 
-// Cancelling one call must not disturb another that is already running. The
-// cancellation request is per-interpreter, and the pool hands each concurrent
-// call its own, so a short deadline on one must not cut short a long one.
 func TestCancelIsPerCall(t *testing.T) {
 	p, err := Compile(context.Background(), `
 def work(n):
@@ -541,42 +527,5 @@ def spin():
 		}
 	case <-time.After(30 * time.Second):
 		t.Fatal("the long call never finished")
-	}
-}
-
-// Instance.Cancel stops a call from another goroutine, with no context
-// involved.
-func TestInstanceCancel(t *testing.T) {
-	in := newT(t)
-	if _, err := in.Exec(t.Context(), spinSrc); err != nil {
-		t.Fatal(err)
-	}
-
-	done := make(chan error, 1)
-	go func() {
-		_, err := in.Call(context.Background(), "spin")
-		done <- err
-	}()
-
-	time.Sleep(50 * time.Millisecond)
-	if err := in.Cancel(); err != nil {
-		t.Fatal(err)
-	}
-
-	select {
-	case err := <-done:
-		if err == nil {
-			t.Error("spin() returned without an error after Cancel")
-		}
-		if !errors.Is(err, ErrInterrupted) {
-			t.Logf("cancelled call reported: %v", err)
-		}
-	case <-time.After(15 * time.Second):
-		t.Fatal("Cancel did not stop the guest")
-	}
-
-	// Cancel is a request for one call, not a permanent state.
-	if got, err := in.Call(context.Background(), "double", int64(4)); err != nil || got != int64(8) {
-		t.Errorf("after Cancel: %#v, %v", got, err)
 	}
 }

@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gregfurman/micropython-wasi/internal/value"
 )
@@ -148,8 +149,6 @@ def run():
 	}
 }
 
-// Lift is the other half of the pair: the plain Go value a built one stands
-// for, which must be what the guest sends back for the same value.
 func TestValueLiftMatchesRoundTrip(t *testing.T) {
 	values := []Value{
 		None(), Bool(true), Int(-7), Float(1.5), Str("x"), Bytes([]byte("ab")),
@@ -230,9 +229,6 @@ func TestPythonValuesPassedBack(t *testing.T) {
 	}
 }
 
-// A host-built exception becomes a real Python exception: the guest raises it,
-// and `except ValueError` catches it because the type name was resolved
-// against builtins rather than pasted into a message.
 func TestExceptionLowers(t *testing.T) {
 	p, err := Compile(context.Background(), `
 def raise_it():
@@ -276,9 +272,6 @@ def unknown():
 	}
 }
 
-// A built value passed as a call argument must arrive as itself. It used to
-// reach the encoder as a struct with one unexported field, which JSON rendered
-// as an empty dict without complaining.
 func TestBuiltValueAsCallArgument(t *testing.T) {
 	p, err := Compile(context.Background(), "def echo(v):\n    return v\n")
 	if err != nil {
@@ -307,5 +300,40 @@ func TestBuiltValueAsCallArgument(t *testing.T) {
 				t.Errorf("echo(%s) = %#v, want %#v", tt.arg.Type(), got, tt.want)
 			}
 		})
+	}
+}
+
+func TestInstanceCancel(t *testing.T) {
+	in := newT(t)
+	if _, err := in.Exec(t.Context(), spinSrc); err != nil {
+		t.Fatal(err)
+	}
+
+	done := make(chan error, 1)
+	go func() {
+		_, err := in.Call(context.Background(), "spin")
+		done <- err
+	}()
+
+	time.Sleep(50 * time.Millisecond)
+	if err := in.Cancel(); err != nil {
+		t.Fatal(err)
+	}
+
+	select {
+	case err := <-done:
+		if err == nil {
+			t.Error("spin() returned without an error after Cancel")
+		}
+		if !errors.Is(err, ErrInterrupted) {
+			t.Logf("cancelled call reported: %v", err)
+		}
+	case <-time.After(15 * time.Second):
+		t.Fatal("Cancel did not stop the guest")
+	}
+
+	// Cancel is a request for one call, not a permanent state.
+	if got, err := in.Call(context.Background(), "double", int64(4)); err != nil || got != int64(8) {
+		t.Errorf("after Cancel: %#v, %v", got, err)
 	}
 }
