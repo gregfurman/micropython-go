@@ -19,7 +19,10 @@
 
 #include "wasm_api.h"
 
-static char heap[MICROPY_HEAP_SIZE];
+// The GC heap.  malloc'd at boot rather than a static array, so its size is
+// the host's to choose: it is the bulk of an interpreter's memory, and what
+// one costs to create and to rewind is proportional to it.
+static char *heap;
 
 // Highest shadow stack address seen by the current host call; gc_collect()
 // scans down from here.  Re-recorded on entry to every export, because each
@@ -137,14 +140,27 @@ void mp_api_vm_poll(void) {
 
 // --- entry points ----------------------------------------------------------
 
-// Runs as part of _initialize, so the host has a working interpreter as soon
-// as the module is instantiated.
-__attribute__((constructor)) static void mp_api_boot(void) {
+// Boots the interpreter with a heap of the given size, or MICROPY_HEAP_SIZE
+// if that is zero.  Called once by the host straight after instantiation; an
+// interpreter restored from a snapshot skips it, since the memory being laid
+// down was copied after it ran.
+int32_t mp_api_boot(uint32_t heap_bytes) {
     MP_API_STACK_TOP();
 
-    gc_init(heap, heap + sizeof(heap));
+    if (heap_bytes == 0) {
+        heap_bytes = MICROPY_HEAP_SIZE;
+    }
+
+    heap = malloc(heap_bytes);
+    if (heap == NULL) {
+        return MP_API_ERR;
+    }
+
+    gc_init(heap, heap + heap_bytes);
     mp_init();
     mp_api_stack_init();
+
+    return MP_API_OK;
 }
 
 int32_t mp_api_eval(const char *src, uint32_t src_len, uint32_t mode) {

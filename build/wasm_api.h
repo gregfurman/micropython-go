@@ -73,6 +73,9 @@ void mp_api_stack_init(void);
 
 #define MP_API_EXPORT(name) __attribute__((export_name(#name)))
 
+// Boots the interpreter; see wasm_api.c.  Zero takes the build's default.
+MP_API_EXPORT(mp_api_boot) int32_t mp_api_boot(uint32_t heap_bytes);
+
 MP_API_EXPORT(mp_api_eval) int32_t mp_api_eval(const char *src, uint32_t src_len, uint32_t mode);
 
 MP_API_EXPORT(mp_api_out) const char *mp_api_out(void);

@@ -8,7 +8,7 @@ import (
 )
 
 func TestExecOutput(t *testing.T) {
-	a, _ := New()
+	a, _ := New(0)
 	if err := a.Eval("for i in range(3):\n    print(i)\n", ModeExec); err != nil {
 		t.Fatal(err)
 	}
@@ -18,7 +18,7 @@ func TestExecOutput(t *testing.T) {
 }
 
 func TestPythonError(t *testing.T) {
-	a, _ := New()
+	a, _ := New(0)
 	err := a.Eval("1/0", ModeValue)
 	if err == nil {
 		t.Fatal("expected an error")
@@ -45,7 +45,7 @@ func TestPythonError(t *testing.T) {
 }
 
 func TestFuncAndCall(t *testing.T) {
-	a, _ := New()
+	a, _ := New(0)
 	if err := a.Eval("def add(x, y):\n    return x + y\n", ModeExec); err != nil {
 		t.Fatal(err)
 	}

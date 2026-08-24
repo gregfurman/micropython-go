@@ -26,7 +26,11 @@ func FromGuest(raw string, streamed any, interrupted bool) *Exception {
 	return e
 }
 
-func (e *Exception) Type() string    { return e.typ }
+// Type is the exception's class name, such as "ValueError".
+func (e *Exception) Type() string { return e.typ }
+
+// Message is str(exc): for the usual single-argument exception, that argument
+// as text. Empty for one raised with no arguments.
 func (e *Exception) Message() string { return e.msg }
 
 func (e *Exception) lower(w Writer) {
@@ -45,6 +49,7 @@ func (e *Exception) Unwrap() error {
 	return nil
 }
 
+// Error reports the exception as Python writes it, "Type: message".
 func (e *Exception) Error() string {
 	if e.typ == "" {
 		// should always have a type
@@ -58,6 +63,9 @@ func (e *Exception) Error() string {
 	return e.typ + ": " + e.msg
 }
 
+// Raw is the traceback exactly as MicroPython printed it, trailing newline
+// included. Empty for errors the module never raised, such as a name that did
+// not resolve.
 func (e *Exception) Raw() string {
 	return e.raw
 }

@@ -2,11 +2,25 @@ package micropython
 
 type options struct {
 	programPoolSize int
+	heapBytes       int32
 
 	globals map[string]Value
 }
 
 type option func(o *options)
+
+// WithHeapSize sets the interpreter's Python heap, in bytes. Zero takes the
+// module's default.
+//
+// The heap is most of what an interpreter costs: creating one and rewinding it
+// between calls are both proportional to it, so a program that does not need
+// much is markedly cheaper with less. Too little and the guest raises
+// MemoryError.
+func WithHeapSize(bytes int) option {
+	return func(o *options) {
+		o.heapBytes = int32(bytes)
+	}
+}
 
 func WithPoolSize(n int) option {
 	return func(o *options) {

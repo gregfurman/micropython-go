@@ -19,15 +19,18 @@ import (
 type Instance struct {
 	lock chan struct{}
 	abi  atomic.Pointer[host.ABI]
+
+	// Kept so Reset rebuilds an interpreter the same size as this one.
+	heapBytes int32
 }
 
-func New() (*Instance, error) {
-	abi, err := host.New()
+func New(heapBytes int32) (*Instance, error) {
+	abi, err := host.New(heapBytes)
 	if err != nil {
 		return nil, err
 	}
 
-	i := &Instance{lock: make(chan struct{}, 1)}
+	i := &Instance{lock: make(chan struct{}, 1), heapBytes: heapBytes}
 	i.abi.Store(abi)
 	return i, nil
 }
@@ -154,7 +157,7 @@ func (i *Instance) Reset(ctx context.Context) error {
 		return err
 	}
 
-	next, err := host.New()
+	next, err := host.New(i.heapBytes)
 	if err != nil {
 		return err
 	}

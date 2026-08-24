@@ -9,8 +9,6 @@ import (
 	"sync"
 	"testing"
 	"time"
-
-	"github.com/gregfurman/micropython-go/internal/value"
 )
 
 const handlerSrc = `
@@ -76,7 +74,7 @@ func TestProgramCall(t *testing.T) {
 func TestProgramError(t *testing.T) {
 	p := newProgram(t)
 
-	var exc *value.Exception
+	var exc *PythonError
 	if _, err := p.Call(t.Context(), "boom"); !errors.As(err, &exc) {
 		t.Fatalf("got %v (%T), want *Exception", err, err)
 	} else if exc.Type() != "ValueError" {

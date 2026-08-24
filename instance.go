@@ -42,7 +42,7 @@ type Instance struct {
 func NewInstance(ctx context.Context, opts ...option) (*Instance, error) {
 	opt := newOptions(opts)
 
-	instance, err := api.New()
+	instance, err := api.New(opt.heapBytes)
 	if err != nil {
 		return nil, err
 	}

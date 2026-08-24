@@ -161,8 +161,11 @@ def lookup(key):
 	}
 	defer p.Close()
 
-	if _, err := p.Call(ctx, "lookup", micropython.Str("missing")); err != nil {
-		fmt.Println(err)
+	// The error carries the exception, so a caller can branch on which one it
+	// was rather than reading the message.
+	var exc *micropython.PythonError
+	if _, err := p.Call(ctx, "lookup", micropython.Str("missing")); errors.As(err, &exc) {
+		fmt.Println(exc.Type(), "/", exc.Message())
 	}
 
 	// The Program is unharmed: the failure was the guest's, not the
@@ -174,7 +177,7 @@ def lookup(key):
 	fmt.Println(got)
 
 	// Output:
-	// KeyError: missing
+	// KeyError / missing
 	// 1
 }
 

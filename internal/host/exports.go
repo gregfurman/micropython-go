@@ -19,9 +19,15 @@ const (
 const apiOK = 0
 
 // New boots an interpreter.
-func New() (*ABI, error) {
+// New boots an interpreter with a GC heap of heapBytes, or the module's
+// default if that is zero.
+//
+// The heap is most of what an interpreter costs, in memory and in the time to
+// create one and to rewind it, so a program that does not need much is much
+// cheaper with a smaller one. Too small and the guest raises MemoryError.
+func New(heapBytes int32) (*ABI, error) {
 	a := newABI()
-	if err := a.init(); err != nil {
+	if err := a.init(heapBytes); err != nil {
 		return nil, err
 	}
 	return a, nil
@@ -69,9 +75,13 @@ func (a *ABI) Set(name string, v value.Value) (err error) {
 	return a.check(a.mod.Xmp_api_set(ptr, n, ptr+n, int32(len(lowered))))
 }
 
-func (a *ABI) init() (err error) {
+func (a *ABI) init(heapBytes int32) (err error) {
 	defer a.guard(&err)
+
 	a.mod.X_initialize()
+	if a.mod.Xmp_api_boot(heapBytes) != apiOK {
+		return fmt.Errorf("micropython: cannot boot with a %d byte heap", heapBytes)
+	}
 	return nil
 }
 

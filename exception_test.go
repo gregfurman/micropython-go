@@ -5,8 +5,6 @@ import (
 	"errors"
 	"strings"
 	"testing"
-
-	"github.com/gregfurman/micropython-go/internal/value"
 )
 
 //go:embed testdata/exceptions.py
@@ -47,7 +45,7 @@ func TestExceptions(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			_, err := instance.Call(t.Context(), tt.fn)
 
-			var exc *value.Exception
+			var exc *PythonError
 			if !errors.As(err, &exc) {
 				t.Fatalf("%s() returned %v (%T), want *Exception", tt.fn, err, err)
 			}
@@ -95,7 +93,7 @@ func TestTracebackText(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var exc *value.Exception
+	var exc *PythonError
 	if _, err := instance.Call(t.Context(), "outer"); !errors.As(err, &exc) {
 		t.Fatalf("got %v (%T), want *Exception", err, err)
 	}

@@ -40,7 +40,7 @@ func Compile(ctx context.Context, src string, opts ...option) (*Program, error) 
 		opt.programPoolSize = max(runtime.NumCPU(), 1)
 	}
 
-	in, err := api.New()
+	in, err := api.New(opt.heapBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +73,7 @@ func Compile(ctx context.Context, src string, opts ...option) (*Program, error) 
 // Instance spawns a standalone Python interpreter initialized with the compiled
 // source's state.
 //
-// Unlike Call, an Instance is stateful: variable mutations and definitions will
+// Unlike a Program, an Instance is stateful: variable mutations and definitions will
 // persist across evaluations. The returned Instance is completely detached from
 // the Program's pool and must be closed by the caller.
 func (p *Program) Instance(ctx context.Context) (*Instance, error) {
@@ -137,17 +137,31 @@ func (p *Program) acquire() (*Instance, error) {
 	}
 }
 
-// release rewinds the interpreter to the compiled source and puts it back, so
-// the pool holds nothing a call left behind. Beyond maxIdle it is closed
-// instead, which is what bounds the pool.
+// release puts the interpreter back, rewound to the compiled source so the
+// pool holds nothing a call left behind. Beyond maxIdle it is closed instead,
+// which is what bounds the pool.
+//
+// The decision comes before the rewind: rewinding costs a copy of the whole
+// interpreter, and there is no point paying it for one about to be closed.
 func (p *Program) release(in *Instance) {
+	p.mu.Lock()
+	keep := !p.closed && len(p.free) < p.maxIdle
+	p.mu.Unlock()
+
+	if !keep {
+		in.Close()
+		return
+	}
+
 	if err := in.restore(p.snap); err != nil {
 		in.Close()
 		return
 	}
 
 	p.mu.Lock()
-	keep := !p.closed && len(p.free) < p.maxIdle
+	// Checked again: the Program may have closed, or another goroutine filled
+	// the last slot, while the rewind was running.
+	keep = !p.closed && len(p.free) < p.maxIdle
 	if keep {
 		p.free = append(p.free, in)
 	}

@@ -212,7 +212,7 @@ func TestPythonValuesPassedBack(t *testing.T) {
 	// An exception, by contrast, is fully described by its type and message,
 	// so it does go back -- as a real exception, not a dict of its fields.
 	_, callErr := in.Call(t.Context(), "f")
-	var exc *value.Exception
+	var exc *PythonError
 	if !errors.As(callErr, &exc) {
 		t.Fatalf("got %v (%T), want *Exception", callErr, callErr)
 	}
@@ -264,7 +264,7 @@ def unknown():
 	}
 
 	// Raised and uncaught, it comes back out as the same exception.
-	var exc *value.Exception
+	var exc *PythonError
 	if _, err := p.Call(t.Context(), "raise_it"); !errors.As(err, &exc) {
 		t.Fatalf("got %v (%T), want *Exception", err, err)
 	} else if exc.Type() != "ValueError" || exc.Message() != "bad input" {
@@ -335,5 +335,42 @@ func TestInstanceCancel(t *testing.T) {
 	// Cancel is a request for one call, not a permanent state.
 	if got, err := in.Call(context.Background(), "double", int64(4)); err != nil || got != int64(8) {
 		t.Errorf("after Cancel: %#v, %v", got, err)
+	}
+}
+
+func TestWithHeapSize(t *testing.T) {
+	src := "def big(n):\n    return len(bytearray(n))\n"
+
+	small, err := Compile(context.Background(), src, WithHeapSize(128*1024))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer small.Close()
+
+	// Comfortably inside a 128KB heap.
+	if got, err := small.Call(t.Context(), "big", 16*1024); err != nil || got != int64(16*1024) {
+		t.Errorf("16KB in a 128KB heap: %#v, %v", got, err)
+	}
+
+	// Beyond it, and the guest says so rather than the module dying.
+	var exc *PythonError
+	if _, err := small.Call(t.Context(), "big", 4*1024*1024); !errors.As(err, &exc) {
+		t.Fatalf("4MB in a 128KB heap: %v, want an *Exception", err)
+	} else if exc.Type() != "MemoryError" {
+		t.Errorf("Type = %q, want MemoryError", exc.Type())
+	}
+
+	// The Program is unharmed, and a larger heap takes what the smaller could not.
+	if got, err := small.Call(t.Context(), "big", 16*1024); err != nil || got != int64(16*1024) {
+		t.Errorf("after MemoryError: %#v, %v", got, err)
+	}
+
+	big, err := Compile(context.Background(), src, WithHeapSize(4*1024*1024))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer big.Close()
+	if got, err := big.Call(t.Context(), "big", 2*1024*1024); err != nil || got != int64(2*1024*1024) {
+		t.Errorf("2MB in a 4MB heap: %#v, %v", got, err)
 	}
 }

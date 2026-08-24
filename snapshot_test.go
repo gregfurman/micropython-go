@@ -8,8 +8,6 @@ import (
 	"slices"
 	"strings"
 	"testing"
-
-	"github.com/gregfurman/micropython-go/internal/value"
 )
 
 //go:embed micropython/tests/basics micropython/tests/float micropython/tests/stress
@@ -82,7 +80,7 @@ func runSuite(t *testing.T, contents []byte) {
 
 			resp, err := in.Exec(t.Context(), string(src))
 			if err != nil {
-				var exc *value.Exception
+				var exc *PythonError
 				if errors.As(err, &exc) {
 					switch exc.Type() {
 					case "SystemExit":

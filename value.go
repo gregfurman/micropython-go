@@ -60,6 +60,15 @@ func Dict(entries ...Item) Value {
 	return Value{val: value.NewDict(out...)}
 }
 
+// PythonError is the error a failing call returns. Unwrap it to read which
+// exception the guest raised, rather than matching on the message:
+//
+//	var exc *micropython.PythonError
+//	if errors.As(err, &exc) && exc.Type() == "KeyError" { ... }
+//
+// Exception, by contrast, builds one to send.
+type PythonError = value.Exception
+
 // Exception builds a Python exception as a Value, for binding one the guest can raise.
 func Exception(typ, msg string) Value { return Value{val: value.NewException(typ, msg)} }
 
