@@ -73,19 +73,19 @@ func Ints(items ...int64) Value {
 
 // Of converts an ordinary Go value to its closest resembling Python representation:
 //
-// Go value                                Python representation
-// -------------------------------------------------------------
-// nil                                     None
-// bool                                    bool
-// int, int64, other integers              int
-// float32, float64                        float
-// string                                  str
-// []byte                                  bytes
-// []any                                   list
-// Tuple                                   tuple
-// Set, FrozenSet                          set, frozenset
-// map[string]any, map[any]any             dict
-// anything else (e.g. structs)            JSON round-trip (dict/list)
+//	Go value                                Python representation
+//	-------------------------------------------------------------
+//	nil                                     None
+//	bool                                    bool
+//	int, int64, other integers              int
+//	float32, float64                        float
+//	string                                  str
+//	[]byte                                  bytes
+//	[]any                                   list
+//	Tuple                                   tuple
+//	Set, FrozenSet                          set, frozenset
+//	map[string]any, map[any]any             dict
+//	anything else (e.g. structs)            JSON round-trip (dict/list)
 func Of(v any) Value {
 	if built, ok := v.(Value); ok {
 		return built
