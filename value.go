@@ -30,17 +30,28 @@ func unwrap(items []Value) []value.Value {
 	return out
 }
 
-var ErrNoCallable = value.ErrNoCallable
+// None returns a Python None value.
+func None() Value { return Value{val: value.None{}} }
 
-func None() Value           { return Value{val: value.None{}} }
-func Bool(b bool) Value     { return Value{val: value.Bool(b)} }
-func Int(n int64) Value     { return Value{val: value.Int(n)} }
+// Bool converts a Go bool to a Python bool.
+func Bool(b bool) Value { return Value{val: value.Bool(b)} }
+
+// Int converts a Go int64 to a Python int.
+func Int(n int64) Value { return Value{val: value.Int(n)} }
+
+// Float converts a Go float64 to a Python float.
 func Float(f float64) Value { return Value{val: value.Float(f)} }
-func Str(s string) Value    { return Value{val: value.Str(s)} }
-func Bytes(b []byte) Value  { return Value{val: value.Bytes(b)} }
 
+// Str converts a Go string to a Python str.
+func Str(s string) Value { return Value{val: value.Str(s)} }
+
+// Bytes converts a Go byte slice to a Python bytes object.
+func Bytes(b []byte) Value { return Value{val: value.Bytes(b)} }
+
+// List creates a Python list from the given values.
 func List(items ...Value) Value { return Value{val: value.NewList(unwrap(items)...)} }
 
+// Dict creates a Python dictionary from the given key-value items.
 func Dict(entries ...Item) Value {
 	out := make([]value.Item, len(entries))
 	for i, e := range entries {
@@ -49,12 +60,19 @@ func Dict(entries ...Item) Value {
 	return Value{val: value.NewDict(out...)}
 }
 
-// Raise builds an exception as a Value, for binding one the guest can raise.
+// Exception builds a Python exception as a Value, for binding one the guest can raise.
 func Exception(typ, msg string) Value { return Value{val: value.NewException(typ, msg)} }
-func Tuple(items ...Value) Value      { return Value{val: value.NewTuple(unwrap(items)...)} }
-func Set(items ...Value) Value        { return Value{val: value.NewSet(unwrap(items)...)} }
-func FrozenSet(items ...Value) Value  { return Value{val: value.NewFrozenSet(unwrap(items)...)} }
 
+// Tuple creates a Python tuple from the given values.
+func Tuple(items ...Value) Value { return Value{val: value.NewTuple(unwrap(items)...)} }
+
+// Set creates a mutable Python set from the given values.
+func Set(items ...Value) Value { return Value{val: value.NewSet(unwrap(items)...)} }
+
+// FrozenSet creates an immutable Python frozenset from the given values.
+func FrozenSet(items ...Value) Value { return Value{val: value.NewFrozenSet(unwrap(items)...)} }
+
+// Strs is a convenience function that creates a Python list of strings.
 func Strs(items ...string) Value {
 	out := make([]Value, len(items))
 	for i, s := range items {
@@ -63,6 +81,7 @@ func Strs(items ...string) Value {
 	return List(out...)
 }
 
+// Ints is a convenience function that creates a Python list of integers.
 func Ints(items ...int64) Value {
 	out := make([]Value, len(items))
 	for i, n := range items {
