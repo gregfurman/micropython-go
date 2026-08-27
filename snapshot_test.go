@@ -80,8 +80,7 @@ func runSuite(t *testing.T, contents []byte) {
 
 			resp, err := in.Exec(t.Context(), string(src))
 			if err != nil {
-				var exc *PythonError
-				if errors.As(err, &exc) {
+				if exc, ok := errors.AsType[*PythonError](err); ok {
 					switch exc.Type() {
 					case "SystemExit":
 						t.Skip("Skipped in MicroPython test suite.")

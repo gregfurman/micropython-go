@@ -49,20 +49,31 @@ func (d *dispatcher) dispatch(funcID, argsPtr, numArgs, outPtr int32) error {
 		return fmt.Errorf("args block: %w", err)
 	}
 
+	if _, err := d.mem.View(outPtr, codec.ValueSize); err != nil {
+		return fmt.Errorf("return slot: %w", err)
+	}
+
+	if err := d.codec.Encode(outPtr, nil); err != nil {
+		return fmt.Errorf("return slot: %w", err)
+	}
+
 	args := make([]any, numArgs)
 	for k := range numArgs {
-		v, err := d.codec.Borrow(argsPtr + k*codec.ValueSize) // guest owns these
+		v, err := d.codec.Consume(argsPtr + k*codec.ValueSize)
 		if err != nil {
+			for rest := k + 1; rest < numArgs; rest++ {
+				_, _ = d.codec.Consume(argsPtr + rest*codec.ValueSize)
+			}
 			return fmt.Errorf("arg %d: %w", k, err)
 		}
 		args[k] = v
 	}
 
-	res, err := fn(args)
+	out, err := fn(args)
 	if err != nil {
 		return err
 	}
-	return d.codec.Encode(outPtr, res)
+	return d.codec.Encode(outPtr, out)
 }
 
 func (d *dispatcher) register(fn HostFunc) int32 {

@@ -236,8 +236,7 @@ func BenchmarkCancellationOverhead(b *testing.B) {
 	})
 
 	b.Run("cancellable ctx", func(b *testing.B) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := b.Context()
 		b.ReportAllocs()
 		for b.Loop() {
 			if _, err := in.Call(ctx, "work", int64(10_000)); err != nil {

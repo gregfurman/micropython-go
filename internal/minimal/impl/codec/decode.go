@@ -3,7 +3,9 @@ package codec
 import (
 	"errors"
 	"fmt"
+	"math"
 	"math/big"
+	"reflect"
 	"strings"
 )
 
@@ -17,18 +19,23 @@ func (c *Codec) valueAt(ptr int32) (Value, error) {
 	return v, nil
 }
 
-func (c *Codec) lift(v Value) (any, error) {
+func (c *Codec) decode(v Value) (any, error) {
 	switch v.Kind {
 	case KindNull:
 		return nil, errors.New("null value")
+
 	case KindNone:
 		return nil, nil
+
 	case KindBool:
 		return v.W1 != 0, nil
+
 	case KindInt:
 		return int32(v.W1), nil
+
 	case KindFloat:
 		return v.Float(), nil
+
 	case KindBigint:
 		s, err := c.mem.ReadString(int32(v.W2), int32(v.W1))
 		if err != nil {
@@ -39,72 +46,37 @@ func (c *Codec) lift(v Value) (any, error) {
 			return nil, fmt.Errorf("bad bigint %q", s)
 		}
 		return n, nil
+
 	case KindStr:
-		return c.mem.ReadString(int32(v.W2), int32(v.W1))
+		s, err := c.mem.ReadString(int32(v.W2), int32(v.W1))
+		if err != nil {
+			return nil, err
+		}
+		return s, nil
+
 	case KindBytes:
-		return c.mem.Read(int32(v.W2), int32(v.W1))
-	case KindCallable, KindObject, KindRef:
-		return nil, fmt.Errorf("kind %d: references not supported yet", int32(v.Kind))
-
-	case KindList, KindTuple:
-		length := int32(v.W1)
-		ptr := int32(v.W2)
-
-		if length == 0 || ptr == 0 {
-			return []any{}, nil
+		b, err := c.mem.Read(int32(v.W2), int32(v.W1))
+		if err != nil {
+			return nil, err
 		}
+		return b, nil
 
-		defer c.mem.Free(ptr)
-
-		res := make([]any, length)
-		for j := range length {
-			itemVal, err := c.valueAt(ptr + (j * ValueSize))
-			if err != nil {
-				return nil, err
-			}
-			itemGo, err := c.lift(itemVal)
-			if err != nil {
-				return nil, err
-			}
-			res[j] = itemGo
+	case KindList:
+		items, err := c.decodeSeq(v)
+		if err != nil {
+			return nil, err
 		}
-		return res, nil
+		return items, nil
+
+	case KindTuple:
+		items, err := c.decodeSeq(v)
+		if err != nil {
+			return nil, err
+		}
+		return items, nil
+
 	case KindDict:
-		numPairs := int32(v.W1)
-		ptr := int32(v.W2)
-
-		if numPairs == 0 || ptr == 0 {
-			return map[any]any{}, nil
-		}
-
-		defer c.mem.Free(ptr)
-
-		// TODO: ensure we only ever pass comparable?
-		res := make(map[any]any, numPairs)
-		for j := range numPairs {
-			base := ptr + (j * 2 * ValueSize)
-
-			keyVal, err := c.valueAt(base)
-			if err != nil {
-				return nil, err
-			}
-			key, err := c.lift(keyVal)
-			if err != nil {
-				return nil, err
-			}
-
-			valVal, err := c.valueAt(base + ValueSize) // valVal is murderous
-			if err != nil {
-				return nil, err
-			}
-			val, err := c.lift(valVal)
-			if err != nil {
-				return nil, err
-			}
-
-			res[key] = val
-		}
-		return res, nil
+		return c.decodeDict(v)
 
 	case KindException:
 		msg, err := c.mem.ReadString(int32(v.W2), int32(v.W1))
@@ -115,7 +87,92 @@ func (c *Codec) lift(v Value) (any, error) {
 			return nil, &PythonError{Type: t, Msg: rest}
 		}
 		return nil, &PythonError{Msg: msg}
+
+	case KindCallable, KindObject, KindRef:
+		return nil, fmt.Errorf("kind %d: references not supported yet", int32(v.Kind))
 	}
 
 	return nil, fmt.Errorf("unsupported kind: %d", int32(v.Kind))
+}
+
+func header(v Value) (length, ptr int32, empty bool, err error) {
+	length, ptr = int32(v.W1), int32(v.W2)
+
+	switch {
+	case length == 0:
+		return 0, 0, true, nil
+	case length < 0:
+		return 0, 0, false, fmt.Errorf("bad container length %d", uint32(v.W1))
+	case ptr == 0:
+		return 0, 0, false, fmt.Errorf("length %d with null pointer", length)
+	}
+	return length, ptr, false, nil
+}
+
+func (c *Codec) decodeSeq(v Value) ([]any, error) {
+	length, ptr, empty, err := header(v)
+	if err != nil || empty {
+		return []any{}, err
+	}
+	if length > math.MaxInt32/ValueSize {
+		return nil, fmt.Errorf("sequence too large: %d entries", length)
+	}
+
+	if _, err := c.mem.View(ptr, length*ValueSize); err != nil {
+		return nil, fmt.Errorf("sequence block: %w", err)
+	}
+
+	out := make([]any, length)
+	for j := range length {
+		item, err := c.decodeAt(ptr + j*ValueSize)
+		if err != nil {
+			return nil, err
+		}
+		out[j] = item
+	}
+	return out, nil
+}
+
+func (c *Codec) decodeDict(v Value) (map[any]any, error) {
+	numPairs, ptr, empty, err := header(v)
+	if err != nil {
+		return nil, err
+	}
+	if empty {
+		return map[any]any{}, nil
+	}
+	if numPairs > math.MaxInt32/(2*ValueSize) {
+		return nil, fmt.Errorf("dict too large: %d entries", numPairs)
+	}
+
+	if _, err := c.mem.View(ptr, numPairs*2*ValueSize); err != nil {
+		return nil, fmt.Errorf("dict block: %w", err)
+	}
+
+	d := make(map[any]any, numPairs)
+	for j := range numPairs {
+		base := ptr + j*2*ValueSize
+
+		k, err := c.decodeAt(base)
+		if err != nil {
+			return nil, fmt.Errorf("dict key %d: %w", j, err)
+		}
+		val, err := c.decodeAt(base + ValueSize)
+		if err != nil {
+			return nil, fmt.Errorf("dict value %d: %w", j, err)
+		}
+		if k != nil && !reflect.TypeOf(k).Comparable() {
+			return nil, fmt.Errorf("dict key %d: decoded %T is not comparable", j, k)
+		}
+		d[k] = val
+	}
+	return d, nil
+}
+
+func (c *Codec) decodeAt(ptr int32) (any, error) {
+	v, err := c.valueAt(ptr)
+	if err != nil {
+		return nil, err
+	}
+	return c.decode(v)
 }

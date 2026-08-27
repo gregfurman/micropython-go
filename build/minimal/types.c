@@ -193,7 +193,14 @@ void value_from_exception(mp_obj_t exc, mp_value_t *out) {
     } else {
         out->kind = KIND_EXCEPTION;
         out->w1 = sizeof(fallback) - 1;
-        out->w2 = (uintptr_t)fallback;
+        char *copy = malloc(sizeof(fallback) - 1);
+        if (copy == NULL) {
+            out->w1 = 0;
+            out->w2 = 0;
+        } else {
+            memcpy(copy, fallback, sizeof(fallback) - 1);
+            out->w2 = (uintptr_t)copy;
+        }
     }
 }
 
@@ -210,16 +217,25 @@ mp_obj_t obj_from_value(const mp_value_t *in) {
             memcpy(&v, &in->w1, sizeof(v));
             return mp_obj_new_int(v);
         }
-        case KIND_BIGINT:
-            return mp_parse_num_integer((const char *)(uintptr_t)in->w2, in->w1, 10, NULL);
+        case KIND_BIGINT: {
+            mp_obj_t value = mp_parse_num_integer((const char *)(uintptr_t)in->w2, in->w1, 10, NULL);
+            free((void *)(uintptr_t)in->w2);
+            return value;
+        }
         #if MICROPY_PY_BUILTINS_FLOAT
         case KIND_FLOAT:
             return mp_obj_new_float_from_d(mp_value_get_f64(in));
         #endif
-        case KIND_STR:
-            return mp_obj_new_str((const char *)(uintptr_t)in->w2, in->w1);
-        case KIND_BYTES:
-            return mp_obj_new_bytes((const byte *)(uintptr_t)in->w2, in->w1);
+        case KIND_STR: {
+            mp_obj_t value = mp_obj_new_str((const char *)(uintptr_t)in->w2, in->w1);
+            free((void *)(uintptr_t)in->w2);
+            return value;
+        }
+        case KIND_BYTES: {
+            mp_obj_t value = mp_obj_new_bytes((const byte *)(uintptr_t)in->w2, in->w1);
+            free((void *)(uintptr_t)in->w2);
+            return value;
+        }
         case KIND_REF:
         case KIND_CALLABLE:
         case KIND_OBJECT: {

@@ -41,8 +41,7 @@ func (i *Instance) Exec(ctx context.Context, src string) (string, error) {
 	err := i.run(ctx, func(abi *host.ABI) error {
 		evalErr := abi.Eval(src, host.ModeExec)
 
-		var trap *host.TrapError
-		if !errors.As(evalErr, &trap) {
+		if _, ok := errors.AsType[*host.TrapError](evalErr); !ok {
 			out = abi.Output()
 		}
 		return evalErr

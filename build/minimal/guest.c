@@ -86,9 +86,6 @@ static mp_obj_t generic_host_invoke(size_t n_args, const mp_obj_t *args) {
     }
 
     mp_obj_t res = obj_from_value(&ret);
-    if (ret.kind == KIND_STR || ret.kind == KIND_BYTES || ret.kind == KIND_BIGINT) {
-        free((void *)(uintptr_t)ret.w2);
-    }
     return res;
 }
 

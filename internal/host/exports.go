@@ -8,9 +8,8 @@ import (
 	"github.com/gregfurman/micropython-go/internal/value"
 )
 
-// The module's exports, typed.
-
 // Must match build/wasm_api.h.
+
 const (
 	ModeExec  = 0 // run as a script, the result is whatever it printed
 	ModeValue = 1 // evaluate one expression, streamed back through val_*
@@ -18,7 +17,6 @@ const (
 
 const apiOK = 0
 
-// New boots an interpreter.
 // New boots an interpreter with a GC heap of heapBytes, or the module's
 // default if that is zero.
 //

@@ -3,6 +3,8 @@ package impl
 import (
 	"errors"
 	"fmt"
+	"math/big"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -115,7 +117,7 @@ func TestEvalDict(t *testing.T) {
 	}
 
 	inst.DefineFunction("structured", func(args []any) (any, error) {
-		return map[string]any{"key_1": "val_1"}, nil
+		return map[any]any{1: "val_1"}, nil
 	})
 
 	val, err := inst.Eval(`structured().get("key_1")`)
@@ -132,4 +134,60 @@ func TestEvalDict(t *testing.T) {
 
 	fmt.Printf("val: %v\n", val)
 
+	val, err = inst.Eval(`{"foo":"bar"}`)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Printf("val: %v\n", val)
+
+}
+
+func TestValuesCrossHostBoundary(t *testing.T) {
+	inst, err := NewInstance(0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = inst.DefineFunction("payload", func([]any) (any, error) {
+		return map[string]any{
+			"empty_string": "",
+			"empty_bytes":  []byte{},
+			"nested":       []any{"x", []byte{1, 2}},
+			"big":          new(big.Int).Lsh(big.NewInt(1), 63),
+		}, nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = inst.DefineFunction("identity", func(args []any) (any, error) {
+		return args[0], nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := inst.Eval(`payload() == {"empty_string": "", "empty_bytes": b"", "nested": ["x", b"\x01\x02"], "big": 9223372036854775808}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != true {
+		t.Fatalf("host payload did not round-trip: %v", got)
+	}
+	got, err = inst.Eval(`identity(["argument", {"nested": b"value"}]) == ["argument", {"nested": b"value"}]`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != true {
+		t.Fatalf("host argument did not round-trip: %v", got)
+	}
+
+	got, err = inst.Eval(`["", b"", ["nested"], {"key": "value"}]`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []any{"", []byte{}, []any{"nested"}, map[any]any{"key": "value"}}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("guest payload mismatch:\n got: %#v\nwant: %#v", got, want)
+	}
 }

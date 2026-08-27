@@ -165,13 +165,11 @@ func FuzzProgram(f *testing.F) {
 		// back interpreters that later calls can still use.
 		var wg sync.WaitGroup
 		for range 4 {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
+			wg.Go(func() {
 				ctx, cancel := bounded()
 				defer cancel()
 				p.Call(ctx, name, arg) //nolint:errcheck // any answer is fine; not panicking is the point
-			}()
+			})
 		}
 		wg.Wait()
 

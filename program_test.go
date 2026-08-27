@@ -95,9 +95,7 @@ func TestProgramConcurrent(t *testing.T) {
 	errs := make(chan error, goroutines*each)
 
 	for g := range goroutines {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			for i := range each {
 				row := map[string]any{"id": "r", "a": int64(g), "b": int64(i)}
 				got, err := p.Call(t.Context(), "score", row)
@@ -115,7 +113,7 @@ func TestProgramConcurrent(t *testing.T) {
 					return
 				}
 			}
-		}()
+		})
 	}
 
 	wg.Wait()
@@ -152,14 +150,12 @@ func TestPoolBounded(t *testing.T) {
 	start := make(chan struct{})
 
 	for i := range burst {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			<-start // all in flight at once, forcing the pool to grow
 			if _, err := p.Call(t.Context(), "f", int64(i)); err != nil {
 				t.Error(err)
 			}
-		}()
+		})
 	}
 	close(start)
 	wg.Wait()

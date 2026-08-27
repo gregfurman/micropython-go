@@ -150,8 +150,7 @@ func (m *Module) _init_vm(v0, v1 int32) {
 		m._mp_embed_init(v1, v0, v2+i32(12))
 		m._refs_init()
 		t2 := int32(load32(m.memory[int64(uint32(i32(12)))+110860:]))
-		t3 := m._qstr_from_str(i32(68933))
-		_ = m._mp_obj_dict_store(t2, t3<<3|i32(2), i32(65536))
+		_ = m._mp_obj_dict_store(t2, i32(1522), i32(65536))
 	}
 l0:
 	m.___stack_pointer = v2 + i32(16)
@@ -171,7 +170,7 @@ func (m *Module) _generic_host_invoke(v0, v1 int32) int32 {
 		t4 := v5
 		v0 = t3
 		if uint32(t4) > uint32(v0) {
-			m._mp_raise_ValueError(i32(68269))
+			m._mp_raise_ValueError(i32(68341))
 			panic("unreachable")
 		}
 		v6 = v2 - (v0*i32(12)+i32(15))&i32(-16)
@@ -200,35 +199,22 @@ func (m *Module) _generic_host_invoke(v0, v1 int32) int32 {
 		t6 := int32(load32(m.memory[uint32(v3):]))
 		v2 = t6
 		if v2 == 0 {
-			m._mp_raise_msg(i32(88060), i32(73018))
+			m._mp_raise_msg(i32(88060), i32(73090))
 			panic("unreachable")
 		}
 		if v2 == i32(15) {
-			t10 := int32(load32(m.memory[int64(uint32(v3))+8:]))
-			t11 := int32(load32(m.memory[int64(uint32(v3))+4:]))
-			t12 := m._mp_obj_new_str(t10, t11)
-			v2 = t12
-			t13 := int32(load32(m.memory[int64(uint32(v3))+8:]))
-			m._free(t13)
-			t14 := m._mp_obj_new_exception_arg1(v2)
-			m._nlr_jump(t14)
+			t8 := int32(load32(m.memory[int64(uint32(v3))+8:]))
+			t9 := int32(load32(m.memory[int64(uint32(v3))+4:]))
+			t10 := m._mp_obj_new_str(t8, t9)
+			v2 = t10
+			t11 := int32(load32(m.memory[int64(uint32(v3))+8:]))
+			m._free(t11)
+			t12 := m._mp_obj_new_exception_arg1(v2)
+			m._nlr_jump(t12)
 			panic("unreachable")
 		}
 		t7 := m._obj_from_value(v3)
 		v2 = t7
-		{
-			t8 := int32(load32(m.memory[uint32(v3):]))
-			v1 = t8
-			if uint32(v1) > uint32(i32(8)) {
-				goto l5
-			}
-			if i32_shl(i32(1), v1)&i32(416) == 0 {
-				goto l5
-			}
-			t9 := int32(load32(m.memory[int64(uint32(v3))+8:]))
-			m._free(t9)
-		}
-	l5:
 		m.___stack_pointer = v3 + i32(16)
 		return v2
 	}
@@ -246,7 +232,7 @@ func (m *Module) _mp_obj_new_exception_arg1(v0 int32) int32 {
 }
 func (m *Module) _define_function(v0, v1 int32) {
 	t0 := m._mp_obj_new_int(v1)
-	t1 := m._mp_obj_new_bound_meth(i32(83364), t0)
+	t1 := m._mp_obj_new_bound_meth(i32(65572), t0)
 	v1 = t1
 	t2 := m._qstr_from_str(v0)
 	v0 = t2
@@ -399,7 +385,7 @@ func (m *Module) _kind_of(v0 int32) int32 {
 		if uint32(v0) > uint32(i32(11)) {
 			goto l0
 		}
-		t0 := int32(load32(m.memory[int64(uint32(v0<<2))+83376:]))
+		t0 := int32(load32(m.memory[int64(uint32(v0<<2))+65584:]))
 		v1 = t0
 	}
 l0:
@@ -931,7 +917,7 @@ func (m *Module) _serialize_dict(v0, v1 int32) int32 {
 			v5 = i32(0)
 		l5:
 			if uint32(v1) >= uint32(v4) {
-				m.___assert_fail(i32(75344), i32(72030), i32(499), i32(74803))
+				m.___assert_fail(i32(75416), i32(72102), i32(499), i32(74875))
 				panic("unreachable")
 			}
 			{
@@ -1003,224 +989,234 @@ func (m *Module) _value_from_exception(v0, v1 int32) {
 		v3 = i32(0)
 	l2:
 		{
-		l6:
+		l5:
 			{
-				if v3 == 0 {
-					goto l3
-				}
-				v3 = i32(83440)
-				v5 = i32(23)
-				goto l4
-			l3:
-				store32(m.memory[int64(uint32(i32(0)))+111280:], uint32(i32(0)))
-				m._invoke_viii(i32(14), v2+i32(24), i32(128), v2+i32(16))
-				t6 := int32(load32(m.memory[int64(uint32(i32(0)))+111280:]))
-				v3 = t6
-				store32(m.memory[int64(uint32(i32(0)))+111280:], uint32(i32(0)))
-				v4 = i32(-1)
 				{
-					if v3 == 0 {
+					if v3 != 0 {
+						store64(m.memory[uint32(v1):], uint64(i64(0x170000000f)))
+						{
+							t36 := m._malloc(i32(23))
+							v3 = t36
+							if v3 != 0 {
+								store32(m.memory[int64(uint32(v1))+8:], uint32(v3))
+								t37 := int64(load64(m.memory[int64(uint32(i32(0)))+83455:]))
+								store64(m.memory[int64(uint32(v3))+15:], uint64(t37))
+								t38 := int64(load64(m.memory[int64(uint32(i32(0)))+83448:]))
+								store64(m.memory[int64(uint32(v3))+8:], uint64(t38))
+								t39 := int64(load64(m.memory[int64(uint32(i32(0)))+83440:]))
+								store64(m.memory[uint32(v3):], uint64(t39))
+								goto l14
+							}
+							store64(m.memory[int64(uint32(v1))+4:], uint64(i64(0)))
+							goto l14
+						}
+					}
+					store32(m.memory[int64(uint32(i32(0)))+111280:], uint32(i32(0)))
+					m._invoke_viii(i32(14), v2+i32(24), i32(128), v2+i32(16))
+					t6 := int32(load32(m.memory[int64(uint32(i32(0)))+111280:]))
+					v3 = t6
+					store32(m.memory[int64(uint32(i32(0)))+111280:], uint32(i32(0)))
+					v4 = i32(-1)
+					{
+						if v3 == 0 {
+							goto l4
+						}
+						t7 := int32(load32(m.memory[int64(uint32(i32(0)))+111284:]))
+						v5 = t7
+						if v5 == 0 {
+							goto l4
+						}
+						t8 := m.___wasm_setjmp_test(v3, v2+i32(12))
+						v4 = t8
+						if v4 == 0 {
+							goto l1
+						}
+						m._setTempRet0(v5)
+					}
+				l4:
+					t9 := m._getTempRet0()
+					v3 = t9
+					if v4 == i32(1) {
 						goto l5
 					}
-					t7 := int32(load32(m.memory[int64(uint32(i32(0)))+111284:]))
-					v5 = t7
-					if v5 == 0 {
+					store32(m.memory[int64(uint32(i32(0)))+111280:], uint32(i32(0)))
+					t10 := m._invoke_ii(i32(15), v0)
+					v6 = t10
+					t11 := int32(load32(m.memory[int64(uint32(i32(0)))+111280:]))
+					v3 = t11
+					store32(m.memory[int64(uint32(i32(0)))+111280:], uint32(i32(0)))
+					v4 = i32(-1)
+					{
+						if v3 == 0 {
+							goto l6
+						}
+						t12 := int32(load32(m.memory[int64(uint32(i32(0)))+111284:]))
+						v5 = t12
+						if v5 == 0 {
+							goto l6
+						}
+						t13 := m.___wasm_setjmp_test(v3, v2+i32(12))
+						v4 = t13
+						if v4 == 0 {
+							goto l1
+						}
+						m._setTempRet0(v5)
+					}
+				l6:
+					t14 := m._getTempRet0()
+					v3 = t14
+					if v4 == i32(1) {
 						goto l5
 					}
-					t8 := m.___wasm_setjmp_test(v3, v2+i32(12))
-					v4 = t8
-					if v4 == 0 {
-						goto l1
+					store32(m.memory[int64(uint32(i32(0)))+111280:], uint32(i32(0)))
+					t15 := int32(load16(m.memory[int64(uint32(v6))+6:]))
+					t16 := m._invoke_ii(i32(16), t15)
+					v6 = t16
+					t17 := int32(load32(m.memory[int64(uint32(i32(0)))+111280:]))
+					v3 = t17
+					store32(m.memory[int64(uint32(i32(0)))+111280:], uint32(i32(0)))
+					v4 = i32(-1)
+					{
+						if v3 == 0 {
+							goto l7
+						}
+						t18 := int32(load32(m.memory[int64(uint32(i32(0)))+111284:]))
+						v5 = t18
+						if v5 == 0 {
+							goto l7
+						}
+						t19 := m.___wasm_setjmp_test(v3, v2+i32(12))
+						v4 = t19
+						if v4 == 0 {
+							goto l1
+						}
+						m._setTempRet0(v5)
 					}
-					m._setTempRet0(v5)
-				}
-			l5:
-				t9 := m._getTempRet0()
-				v3 = t9
-				if v4 == i32(1) {
-					goto l6
-				}
-				store32(m.memory[int64(uint32(i32(0)))+111280:], uint32(i32(0)))
-				t10 := m._invoke_ii(i32(15), v0)
-				v6 = t10
-				t11 := int32(load32(m.memory[int64(uint32(i32(0)))+111280:]))
-				v3 = t11
-				store32(m.memory[int64(uint32(i32(0)))+111280:], uint32(i32(0)))
-				v4 = i32(-1)
-				{
-					if v3 == 0 {
-						goto l7
+				l7:
+					t20 := m._getTempRet0()
+					v3 = t20
+					if v4 == i32(1) {
+						goto l5
 					}
-					t12 := int32(load32(m.memory[int64(uint32(i32(0)))+111284:]))
-					v5 = t12
-					if v5 == 0 {
-						goto l7
+					store32(m.memory[int64(uint32(i32(0)))+111280:], uint32(i32(0)))
+					m._invoke_vii(i32(17), v2+i32(24), v6)
+					t21 := int32(load32(m.memory[int64(uint32(i32(0)))+111280:]))
+					v3 = t21
+					store32(m.memory[int64(uint32(i32(0)))+111280:], uint32(i32(0)))
+					v4 = i32(-1)
+					{
+						if v3 == 0 {
+							goto l8
+						}
+						t22 := int32(load32(m.memory[int64(uint32(i32(0)))+111284:]))
+						v5 = t22
+						if v5 == 0 {
+							goto l8
+						}
+						t23 := m.___wasm_setjmp_test(v3, v2+i32(12))
+						v4 = t23
+						if v4 == 0 {
+							goto l1
+						}
+						m._setTempRet0(v5)
 					}
-					t13 := m.___wasm_setjmp_test(v3, v2+i32(12))
-					v4 = t13
-					if v4 == 0 {
-						goto l1
+				l8:
+					t24 := m._getTempRet0()
+					v3 = t24
+					if v4 == i32(1) {
+						goto l5
 					}
-					m._setTempRet0(v5)
-				}
-			l7:
-				t14 := m._getTempRet0()
-				v3 = t14
-				if v4 == i32(1) {
-					goto l6
-				}
-				store32(m.memory[int64(uint32(i32(0)))+111280:], uint32(i32(0)))
-				t15 := int32(load16(m.memory[int64(uint32(v6))+6:]))
-				t16 := m._invoke_ii(i32(16), t15)
-				v6 = t16
-				t17 := int32(load32(m.memory[int64(uint32(i32(0)))+111280:]))
-				v3 = t17
-				store32(m.memory[int64(uint32(i32(0)))+111280:], uint32(i32(0)))
-				v4 = i32(-1)
-				{
-					if v3 == 0 {
-						goto l8
+					store32(m.memory[int64(uint32(i32(0)))+111280:], uint32(i32(0)))
+					m._invoke_vii(i32(18), v2+i32(24), i32(4))
+					t25 := int32(load32(m.memory[int64(uint32(i32(0)))+111280:]))
+					v3 = t25
+					store32(m.memory[int64(uint32(i32(0)))+111280:], uint32(i32(0)))
+					v4 = i32(-1)
+					{
+						if v3 == 0 {
+							goto l9
+						}
+						t26 := int32(load32(m.memory[int64(uint32(i32(0)))+111284:]))
+						v5 = t26
+						if v5 == 0 {
+							goto l9
+						}
+						t27 := m.___wasm_setjmp_test(v3, v2+i32(12))
+						v4 = t27
+						if v4 == 0 {
+							goto l1
+						}
+						m._setTempRet0(v5)
 					}
-					t18 := int32(load32(m.memory[int64(uint32(i32(0)))+111284:]))
-					v5 = t18
-					if v5 == 0 {
-						goto l8
+				l9:
+					t28 := m._getTempRet0()
+					v3 = t28
+					if v4 == i32(1) {
+						goto l5
 					}
-					t19 := m.___wasm_setjmp_test(v3, v2+i32(12))
-					v4 = t19
-					if v4 == 0 {
-						goto l1
+					store32(m.memory[int64(uint32(i32(0)))+111280:], uint32(i32(0)))
+					m._invoke_vii(i32(19), v2+i32(16), v0)
+					t29 := int32(load32(m.memory[int64(uint32(i32(0)))+111280:]))
+					v3 = t29
+					store32(m.memory[int64(uint32(i32(0)))+111280:], uint32(i32(0)))
+					v4 = i32(-1)
+					{
+						if v3 == 0 {
+							goto l10
+						}
+						t30 := int32(load32(m.memory[int64(uint32(i32(0)))+111284:]))
+						v5 = t30
+						if v5 == 0 {
+							goto l10
+						}
+						t31 := m.___wasm_setjmp_test(v3, v2+i32(12))
+						v4 = t31
+						if v4 == 0 {
+							goto l1
+						}
+						m._setTempRet0(v5)
 					}
-					m._setTempRet0(v5)
-				}
-			l8:
-				t20 := m._getTempRet0()
-				v3 = t20
-				if v4 == i32(1) {
-					goto l6
-				}
-				store32(m.memory[int64(uint32(i32(0)))+111280:], uint32(i32(0)))
-				m._invoke_vii(i32(17), v2+i32(24), v6)
-				t21 := int32(load32(m.memory[int64(uint32(i32(0)))+111280:]))
-				v3 = t21
-				store32(m.memory[int64(uint32(i32(0)))+111280:], uint32(i32(0)))
-				v4 = i32(-1)
-				{
-					if v3 == 0 {
-						goto l9
+				l10:
+					t32 := m._getTempRet0()
+					v3 = t32
+					if v4 == i32(1) {
+						goto l5
 					}
-					t22 := int32(load32(m.memory[int64(uint32(i32(0)))+111284:]))
-					v5 = t22
-					if v5 == 0 {
-						goto l9
-					}
-					t23 := m.___wasm_setjmp_test(v3, v2+i32(12))
-					v4 = t23
-					if v4 == 0 {
-						goto l1
-					}
-					m._setTempRet0(v5)
-				}
-			l9:
-				t24 := m._getTempRet0()
-				v3 = t24
-				if v4 == i32(1) {
-					goto l6
-				}
-				store32(m.memory[int64(uint32(i32(0)))+111280:], uint32(i32(0)))
-				m._invoke_vii(i32(18), v2+i32(24), i32(4))
-				t25 := int32(load32(m.memory[int64(uint32(i32(0)))+111280:]))
-				v3 = t25
-				store32(m.memory[int64(uint32(i32(0)))+111280:], uint32(i32(0)))
-				v4 = i32(-1)
-				{
-					if v3 == 0 {
-						goto l10
-					}
-					t26 := int32(load32(m.memory[int64(uint32(i32(0)))+111284:]))
-					v5 = t26
-					if v5 == 0 {
-						goto l10
-					}
-					t27 := m.___wasm_setjmp_test(v3, v2+i32(12))
-					v4 = t27
-					if v4 == 0 {
-						goto l1
-					}
-					m._setTempRet0(v5)
-				}
-			l10:
-				t28 := m._getTempRet0()
-				v3 = t28
-				if v4 == i32(1) {
-					goto l6
-				}
-				store32(m.memory[int64(uint32(i32(0)))+111280:], uint32(i32(0)))
-				m._invoke_vii(i32(19), v2+i32(16), v0)
-				t29 := int32(load32(m.memory[int64(uint32(i32(0)))+111280:]))
-				v3 = t29
-				store32(m.memory[int64(uint32(i32(0)))+111280:], uint32(i32(0)))
-				v4 = i32(-1)
-				{
+					store32(m.memory[int64(uint32(i32(0)))+111280:], uint32(i32(0)))
+					m._invoke_v(i32(3))
+					t33 := int32(load32(m.memory[int64(uint32(i32(0)))+111280:]))
+					v3 = t33
+					store32(m.memory[int64(uint32(i32(0)))+111280:], uint32(i32(0)))
+					v4 = i32(-1)
 					if v3 == 0 {
 						goto l11
-					}
-					t30 := int32(load32(m.memory[int64(uint32(i32(0)))+111284:]))
-					v5 = t30
-					if v5 == 0 {
-						goto l11
-					}
-					t31 := m.___wasm_setjmp_test(v3, v2+i32(12))
-					v4 = t31
-					if v4 == 0 {
-						goto l1
-					}
-					m._setTempRet0(v5)
-				}
-			l11:
-				t32 := m._getTempRet0()
-				v3 = t32
-				if v4 == i32(1) {
-					goto l6
-				}
-				store32(m.memory[int64(uint32(i32(0)))+111280:], uint32(i32(0)))
-				m._invoke_v(i32(3))
-				t33 := int32(load32(m.memory[int64(uint32(i32(0)))+111280:]))
-				v3 = t33
-				store32(m.memory[int64(uint32(i32(0)))+111280:], uint32(i32(0)))
-				v4 = i32(-1)
-				{
-					if v3 == 0 {
-						goto l12
 					}
 					t34 := int32(load32(m.memory[int64(uint32(i32(0)))+111284:]))
 					v5 = t34
 					if v5 == 0 {
-						goto l12
+						goto l11
 					}
 					t35 := m.___wasm_setjmp_test(v3, v2+i32(12))
 					v4 = t35
-					if v4 == 0 {
-						goto l1
+					if v4 != 0 {
+						goto l12
 					}
-					m._setTempRet0(v5)
+					goto l1
 				}
 			l12:
-				t36 := m._getTempRet0()
-				v3 = t36
+				m._setTempRet0(v5)
+			l11:
+				t40 := m._getTempRet0()
+				v3 = t40
 				if v4 == i32(1) {
-					goto l6
+					goto l5
 				}
 			}
-			t37 := int32(load32(m.memory[int64(uint32(v2))+32:]))
-			v3 = t37
-			t38 := int32(load32(m.memory[int64(uint32(v2))+28:]))
-			v5 = t38
+			store32(m.memory[uint32(v1):], uint32(i32(15)))
+			t41 := int64(load64(m.memory[int64(uint32(v2))+28:]))
+			store64(m.memory[int64(uint32(v1))+4:], uint64(t41))
 		}
-	l4:
-		store32(m.memory[int64(uint32(v1))+8:], uint32(v3))
-		store32(m.memory[int64(uint32(v1))+4:], uint32(v5))
-		store32(m.memory[uint32(v1):], uint32(i32(15)))
+	l14:
 		m.___stack_pointer = v2 + i32(80)
 		return
 	}
@@ -1251,52 +1247,61 @@ func (m *Module) _obj_from_value(v0 int32) int32 {
 			t5 := int32(load32(m.memory[int64(uint32(v0))+8:]))
 			t6 := int32(load32(m.memory[int64(uint32(v0))+4:]))
 			t7 := m._mp_parse_num_integer(t5, t6, i32(10), i32(0))
-			return t7
+			v2 = t7
+			t8 := int32(load32(m.memory[int64(uint32(v0))+8:]))
+			m._free(t8)
+			return v2
 		case 5:
-			t8 := math.Float64frombits(load64(m.memory[int64(uint32(v0))+4:]))
-			t9 := m._mp_obj_new_float(t8)
-			return t9
+			t9 := math.Float64frombits(load64(m.memory[int64(uint32(v0))+4:]))
+			t10 := m._mp_obj_new_float(t9)
+			return t10
 		case 6:
-			t10 := int32(load32(m.memory[int64(uint32(v0))+8:]))
-			t11 := int32(load32(m.memory[int64(uint32(v0))+4:]))
-			t12 := m._mp_obj_new_str(t10, t11)
-			return t12
+			t11 := int32(load32(m.memory[int64(uint32(v0))+8:]))
+			t12 := int32(load32(m.memory[int64(uint32(v0))+4:]))
+			t13 := m._mp_obj_new_str(t11, t12)
+			v2 = t13
+			t14 := int32(load32(m.memory[int64(uint32(v0))+8:]))
+			m._free(t14)
+			return v2
 		case 7:
-			t13 := int32(load32(m.memory[int64(uint32(v0))+8:]))
-			t14 := int32(load32(m.memory[int64(uint32(v0))+4:]))
-			t15 := m._mp_obj_new_bytes(t13, t14)
-			return t15
+			t15 := int32(load32(m.memory[int64(uint32(v0))+8:]))
+			t16 := int32(load32(m.memory[int64(uint32(v0))+4:]))
+			t17 := m._mp_obj_new_bytes(t15, t16)
+			v2 = t17
+			t18 := int32(load32(m.memory[int64(uint32(v0))+8:]))
+			m._free(t18)
+			return v2
 		case 11, 12, 13:
 			{
-				t16 := int32(load32(m.memory[int64(uint32(v0))+4:]))
-				v2 = t16
+				t19 := int32(load32(m.memory[int64(uint32(v0))+4:]))
+				v2 = t19
 				if v2 == 0 {
 					goto l12
 				}
-				t17 := int32(load32(m.memory[int64(uint32(i32(100)))+110860:]))
-				t18 := v2
-				v1 = t17
-				t19 := int32(load32(m.memory[int64(uint32(v1))+8:]))
-				if uint32(t18) >= uint32(t19) {
+				t20 := int32(load32(m.memory[int64(uint32(i32(100)))+110860:]))
+				t21 := v2
+				v1 = t20
+				t22 := int32(load32(m.memory[int64(uint32(v1))+8:]))
+				if uint32(t21) >= uint32(t22) {
 					goto l12
 				}
-				t20 := int32(load32(m.memory[int64(uint32(v1))+12:]))
-				t21 := int32(load32(m.memory[uint32(t20+v2<<2):]))
-				v1 = t21
+				t23 := int32(load32(m.memory[int64(uint32(v1))+12:]))
+				t24 := int32(load32(m.memory[uint32(t23+v2<<2):]))
+				v1 = t24
 				if v1 != 0 {
 					goto l0
 				}
 			}
 		l12:
-			m._mp_raise_ValueError(i32(72451))
+			m._mp_raise_ValueError(i32(72523))
 			panic("unreachable")
 		case 8, 9:
-			t22 := int32(load32(m.memory[int64(uint32(v0))+8:]))
-			v3 = t22
-			t23 := int32(load32(m.memory[int64(uint32(v0))+4:]))
-			v4 = t23
-			t24 := m._mp_obj_new_list(i32(0), i32(0))
-			v1 = t24
+			t25 := int32(load32(m.memory[int64(uint32(v0))+8:]))
+			v3 = t25
+			t26 := int32(load32(m.memory[int64(uint32(v0))+4:]))
+			v4 = t26
+			t27 := m._mp_obj_new_list(i32(0), i32(0))
+			v1 = t27
 			if v4 == 0 {
 				goto l13
 			}
@@ -1307,8 +1312,8 @@ func (m *Module) _obj_from_value(v0 int32) int32 {
 			v5 = v4
 		l14:
 			{
-				t25 := m._obj_from_value(v2)
-				_ = m._mp_obj_list_append(v1, t25)
+				t28 := m._obj_from_value(v2)
+				_ = m._mp_obj_list_append(v1, t28)
 				v2 = v2 + i32(12)
 				v5 = v5 + i32(-1)
 				if v5 != 0 {
@@ -1317,20 +1322,20 @@ func (m *Module) _obj_from_value(v0 int32) int32 {
 			}
 			m._free(v3)
 		l13:
-			t27 := int32(load32(m.memory[uint32(v0):]))
-			if t27 != i32(9) {
+			t30 := int32(load32(m.memory[uint32(v0):]))
+			if t30 != i32(9) {
 				goto l0
 			}
-			t28 := int32(load32(m.memory[int64(uint32(v1))+12:]))
-			t29 := m._mp_obj_new_tuple(v4, t28)
-			return t29
+			t31 := int32(load32(m.memory[int64(uint32(v1))+12:]))
+			t32 := m._mp_obj_new_tuple(v4, t31)
+			return t32
 		case 10:
-			t30 := int32(load32(m.memory[int64(uint32(v0))+8:]))
-			v4 = t30
-			t31 := int32(load32(m.memory[int64(uint32(v0))+4:]))
-			v5 = t31
-			t32 := m._mp_obj_new_dict(v5)
-			v1 = t32
+			t33 := int32(load32(m.memory[int64(uint32(v0))+8:]))
+			v4 = t33
+			t34 := int32(load32(m.memory[int64(uint32(v0))+4:]))
+			v5 = t34
+			t35 := m._mp_obj_new_dict(v5)
+			v1 = t35
 			if v5 == 0 {
 				goto l0
 			}
@@ -1340,9 +1345,9 @@ func (m *Module) _obj_from_value(v0 int32) int32 {
 			v2 = v4
 		l15:
 			{
-				t33 := m._obj_from_value(v2)
-				t34 := m._obj_from_value(v2 + i32(12))
-				_ = m._mp_obj_dict_store(v1, t33, t34)
+				t36 := m._obj_from_value(v2)
+				t37 := m._obj_from_value(v2 + i32(12))
+				_ = m._mp_obj_dict_store(v1, t36, t37)
 				v2 = v2 + i32(24)
 				v5 = v5 + i32(-1)
 				if v5 != 0 {
@@ -1352,7 +1357,7 @@ func (m *Module) _obj_from_value(v0 int32) int32 {
 			m._free(v4)
 			return v1
 		default:
-			m._mp_raise_ValueError(i32(73003))
+			m._mp_raise_ValueError(i32(73075))
 			panic("unreachable")
 		case 1:
 			v1 = i32(6)
@@ -1640,7 +1645,7 @@ func (m *Module) _mp_arg_check_num_sig(v0, v1, v2 int32) {
 		goto l0
 	}
 	if v2&i32(1) == 0 {
-		m._mp_raise_TypeError(i32(67820))
+		m._mp_raise_TypeError(i32(67892))
 		panic("unreachable")
 	}
 l0:
@@ -1656,19 +1661,19 @@ l0:
 		}
 		store32(m.memory[int64(uint32(v3))+4:], uint32(v0))
 		store32(m.memory[uint32(v3):], uint32(v1))
-		m._mp_raise_msg_varg(i32(88204), i32(70996), v3)
+		m._mp_raise_msg_varg(i32(88204), i32(71068), v3)
 		panic("unreachable")
 	}
 l2:
 	if uint32(v1) > uint32(v0) {
 		store32(m.memory[int64(uint32(v3))+16:], uint32(v1-v0))
-		m._mp_raise_msg_varg(i32(88204), i32(67709), v3+i32(16))
+		m._mp_raise_msg_varg(i32(88204), i32(67781), v3+i32(16))
 		panic("unreachable")
 	}
 	if uint32(v0) > uint32(v2) {
 		store32(m.memory[int64(uint32(v3))+36:], uint32(v0))
 		store32(m.memory[int64(uint32(v3))+32:], uint32(v2))
-		m._mp_raise_msg_varg(i32(88204), i32(75098), v3+i32(32))
+		m._mp_raise_msg_varg(i32(88204), i32(75170), v3+i32(32))
 		panic("unreachable")
 	}
 l3:
@@ -1719,7 +1724,7 @@ func (m *Module) _mp_arg_parse_all(v0, v1, v2, v3, v4, v5 int32) {
 						if t4&i32(1) != 0 {
 							t12 := int32(load16(m.memory[uint32(v4):]))
 							store32(m.memory[uint32(v6):], uint32(t12))
-							m._mp_raise_msg_varg(i32(88204), i32(74719), v6)
+							m._mp_raise_msg_varg(i32(88204), i32(74791), v6)
 							panic("unreachable")
 						}
 						t5 := int32(load32(m.memory[uint32(v4+i32(4)):]))
@@ -1745,7 +1750,7 @@ func (m *Module) _mp_arg_parse_all(v0, v1, v2, v3, v4, v5 int32) {
 					store32(m.memory[uint32(v5):], uint32(t9))
 					goto l7
 				default:
-					m.___assert_fail(i32(77718), i32(75999), i32(111), i32(71510))
+					m.___assert_fail(i32(77790), i32(76071), i32(111), i32(71582))
 					panic("unreachable")
 				case 2:
 					store32(m.memory[uint32(v5):], uint32(v11))
@@ -1767,14 +1772,14 @@ func (m *Module) _mp_arg_parse_all(v0, v1, v2, v3, v4, v5 int32) {
 		}
 		t11 := int32(load32(m.memory[uint32(v2):]))
 		if uint32(v7) < uint32(int32(uint32(t11)>>3)) {
-			m._mp_raise_TypeError(i32(70966))
+			m._mp_raise_TypeError(i32(71038))
 			panic("unreachable")
 		}
 		m.___stack_pointer = v6 + i32(16)
 		return
 	}
 l3:
-	m._mp_raise_TypeError(i32(70933))
+	m._mp_raise_TypeError(i32(71005))
 	panic("unreachable")
 }
 func (m *Module) _mp_arg_parse_all_kw_array(v0, v1, v2, v3, v4, v5 int32) {
@@ -1787,7 +1792,7 @@ func (m *Module) _mp_arg_parse_all_kw_array(v0, v1, v2, v3, v4, v5 int32) {
 	m.___stack_pointer = v6 + i32(16)
 }
 func (m *Module) _mp_arg_error_unimpl_kw() {
-	m._mp_raise_NotImplementedError(i32(74928))
+	m._mp_raise_NotImplementedError(i32(75000))
 	panic("unreachable")
 }
 func (m *Module) _mp_encode_uint(v0, v1, v2 int32) {
@@ -2025,7 +2030,7 @@ l12:
 				v20 = v12 & i32(8)
 				if t16|v20 == 0 {
 					if v11 != 0 {
-						m._mp_raise_TypeError(i32(66541))
+						m._mp_raise_TypeError(i32(66613))
 						panic("unreachable")
 					}
 					if v12&i32(2) == 0 {
@@ -2109,7 +2114,7 @@ l12:
 					l18:
 						if v21 == 0 {
 							store32(m.memory[int64(uint32(v4))+32:], uint32(int32(uint32(v12)>>3)))
-							m._mp_raise_msg_varg(i32(88204), i32(82827), v4+i32(32))
+							m._mp_raise_msg_varg(i32(88204), i32(82899), v4+i32(32))
 							panic("unreachable")
 						}
 						t26 := m._mp_map_lookup(v23, v12, i32(1))
@@ -2131,7 +2136,7 @@ l12:
 			}
 		l21:
 			store32(m.memory[int64(uint32(v4))+48:], uint32(int32(uint32(v12)>>3)))
-			m._mp_raise_msg_varg(i32(88204), i32(82780), v4+i32(48))
+			m._mp_raise_msg_varg(i32(88204), i32(82852), v4+i32(48))
 			panic("unreachable")
 		l16:
 			v6 = v5 + v10<<2
@@ -2176,7 +2181,7 @@ l12:
 				}
 			}
 			store32(m.memory[uint32(v4):], uint32(v13>>2))
-			m._mp_raise_msg_varg(i32(88204), i32(74995), v4)
+			m._mp_raise_msg_varg(i32(88204), i32(75067), v4)
 			panic("unreachable")
 		l31:
 			t34 := int32(load32(m.memory[int64(uint32(v0))+4:]))
@@ -2275,7 +2280,7 @@ l12:
 	}
 l38:
 	store32(m.memory[int64(uint32(v4))+16:], uint32(v13))
-	m._mp_raise_msg_varg(i32(88204), i32(82860), v4+i32(16))
+	m._mp_raise_msg_varg(i32(88204), i32(82932), v4+i32(16))
 	panic("unreachable")
 }
 func (m *Module) _fun_pos_args_mismatch(v0, v1 int32) {
@@ -2285,7 +2290,7 @@ func (m *Module) _fun_pos_args_mismatch(v0, v1 int32) {
 	m.___stack_pointer = v2
 	store32(m.memory[int64(uint32(v2))+4:], uint32(v1))
 	store32(m.memory[uint32(v2):], uint32(v0))
-	m._mp_raise_msg_varg(i32(88204), i32(70996), v2)
+	m._mp_raise_msg_varg(i32(88204), i32(71068), v2)
 	panic("unreachable")
 }
 func (m *Module) _mp_binary_get_size(v0, v1, v2 int32) int32 {
@@ -2378,7 +2383,7 @@ func (m *Module) _mp_binary_get_size(v0, v1, v2 int32) int32 {
 		}
 	}
 l1:
-	m._mp_raise_ValueError(i32(73902))
+	m._mp_raise_ValueError(i32(73974))
 	panic("unreachable")
 l4:
 	v0 = i32(2)
@@ -3205,7 +3210,7 @@ func (m *Module) _mp_builtin___import___default(v0, v1 int32) int32 {
 						m._mp_store_attr(v0, i32(203), t36)
 						t37 := int32(load32(m.memory[int64(uint32(v2))+548:]))
 						v6 = t37
-						m._vstr_add_str(v2+i32(544), i32(65629))
+						m._vstr_add_str(v2+i32(544), i32(65701))
 						{
 							t38 := m._vstr_null_terminated_str(v2 + i32(544))
 							t39 := _mp_import_stat(t38)
@@ -3257,7 +3262,7 @@ l5:
 	panic("unreachable")
 l16:
 	store32(m.memory[uint32(v2):], uint32(v9))
-	m._mp_raise_msg_varg(i32(87808), i32(82981), v2)
+	m._mp_raise_msg_varg(i32(87808), i32(83053), v2)
 	panic("unreachable")
 }
 func (m *Module) _evaluate_relative_import(v0, v1, v2, v3 int32) {
@@ -3270,7 +3275,7 @@ func (m *Module) _evaluate_relative_import(v0, v1, v2, v3 int32) {
 		t1 := m._mp_obj_dict_get(v3, i32(186))
 		v6 = t1
 		if v6 == 0 {
-			m.___assert_fail(i32(77505), i32(75530), i32(280), i32(66247))
+			m.___assert_fail(i32(77577), i32(75602), i32(280), i32(66319))
 			panic("unreachable")
 		}
 		t2 := m._mp_map_lookup(v3+i32(4), i32(1626), i32(0))
@@ -3323,7 +3328,7 @@ func (m *Module) _evaluate_relative_import(v0, v1, v2, v3 int32) {
 		}
 	l1:
 		if v3 == v8 {
-			m._mp_raise_msg(i32(87808), i32(66272))
+			m._mp_raise_msg(i32(87808), i32(66344))
 			panic("unreachable")
 		}
 		t12 := v4
@@ -3372,7 +3377,7 @@ func (m *Module) _stat_module(v0 int32) int32 {
 		if t1 == i32(1) {
 			goto l0
 		}
-		m._vstr_add_str(v0, i32(65638))
+		m._vstr_add_str(v0, i32(65710))
 		t2 := m._vstr_null_terminated_str(v0)
 		t3 := _mp_import_stat(t2)
 		p4 := i32(0)
@@ -3769,7 +3774,7 @@ l13:
 		goto l9
 	}
 l27:
-	m.___assert_fail(i32(81604), i32(76246), i32(3451), i32(68283))
+	m.___assert_fail(i32(81676), i32(76318), i32(3451), i32(68355))
 	panic("unreachable")
 l9:
 	m._emit_bc_set_max_num_labels(v8, v9)
@@ -3973,7 +3978,7 @@ l2:
 				}
 				t8 := int32(load32(m.memory[uint32(v1):]))
 				if t8 != 0 {
-					m.___assert_fail(i32(77960), i32(76246), i32(3055), i32(73349))
+					m.___assert_fail(i32(78032), i32(76318), i32(3055), i32(73421))
 					panic("unreachable")
 				}
 				t9 := int32(load32(m.memory[int64(uint32(v2))+8:]))
@@ -3992,12 +3997,12 @@ l2:
 					goto l5
 				case 2:
 					if v3 == 0 {
-						m.___assert_fail(i32(80083), i32(76246), i32(3089), i32(73349))
+						m.___assert_fail(i32(80155), i32(76318), i32(3089), i32(73421))
 						panic("unreachable")
 					}
 					t12 := int32(load32(m.memory[int64(uint32(v2))+4:]))
 					if t12&i32(-256) != i32(768) {
-						m.___assert_fail(i32(78729), i32(76246), i32(3091), i32(73349))
+						m.___assert_fail(i32(78801), i32(76318), i32(3091), i32(73421))
 						panic("unreachable")
 					}
 					t13 := int32(load32(m.memory[int64(uint32(v0))+36:]))
@@ -4067,16 +4072,16 @@ l2:
 				case 1:
 					if uint32(v5+i32(-3)) > uint32(i32(3)) {
 						if v5 != i32(1) {
-							m.___assert_fail(i32(77169), i32(76246), i32(3163), i32(73349))
+							m.___assert_fail(i32(77241), i32(76318), i32(3163), i32(73421))
 							panic("unreachable")
 						}
 						if v3 == 0 {
-							m.___assert_fail(i32(80083), i32(76246), i32(3164), i32(73349))
+							m.___assert_fail(i32(80155), i32(76318), i32(3164), i32(73421))
 							panic("unreachable")
 						}
 						t40 := int32(m.memory[int64(uint32(v2))+4])
 						if t40 != i32(56) {
-							m.___assert_fail(i32(72512), i32(76246), i32(3166), i32(73349))
+							m.___assert_fail(i32(72584), i32(76318), i32(3166), i32(73421))
 							panic("unreachable")
 						}
 						if v4 != i32(1) {
@@ -4095,7 +4100,7 @@ l2:
 						t45 := m._scope_find(v1, i32(10))
 						v1 = t45
 						if v1 == 0 {
-							m.___assert_fail(i32(77631), i32(76246), i32(3184), i32(73349))
+							m.___assert_fail(i32(77703), i32(76318), i32(3184), i32(73421))
 							panic("unreachable")
 						}
 						t46 := int32(load32(m.memory[int64(uint32(v0))+36:]))
@@ -4112,12 +4117,12 @@ l2:
 						}
 					}
 					if v3 == 0 {
-						m.___assert_fail(i32(80083), i32(76246), i32(3114), i32(73349))
+						m.___assert_fail(i32(80155), i32(76318), i32(3114), i32(73421))
 						panic("unreachable")
 					}
 					t23 := int32(load32(m.memory[int64(uint32(v2))+4:]))
 					if t23&i32(-256) != i32(512) {
-						m.___assert_fail(i32(78831), i32(76246), i32(3116), i32(73349))
+						m.___assert_fail(i32(78903), i32(76318), i32(3116), i32(73421))
 						panic("unreachable")
 					}
 					t24 := int32(load32(m.memory[int64(uint32(v2))+12:]))
@@ -4188,16 +4193,16 @@ l2:
 				}
 			}
 		l20:
-			m.___assert_fail(i32(79746), i32(76246), i32(3117), i32(73349))
+			m.___assert_fail(i32(79818), i32(76318), i32(3117), i32(73421))
 			panic("unreachable")
 		l16:
 			if v3 == 0 {
-				m.___assert_fail(i32(80083), i32(76246), i32(3067), i32(73349))
+				m.___assert_fail(i32(80155), i32(76318), i32(3067), i32(73421))
 				panic("unreachable")
 			}
 			t49 := int32(m.memory[int64(uint32(v2))+4])
 			if t49 != i32(3) {
-				m.___assert_fail(i32(72558), i32(76246), i32(3069), i32(73349))
+				m.___assert_fail(i32(72630), i32(76318), i32(3069), i32(73421))
 				panic("unreachable")
 			}
 			if v4 != i32(1) {
@@ -4255,7 +4260,7 @@ l2:
 		v1 = t57
 		t58 := int32(load16(m.memory[int64(uint32(v0))+24:]))
 		if t58 != 0 {
-			m.___assert_fail(i32(79172), i32(76246), i32(3196), i32(73349))
+			m.___assert_fail(i32(79244), i32(76318), i32(3196), i32(73421))
 			panic("unreachable")
 		}
 		return v1
@@ -4329,7 +4334,7 @@ func (m *Module) _compile_node(v0, v1 int32) {
 		t5 := int32(m.memory[int64(uint32(v1))+4])
 		v2 = t5
 		if uint32(v2) >= uint32(i32(59)) {
-			m.___assert_fail(i32(67408), i32(76246), i32(2834), i32(73824))
+			m.___assert_fail(i32(67480), i32(76318), i32(2834), i32(73896))
 			panic("unreachable")
 		}
 		t6 := int32(load32(m.memory[int64(uint32(v2<<2))+83504:]))
@@ -4423,12 +4428,12 @@ func (m *Module) _compile_scope_func_lambda_param(v0, v1, v2, v3, v4 int32) {
 						v3 = i32(3)
 						goto l3
 					}
-					m._compile_syntax_error(v0, v1, i32(65780))
+					m._compile_syntax_error(v0, v1, i32(65852))
 					return
 				}
 			l7:
 				if v7 != v4 {
-					m.___assert_fail(i32(69727), i32(76246), i32(2920), i32(71228))
+					m.___assert_fail(i32(69799), i32(76318), i32(2920), i32(71300))
 					panic("unreachable")
 				}
 				store16(m.memory[int64(uint32(v5))+22:], uint16(v6|i32(2)))
@@ -4448,7 +4453,7 @@ func (m *Module) _compile_scope_func_lambda_param(v0, v1, v2, v3, v4 int32) {
 				if t16 == 0 {
 					goto l13
 				}
-				m._compile_syntax_error(v0, v1, i32(74689))
+				m._compile_syntax_error(v0, v1, i32(74761))
 				return
 			}
 		l13:
@@ -4456,13 +4461,13 @@ func (m *Module) _compile_scope_func_lambda_param(v0, v1, v2, v3, v4 int32) {
 			m.memory[uint32(v5)] = byte(i32(4))
 			return
 		l4:
-			m.___assert_fail(i32(80145), i32(76246), i32(2881), i32(71228))
+			m.___assert_fail(i32(80217), i32(76318), i32(2881), i32(71300))
 			panic("unreachable")
 		l11:
-			m.___assert_fail(i32(80521), i32(76246), i32(2912), i32(71228))
+			m.___assert_fail(i32(80593), i32(76318), i32(2912), i32(71300))
 			panic("unreachable")
 		}
-		m._compile_syntax_error(v0, v1, i32(65780))
+		m._compile_syntax_error(v0, v1, i32(65852))
 		return
 	}
 }
@@ -4507,7 +4512,7 @@ func (m *Module) _compile_scope_comp_iter(v0, v1, v2, v3 int32) {
 				v6 = t6
 				if v6 != i32(173) {
 					if v6 != i32(172) {
-						m.___assert_fail(i32(69135), i32(76246), i32(2980), i32(69329))
+						m.___assert_fail(i32(69207), i32(76318), i32(2980), i32(69401))
 						panic("unreachable")
 					}
 					t9 := int32(load32(m.memory[int64(uint32(v1))+12:]))
@@ -4610,7 +4615,7 @@ l1:
 func (m *Module) _c_assign(v0, v1, v2 int32) {
 	var v3, v4, v5, v6 int32
 	if v1 == 0 {
-		m.___assert_fail(i32(80173), i32(76246), i32(527), i32(70924))
+		m.___assert_fail(i32(80245), i32(76318), i32(527), i32(70996))
 		panic("unreachable")
 	}
 	if v1&i32(3) == 0 {
@@ -4717,7 +4722,7 @@ func (m *Module) _c_assign(v0, v1, v2 int32) {
 					t12 := int32(load32(m.memory[int64(uint32(v4))+8:]))
 					v1 = t12
 					if v1&i32(15) != i32(2) {
-						m.___assert_fail(i32(81504), i32(76246), i32(482), i32(68682))
+						m.___assert_fail(i32(81576), i32(76318), i32(482), i32(68754))
 						panic("unreachable")
 					}
 					switch v2 + i32(-1) {
@@ -4742,7 +4747,7 @@ func (m *Module) _c_assign(v0, v1, v2 int32) {
 				}
 			}
 		l10:
-			m._compile_syntax_error(v0, v1, i32(70744))
+			m._compile_syntax_error(v0, v1, i32(70816))
 			return
 		case 1:
 			t19 := int32(load32(m.memory[int64(uint32(v1))+8:]))
@@ -4800,10 +4805,10 @@ func (m *Module) _c_assign(v0, v1, v2 int32) {
 	m._compile_store_id(v0, v1)
 	return
 l14:
-	m.___assert_fail(i32(81338), i32(76246), i32(464), i32(68682))
+	m.___assert_fail(i32(81410), i32(76318), i32(464), i32(68754))
 	panic("unreachable")
 l23:
-	m.___assert_fail(i32(79985), i32(76246), i32(568), i32(70924))
+	m.___assert_fail(i32(80057), i32(76318), i32(568), i32(70996))
 	panic("unreachable")
 l24:
 	{
@@ -4827,7 +4832,7 @@ l27:
 	m._c_assign_tuple(v0, int32(uint32(v3)>>8), v4+i32(8))
 	return
 l2:
-	m._compile_syntax_error(v0, v1, i32(70744))
+	m._compile_syntax_error(v0, v1, i32(70816))
 }
 func (m *Module) _c_if_cond(v0, v1, v2, v3 int32) {
 	var v4, v5, v6, v7, v8 int32
@@ -5041,7 +5046,7 @@ func (m *Module) _compile_decorated(v0, v1 int32) {
 						}
 					}
 				l4:
-					m._compile_syntax_error(v0, v10, i32(68727))
+					m._compile_syntax_error(v0, v10, i32(68799))
 					v8 = v4
 				l5:
 					v5 = v5 + i32(1)
@@ -5061,7 +5066,7 @@ func (m *Module) _compile_decorated(v0, v1 int32) {
 					t12 := int32(load32(m.memory[uint32(t11+v8):]))
 					v9 = t12
 					if v9&i32(15) != i32(2) {
-						m.___assert_fail(i32(81161), i32(76246), i32(918), i32(74671))
+						m.___assert_fail(i32(81233), i32(76318), i32(918), i32(74743))
 						panic("unreachable")
 					}
 					t13 := int32(load32(m.memory[int64(uint32(v0))+36:]))
@@ -5088,7 +5093,7 @@ func (m *Module) _compile_decorated(v0, v1 int32) {
 			goto l10
 		}
 	l2:
-		m.___assert_fail(i32(79693), i32(76246), i32(900), i32(74671))
+		m.___assert_fail(i32(79765), i32(76318), i32(900), i32(74743))
 		panic("unreachable")
 	}
 	v5 = i32(0)
@@ -5109,7 +5114,7 @@ l1:
 				goto l12
 			}
 			if v8 != i32(68) {
-				m.___assert_fail(i32(72461), i32(76246), i32(944), i32(74671))
+				m.___assert_fail(i32(72533), i32(76318), i32(944), i32(74743))
 				panic("unreachable")
 			}
 			{
@@ -5129,7 +5134,7 @@ l1:
 				}
 			}
 		l14:
-			m.___assert_fail(i32(81382), i32(76246), i32(937), i32(74671))
+			m.___assert_fail(i32(81454), i32(76318), i32(937), i32(74743))
 			panic("unreachable")
 		}
 	l12:
@@ -5341,7 +5346,7 @@ func (m *Module) _compile_expr_stmt(v0, v1 int32) {
 				t18 := int32(load32(m.memory[int64(uint32(v2))+8:]))
 				v2 = t18
 				if v2&i32(15) != i32(10) {
-					m.___assert_fail(i32(81465), i32(76246), i32(2048), i32(66814))
+					m.___assert_fail(i32(81537), i32(76318), i32(2048), i32(66886))
 					panic("unreachable")
 				}
 				t19 := int32(load32(m.memory[int64(uint32(v0))+36:]))
@@ -5581,7 +5586,7 @@ l0:
 				t11 := int32(load32(m.memory[int64(uint32(v3))+8:]))
 				v1 = t11
 				if v1&i32(15) != i32(2) {
-					m.___assert_fail(i32(81504), i32(76246), i32(985), i32(66832))
+					m.___assert_fail(i32(81576), i32(76318), i32(985), i32(66904))
 					panic("unreachable")
 				}
 				t12 := int32(load32(m.memory[int64(uint32(v0))+36:]))
@@ -5656,13 +5661,13 @@ l0:
 		}
 	}
 l7:
-	m.___assert_fail(i32(81338), i32(76246), i32(978), i32(66832))
+	m.___assert_fail(i32(81410), i32(76318), i32(978), i32(66904))
 	panic("unreachable")
 l12:
-	m.___assert_fail(i32(79934), i32(76246), i32(999), i32(66832))
+	m.___assert_fail(i32(80006), i32(76318), i32(999), i32(66904))
 	panic("unreachable")
 l3:
-	m._compile_syntax_error(v0, v1, i32(70771))
+	m._compile_syntax_error(v0, v1, i32(70843))
 }
 func (m *Module) _compile_break_cont_stmt(v0, v1 int32) {
 	var v2, v3 int32
@@ -5678,7 +5683,7 @@ func (m *Module) _compile_break_cont_stmt(v0, v1 int32) {
 		if v2 != i32(0xffff) {
 			goto l0
 		}
-		m._compile_syntax_error(v0, v1, i32(69879))
+		m._compile_syntax_error(v0, v1, i32(69951))
 	}
 l0:
 	{
@@ -5690,7 +5695,7 @@ l0:
 		if uint32(t6) >= uint32(v3) {
 			goto l1
 		}
-		m.___assert_fail(i32(71542), i32(76246), i32(1033), i32(66790))
+		m.___assert_fail(i32(71614), i32(76318), i32(1033), i32(66862))
 		panic("unreachable")
 	}
 l1:
@@ -5704,7 +5709,7 @@ func (m *Module) _compile_return_stmt(v0, v1 int32) {
 		if t1 == i32(7) {
 			goto l0
 		}
-		m._compile_syntax_error(v0, v1, i32(70503))
+		m._compile_syntax_error(v0, v1, i32(70575))
 		return
 	}
 l0:
@@ -5815,7 +5820,7 @@ func (m *Module) _compile_import_from(v0, v1 int32) {
 					if v3 != 0 {
 						goto l3
 					}
-					m.___assert_fail(i32(81074), i32(76246), i32(1179), i32(71153))
+					m.___assert_fail(i32(81146), i32(76318), i32(1179), i32(71225))
 					panic("unreachable")
 				}
 			}
@@ -5929,7 +5934,7 @@ l1:
 						}
 					}
 				l12:
-					m.___assert_fail(i32(80870), i32(76246), i32(1237), i32(71153))
+					m.___assert_fail(i32(80942), i32(76318), i32(1237), i32(71225))
 					panic("unreachable")
 				}
 				t10 := int32(load32(m.memory[int64(uint32(v0))+32:]))
@@ -5946,11 +5951,11 @@ l1:
 					m._mp_emit_bc_import(t31, i32(0), i32(2))
 					goto l8
 				}
-				m._compile_syntax_error(v0, v1, i32(71678))
+				m._compile_syntax_error(v0, v1, i32(71750))
 				goto l8
 			}
 		l10:
-			m.___assert_fail(i32(80870), i32(76246), i32(1226), i32(71153))
+			m.___assert_fail(i32(80942), i32(76318), i32(1226), i32(71225))
 			panic("unreachable")
 		l9:
 			t32 := int32(load32(m.memory[int64(uint32(v0))+36:]))
@@ -6102,7 +6107,7 @@ func (m *Module) _do_import_name(v0, v1, v2 int32) {
 			}
 		}
 	l7:
-		m.___assert_fail(i32(80931), i32(76246), i32(1111), i32(73437))
+		m.___assert_fail(i32(81003), i32(76318), i32(1111), i32(73509))
 		panic("unreachable")
 	l3:
 		t20 := int32(load32(m.memory[int64(uint32(v0))+36:]))
@@ -6132,7 +6137,7 @@ func (m *Module) _compile_global_nonlocal_stmt(v0, v1 int32) {
 			if t4 != 0 {
 				goto l1
 			}
-			m._compile_syntax_error(v0, v1, i32(73922))
+			m._compile_syntax_error(v0, v1, i32(73994))
 			goto l0
 		}
 	l1:
@@ -6173,7 +6178,7 @@ func (m *Module) _compile_declare_global_or_nonlocal(v0, v1, v2, v3 int32) {
 	}
 	switch v4 {
 	default:
-		m._compile_syntax_error(v0, v1, i32(71795))
+		m._compile_syntax_error(v0, v1, i32(71867))
 		return
 	case 0, 3:
 		m.memory[uint32(v2)] = byte(i32(3))
@@ -6195,7 +6200,7 @@ l0:
 		if v4 == 0 {
 			goto l4
 		}
-		v2 = i32(71762)
+		v2 = i32(71834)
 		goto l5
 	l4:
 		m.memory[uint32(v2)] = byte(i32(1))
@@ -6205,7 +6210,7 @@ l0:
 		if t5 != i32(1) {
 			return
 		}
-		v2 = i32(74285)
+		v2 = i32(74357)
 	}
 l5:
 	m._compile_syntax_error(v0, v1, v2)
@@ -6279,7 +6284,7 @@ func (m *Module) _compile_async_stmt(v0, v1 int32) {
 			if t8&i32(1) != 0 {
 				goto l3
 			}
-			m._compile_syntax_error(v0, v1, i32(70554))
+			m._compile_syntax_error(v0, v1, i32(70626))
 			goto l2
 		}
 	l3:
@@ -6382,13 +6387,13 @@ func (m *Module) _compile_async_stmt(v0, v1 int32) {
 			m._mp_emit_bc_pop_top(t48)
 			goto l2
 		default:
-			m.___assert_fail(i32(66885), i32(76246), i32(1999), i32(66949))
+			m.___assert_fail(i32(66957), i32(76318), i32(1999), i32(67021))
 			panic("unreachable")
 		case 2:
 			t49 := m._mp_parse_node_extract_list(v1+i32(8), i32(122), v2+i32(12))
 			v3 = t49
 			if v3 == 0 {
-				m.___assert_fail(i32(79027), i32(76246), i32(1971), i32(66861))
+				m.___assert_fail(i32(79099), i32(76318), i32(1971), i32(66933))
 				panic("unreachable")
 			}
 			t50 := int32(load32(m.memory[int64(uint32(v2))+12:]))
@@ -6400,7 +6405,7 @@ func (m *Module) _compile_async_stmt(v0, v1 int32) {
 		return
 	}
 l0:
-	m.___assert_fail(i32(81426), i32(76246), i32(1978), i32(66949))
+	m.___assert_fail(i32(81498), i32(76318), i32(1978), i32(67021))
 	panic("unreachable")
 }
 func (m *Module) _compile_await_object_method(v0, v1 int32) {
@@ -6418,7 +6423,7 @@ func (m *Module) _compile_decrease_except_level(v0 int32) {
 		if v1 != 0 {
 			goto l0
 		}
-		m.___assert_fail(i32(79033), i32(76246), i32(307), i32(71602))
+		m.___assert_fail(i32(79105), i32(76318), i32(307), i32(71674))
 		panic("unreachable")
 	}
 l0:
@@ -6672,7 +6677,7 @@ func (m *Module) _compile_if_stmt(v0, v1 int32) {
 		return
 	}
 l5:
-	m.___assert_fail(i32(80463), i32(76246), i32(1350), i32(66933))
+	m.___assert_fail(i32(80535), i32(76318), i32(1350), i32(67005))
 	panic("unreachable")
 }
 func (m *Module) _compile_while_stmt(v0, v1 int32) {
@@ -6959,7 +6964,7 @@ l1:
 l2:
 	{
 		if v4&i32(1) == 0 {
-			m.___assert_fail(i32(80047), i32(76246), i32(1471), i32(73686))
+			m.___assert_fail(i32(80119), i32(76318), i32(1471), i32(73758))
 			panic("unreachable")
 		}
 		t15 := int32(load32(m.memory[int64(uint32(v0))+36:]))
@@ -7074,7 +7079,7 @@ func (m *Module) _compile_try_stmt(v0, v1 int32) {
 		return
 	}
 l0:
-	m.___assert_fail(i32(81235), i32(76246), i32(1719), i32(66773))
+	m.___assert_fail(i32(81307), i32(76318), i32(1719), i32(66845))
 	panic("unreachable")
 }
 func (m *Module) _compile_try_finally(v0, v1, v2, v3, v4, v5 int32) {
@@ -7106,7 +7111,7 @@ l0:
 				goto l1
 			}
 			if v4 != 0 {
-				m.___assert_fail(i32(80620), i32(76246), i32(1695), i32(65689))
+				m.___assert_fail(i32(80692), i32(76318), i32(1695), i32(65761))
 				panic("unreachable")
 			}
 			t8 := int32(load32(m.memory[int64(uint32(v0))+36:]))
@@ -7261,7 +7266,7 @@ l0:
 					if v2 == i32(1) {
 						goto l4
 					}
-					m._compile_syntax_error(v0, v5, i32(66207))
+					m._compile_syntax_error(v0, v5, i32(66279))
 					m._compile_decrease_except_level(v0)
 					return
 				}
@@ -7296,7 +7301,7 @@ l0:
 		return
 	}
 l2:
-	m.___assert_fail(i32(79415), i32(76246), i32(1610), i32(66358))
+	m.___assert_fail(i32(79487), i32(76318), i32(1610), i32(66430))
 	panic("unreachable")
 }
 func (m *Module) _compile_with_stmt(v0, v1 int32) {
@@ -7310,7 +7315,7 @@ func (m *Module) _compile_with_stmt(v0, v1 int32) {
 		if v3 != 0 {
 			goto l0
 		}
-		m.___assert_fail(i32(79027), i32(76246), i32(1776), i32(66843))
+		m.___assert_fail(i32(79099), i32(76318), i32(1776), i32(66915))
 		panic("unreachable")
 	}
 l0:
@@ -7406,7 +7411,7 @@ func (m *Module) _compile_namedexpr_helper(v0, v1, v2 int32) {
 	if v1&i32(15) == i32(2) {
 		goto l0
 	}
-	m._compile_syntax_error(v0, v1, i32(70744))
+	m._compile_syntax_error(v0, v1, i32(70816))
 l0:
 	m._compile_node(v0, v2)
 	t0 := int32(load32(m.memory[int64(uint32(v0))+36:]))
@@ -7483,7 +7488,7 @@ func (m *Module) _compile_test_if_expr(v0, v1 int32) {
 		}
 	}
 l0:
-	m.___assert_fail(i32(80651), i32(76246), i32(2122), i32(68701))
+	m.___assert_fail(i32(80723), i32(76318), i32(2122), i32(68773))
 	panic("unreachable")
 l1:
 	t2 := int32(load32(m.memory[int64(uint32(v0))+12:]))
@@ -7707,7 +7712,7 @@ func (m *Module) _compile_comparison(v0, v1 int32) {
 					m._mp_emit_bc_binary_op(t12, i32(50))
 					goto l5
 				default:
-					m.___assert_fail(i32(68210), i32(76246), i32(2237), i32(70267))
+					m.___assert_fail(i32(68282), i32(76318), i32(2237), i32(70339))
 					panic("unreachable")
 				case 1:
 					t13 := int32(load32(m.memory[int64(uint32(v0))+36:]))
@@ -7761,11 +7766,11 @@ func (m *Module) _compile_comparison(v0, v1 int32) {
 	}
 	return
 l6:
-	m.___assert_fail(i32(81196), i32(76246), i32(2231), i32(70267))
+	m.___assert_fail(i32(81268), i32(76318), i32(2231), i32(70339))
 	panic("unreachable")
 }
 func (m *Module) _compile_star_expr(v0, v1 int32) {
-	m._compile_syntax_error(v0, v1, i32(67144))
+	m._compile_syntax_error(v0, v1, i32(67216))
 }
 func (m *Module) _compile_binary_op(v0, v1 int32) {
 	var v2, v3 int32
@@ -7832,7 +7837,7 @@ func (m *Module) _compile_factor_2(v0, v1 int32) {
 				goto l0
 			}
 			if v1&i32(-32) != i32(992) {
-				m.___assert_fail(i32(77117), i32(76246), i32(2294), i32(78776))
+				m.___assert_fail(i32(77189), i32(76318), i32(2294), i32(78848))
 				panic("unreachable")
 			}
 			v2 = v3 + i32(-62)
@@ -7860,7 +7865,7 @@ func (m *Module) _compile_atom_expr_await(v0, v1 int32) {
 		if v2 == i32(7) {
 			goto l0
 		}
-		m._compile_syntax_error(v0, v1, i32(70478))
+		m._compile_syntax_error(v0, v1, i32(70550))
 		return
 	}
 l0:
@@ -7943,7 +7948,7 @@ func (m *Module) _compile_atom_expr_normal(v0, v1 int32) {
 				}
 			l2:
 				t17 := int32(load32(m.memory[uint32(v5):]))
-				m._compile_syntax_error(v0, t17, i32(72422))
+				m._compile_syntax_error(v0, t17, i32(72494))
 				return
 			}
 		l3:
@@ -8078,10 +8083,10 @@ func (m *Module) _compile_trailer_paren_helper(v0, v1, v2, v3 int32) {
 									v10 = i32_shl(i32(1), v9) | v10
 									goto l9
 								}
-								m._compile_syntax_error(v0, v1, i32(68269))
+								m._compile_syntax_error(v0, v1, i32(68341))
 								goto l7
 							}
-							m._compile_syntax_error(v0, v1, i32(79358))
+							m._compile_syntax_error(v0, v1, i32(79430))
 							goto l7
 						case 1:
 							t6 := int32(load32(m.memory[int64(uint32(v0))+36:]))
@@ -8131,7 +8136,7 @@ func (m *Module) _compile_trailer_paren_helper(v0, v1, v2, v3 int32) {
 									v7 = v7 + i32(1)
 									goto l9
 								}
-								m._compile_syntax_error(v0, v1, i32(74510))
+								m._compile_syntax_error(v0, v1, i32(74582))
 								goto l7
 							}
 						}
@@ -8141,13 +8146,13 @@ func (m *Module) _compile_trailer_paren_helper(v0, v1, v2, v3 int32) {
 				if v6&i32(2) == 0 {
 					goto l14
 				}
-				m._compile_syntax_error(v0, v1, i32(79334))
+				m._compile_syntax_error(v0, v1, i32(79406))
 				goto l7
 			l14:
 				if v7 == 0 {
 					goto l15
 				}
-				m._compile_syntax_error(v0, v1, i32(72133))
+				m._compile_syntax_error(v0, v1, i32(72205))
 				goto l7
 			l15:
 				m._compile_node(v0, v1)
@@ -8223,7 +8228,7 @@ func (m *Module) _compile_atom_paren(v0, v1 int32) {
 				return
 			}
 		l1:
-			m.___assert_fail(i32(79985), i32(76246), i32(2526), i32(71053))
+			m.___assert_fail(i32(80057), i32(76318), i32(2526), i32(71125))
 			panic("unreachable")
 		}
 		t1 := int32(load32(m.memory[int64(uint32(v0))+36:]))
@@ -8236,7 +8241,7 @@ func (m *Module) _compile_comprehension(v0, v1, v2 int32) {
 	{
 		t0 := int32(load32(m.memory[int64(uint32(v1))+4:]))
 		if t0&i32(-256) != i32(512) {
-			m.___assert_fail(i32(78831), i32(76246), i32(2497), i32(70823))
+			m.___assert_fail(i32(78903), i32(76318), i32(2497), i32(70895))
 			panic("unreachable")
 		}
 		t1 := int32(load32(m.memory[int64(uint32(v1))+12:]))
@@ -8286,7 +8291,7 @@ func (m *Module) _compile_comprehension(v0, v1, v2 int32) {
 		return
 	}
 l1:
-	m.___assert_fail(i32(79746), i32(76246), i32(2498), i32(70823))
+	m.___assert_fail(i32(79818), i32(76318), i32(2498), i32(70895))
 	panic("unreachable")
 }
 func (m *Module) _compile_atom_bracket(v0, v1 int32) {
@@ -8381,7 +8386,7 @@ l0:
 						goto l5
 					}
 					if v4 != i32(161) {
-						m.___assert_fail(i32(69211), i32(76246), i32(2635), i32(69400))
+						m.___assert_fail(i32(69283), i32(76318), i32(2635), i32(69472))
 						panic("unreachable")
 					}
 					t8 := m._mp_parse_node_extract_list(v3+i32(8), i32(162), v2+i32(12))
@@ -8447,13 +8452,13 @@ l0:
 						goto l13
 					}
 				l12:
-					v3 = i32(67351)
+					v3 = i32(67423)
 					goto l14
 				l11:
 					if v8 != i32(55) {
 						goto l13
 					}
-					v3 = i32(67113)
+					v3 = i32(67185)
 				l14:
 					m._compile_syntax_error(v0, v1, v3)
 					goto l1
@@ -8472,7 +8477,7 @@ l0:
 					goto l1
 				}
 			l4:
-				m.___assert_fail(i32(81235), i32(76246), i32(2576), i32(69400))
+				m.___assert_fail(i32(81307), i32(76318), i32(2576), i32(69472))
 				panic("unreachable")
 			}
 			if v3 != i32(55) {
@@ -8548,7 +8553,7 @@ func (m *Module) _compile_subscript(v0, v1 int32) {
 				}
 			}
 		l1:
-			m.___assert_fail(i32(81235), i32(76246), i32(2684), i32(66340))
+			m.___assert_fail(i32(81307), i32(76318), i32(2684), i32(66412))
 			panic("unreachable")
 		}
 	l0:
@@ -8559,7 +8564,7 @@ l2:
 	{
 		t4 := int32(m.memory[int64(uint32(v1))+4])
 		if t4 != i32(53) {
-			m.___assert_fail(i32(78680), i32(76246), i32(2691), i32(66340))
+			m.___assert_fail(i32(78752), i32(76318), i32(2691), i32(66412))
 			panic("unreachable")
 		}
 		{
@@ -8604,7 +8609,7 @@ l2:
 						}
 						t15 := int32(m.memory[int64(uint32(v1))+4])
 						if t15 != i32(156) {
-							m.___assert_fail(i32(69911), i32(76246), i32(2714), i32(66340))
+							m.___assert_fail(i32(69983), i32(76318), i32(2714), i32(66412))
 							panic("unreachable")
 						}
 						{
@@ -8636,7 +8641,7 @@ l2:
 		}
 	}
 l10:
-	m.___assert_fail(i32(81235), i32(76246), i32(2712), i32(66340))
+	m.___assert_fail(i32(81307), i32(76318), i32(2712), i32(66412))
 	panic("unreachable")
 }
 func (m *Module) _compile_dictorsetmaker_item(v0, v1 int32) {
@@ -8663,7 +8668,7 @@ func (m *Module) _compile_yield_expr(v0, v1 int32) {
 		if v2 == i32(7) {
 			goto l0
 		}
-		m._compile_syntax_error(v0, v1, i32(70529))
+		m._compile_syntax_error(v0, v1, i32(70601))
 		return
 	}
 l0:
@@ -8817,7 +8822,7 @@ func (m *Module) _compile_funcdef_lambdef_param(v0, v1 int32) {
 					m.memory[int64(uint32(v0))+2] = byte(i32(1))
 					return
 				default:
-					m.___assert_fail(i32(73406), i32(76246), i32(702), i32(71198))
+					m.___assert_fail(i32(73478), i32(76318), i32(702), i32(0x11666))
 					panic("unreachable")
 				case 6:
 					v2 = i32(12)
@@ -8839,7 +8844,7 @@ func (m *Module) _compile_funcdef_lambdef_param(v0, v1 int32) {
 			if t3 == 0 {
 				return
 			}
-			m._compile_syntax_error(v0, v1, i32(66580))
+			m._compile_syntax_error(v0, v1, i32(66652))
 			return
 		}
 	l7:
@@ -8892,7 +8897,7 @@ func (m *Module) _compile_funcdef_lambdef_param(v0, v1 int32) {
 	}
 	return
 l1:
-	m.___assert_fail(i32(80145), i32(76246), i32(665), i32(71198))
+	m.___assert_fail(i32(80217), i32(76318), i32(665), i32(0x11666))
 	panic("unreachable")
 }
 func (m *Module) _c_assign_tuple(v0, v1, v2 int32) {
@@ -8965,7 +8970,7 @@ l6:
 	}
 	return
 l2:
-	m._compile_syntax_error(v0, v7, i32(66626))
+	m._compile_syntax_error(v0, v7, i32(66698))
 }
 func (m *Module) _compile_delete_id(v0, v1 int32) {
 	{
@@ -9165,7 +9170,7 @@ func (m *Module) _emit_get_cur_to_write_code_info(v0, v1 int32) int32 {
 		}
 		t2 := int32(load32(m.memory[int64(uint32(v0))+40:]))
 		if uint32(v1) > uint32(t2) {
-			m.___assert_fail(i32(72731), i32(76303), i32(101), i32(70192))
+			m.___assert_fail(i32(72803), i32(76375), i32(101), i32(70264))
 			panic("unreachable")
 		}
 		t3 := int32(load32(m.memory[int64(uint32(v0))+52:]))
@@ -9186,7 +9191,7 @@ func (m *Module) _mp_emit_bc_end_pass(v0 int32) int32 {
 		}
 		t1 := int32(load32(m.memory[int64(uint32(v0))+8:]))
 		if t1 != 0 {
-			m.___assert_fail(i32(79212), i32(76303), i32(356), i32(67903))
+			m.___assert_fail(i32(79284), i32(76375), i32(356), i32(67975))
 			panic("unreachable")
 		}
 		v3 = i32(0)
@@ -9214,7 +9219,7 @@ func (m *Module) _mp_emit_bc_end_pass(v0 int32) int32 {
 					t8 := int32(load16(m.memory[uint32(v5):]))
 					v4 = t8
 					if uint32(v4) >= uint32(i32(256)) {
-						m.___assert_fail(i32(78659), i32(76303), i32(366), i32(67903))
+						m.___assert_fail(i32(78731), i32(76375), i32(366), i32(67975))
 						panic("unreachable")
 					}
 					t9 := m._emit_get_cur_to_write_code_info(v0, i32(1))
@@ -9258,7 +9263,7 @@ func (m *Module) _mp_emit_bc_end_pass(v0 int32) int32 {
 			t21 := v2
 			v5 = t20
 			if uint32(t21) > uint32(v5) {
-				m.___assert_fail(i32(72684), i32(76303), i32(380), i32(67903))
+				m.___assert_fail(i32(72756), i32(76375), i32(380), i32(67975))
 				panic("unreachable")
 			}
 			t22 := int32(load32(m.memory[int64(uint32(v0))+44:]))
@@ -9267,7 +9272,7 @@ func (m *Module) _mp_emit_bc_end_pass(v0 int32) int32 {
 			t24 := v3
 			v1 = t23
 			if uint32(t24) > uint32(v1) {
-				m.___assert_fail(i32(72857), i32(76303), i32(381), i32(67903))
+				m.___assert_fail(i32(72929), i32(76375), i32(381), i32(67975))
 				panic("unreachable")
 			}
 			if v2 != v5 {
@@ -9284,7 +9289,7 @@ func (m *Module) _mp_emit_bc_end_pass(v0 int32) int32 {
 			v1 = i32(1)
 			t25 := int32(m.memory[int64(uint32(v0))+56])
 			if t25 == i32(1) {
-				m._mp_raise_msg(i32(88060), i32(65877))
+				m._mp_raise_msg(i32(88060), i32(65949))
 				panic("unreachable")
 			}
 			t26 := int32(load32(m.memory[int64(uint32(v4))+16:]))
@@ -9306,7 +9311,7 @@ func (m *Module) _mp_emit_bc_adjust_stack_size(v0, v1 int32) {
 	t1 := int32(load32(m.memory[int64(uint32(v0))+8:]))
 	v1 = t1 + v1
 	if v1 <= i32(-1) {
-		m.___assert_fail(i32(79107), i32(76303), i32(420), i32(72799))
+		m.___assert_fail(i32(79179), i32(76375), i32(420), i32(72871))
 		panic("unreachable")
 	}
 	store32(m.memory[int64(uint32(v0))+8:], uint32(v1))
@@ -9332,7 +9337,7 @@ func (m *Module) _mp_emit_bc_label_assign(v0, v1 int32) {
 		}
 		t1 := int32(load32(m.memory[int64(uint32(v0))+28:]))
 		if uint32(v1) >= uint32(t1) {
-			m.___assert_fail(i32(68140), i32(76303), i32(459), i32(70900))
+			m.___assert_fail(i32(68212), i32(76375), i32(459), i32(70972))
 			panic("unreachable")
 		}
 		t2 := int32(load32(m.memory[int64(uint32(v0))+32:]))
@@ -9345,7 +9350,7 @@ func (m *Module) _mp_emit_bc_label_assign(v0, v1 int32) {
 			}
 			t4 := int32(load32(m.memory[uint32(v3+v1<<2):]))
 			if uint32(v0) > uint32(t4) {
-				m.___assert_fail(i32(76949), i32(76303), i32(460), i32(70900))
+				m.___assert_fail(i32(77021), i32(76375), i32(460), i32(70972))
 				panic("unreachable")
 			}
 		}
@@ -9387,7 +9392,7 @@ func (m *Module) _emit_get_cur_to_write_bytecode(v0, v1 int32) int32 {
 				}
 				t3 := int32(load32(m.memory[int64(uint32(v0))+48:]))
 				if uint32(v1) > uint32(t3) {
-					m.___assert_fail(i32(72902), i32(76303), i32(155), i32(73871))
+					m.___assert_fail(i32(72974), i32(76375), i32(155), i32(73943))
 					panic("unreachable")
 				}
 				t4 := int32(load32(m.memory[int64(uint32(v0))+52:]))
@@ -9428,7 +9433,7 @@ func (m *Module) _mp_emit_bc_load_const_small_int(v0, v1 int32) {
 	v2 = t0 - i32(16)
 	m.___stack_pointer = v2
 	if v1<<1^v1 <= i32(-1) {
-		m.___assert_fail(i32(80410), i32(76303), i32(488), i32(66435))
+		m.___assert_fail(i32(80482), i32(76375), i32(488), i32(66507))
 		panic("unreachable")
 	}
 	{
@@ -9696,7 +9701,7 @@ func (m *Module) _emit_write_bytecode_byte_label(v0, v1, v2, v3 int32) {
 				goto l2
 			}
 			if v1 <= i32(-1) {
-				m.___assert_fail(i32(79066), i32(76303), i32(259), i32(71711))
+				m.___assert_fail(i32(79138), i32(76375), i32(259), i32(71783))
 				panic("unreachable")
 			}
 		}
@@ -9718,7 +9723,7 @@ func (m *Module) _emit_write_bytecode_byte_label(v0, v1, v2, v3 int32) {
 				if uint32(v2) < uint32(i32(128)) {
 					goto l5
 				}
-				m.___assert_fail(i32(72608), i32(76303), i32(269), i32(71711))
+				m.___assert_fail(i32(72680), i32(76375), i32(269), i32(71783))
 				panic("unreachable")
 			}
 		l4:
@@ -9972,7 +9977,7 @@ func (m *Module) _mp_emit_bc_make_closure(v0, v1, v2, v3, v4 int32) {
 		}
 	l0:
 		if uint32(v2) >= uint32(i32(256)) {
-			m.___assert_fail(i32(78638), i32(76303), i32(785), i32(73230))
+			m.___assert_fail(i32(78710), i32(76375), i32(785), i32(73302))
 			panic("unreachable")
 		}
 		t1 := int32(load32(m.memory[int64(uint32(v1))+16:]))
@@ -10009,7 +10014,7 @@ func (m *Module) _mp_emit_bc_raise_varargs(v0, v1 int32) {
 	if uint32(v1) < uint32(i32(3)) {
 		goto l0
 	}
-	m.___assert_fail(i32(78872), i32(76303), i32(820), i32(68232))
+	m.___assert_fail(i32(78944), i32(76375), i32(820), i32(68304))
 	panic("unreachable")
 l0:
 	m._mp_emit_bc_adjust_stack_size(v0, i32(0)-v1)
@@ -10165,7 +10170,7 @@ func (m *Module) _mp_emit_common_id_op(v0, v1, v2, v3 int32) {
 	t0 := m._scope_find(v2, v3)
 	v2 = t0
 	if v2 == 0 {
-		m.___assert_fail(i32(77631), i32(75939), i32(123), i32(69989))
+		m.___assert_fail(i32(77703), i32(76011), i32(123), i32(70061))
 		panic("unreachable")
 	}
 	{
@@ -10185,7 +10190,7 @@ func (m *Module) _mp_emit_common_id_op(v0, v1, v2, v3 int32) {
 			m.t0[uint(t5)].(func(int32, int32, int32, int32))(v0, v3, t4, i32(0))
 			return
 		default:
-			m.___assert_fail(i32(78022), i32(75939), i32(133), i32(69989))
+			m.___assert_fail(i32(78094), i32(76011), i32(133), i32(70061))
 			panic("unreachable")
 		case 4, 5:
 			t6 := int32(load16(m.memory[int64(uint32(v2))+2:]))
@@ -10212,7 +10217,7 @@ func (m *Module) _mp_make_function_from_proto_fun(v0, v1, v2 int32) int32 {
 	var v3 int32
 	{
 		if v0 == 0 {
-			m.___assert_fail(i32(77613), i32(76058), i32(178), i32(70228))
+			m.___assert_fail(i32(77685), i32(76130), i32(178), i32(70300))
 			panic("unreachable")
 		}
 		{
@@ -10250,7 +10255,7 @@ func (m *Module) _mp_make_function_from_proto_fun(v0, v1, v2 int32) int32 {
 	l1:
 		t4 := int32(m.memory[int64(uint32(v0))+2])
 		if t4 != i32(2) {
-			m.___assert_fail(i32(78085), i32(76058), i32(223), i32(70228))
+			m.___assert_fail(i32(78157), i32(76130), i32(223), i32(70300))
 			panic("unreachable")
 		}
 		t5 := int32(load32(m.memory[int64(uint32(v0))+4:]))
@@ -10268,10 +10273,10 @@ func (m *Module) _mp_make_function_from_proto_fun(v0, v1, v2 int32) int32 {
 		return v2
 	}
 l3:
-	m.___assert_fail(i32(80980), i32(76058), i32(181), i32(70228))
+	m.___assert_fail(i32(81052), i32(76130), i32(181), i32(70300))
 	panic("unreachable")
 l4:
-	m.___assert_fail(i32(79566), i32(76058), i32(184), i32(70228))
+	m.___assert_fail(i32(79638), i32(76130), i32(184), i32(70300))
 	panic("unreachable")
 }
 func (m *Module) _mp_make_closure_from_proto_fun(v0, v1, v2, v3 int32) int32 {
@@ -10291,7 +10296,7 @@ func (m *Module) _mp_format_float(v0 float64, v1, v2, v3, v4, v5 int32) int32 {
 	{
 		{
 			if uint32(v2) <= uint32(i32(28)) {
-				m.___assert_fail(i32(77774), i32(75722), i32(276), i32(67527))
+				m.___assert_fail(i32(77846), i32(75794), i32(276), i32(67599))
 				panic("unreachable")
 			}
 			{
@@ -10663,7 +10668,7 @@ func (m *Module) _mp_format_float(v0 float64, v1, v2, v3, v4, v5 int32) int32 {
 					goto l26
 				}
 				if v10 <= i32(-1) {
-					m.___assert_fail(i32(79100), i32(75722), i32(172), i32(76395))
+					m.___assert_fail(i32(79172), i32(75794), i32(172), i32(76467))
 					panic("unreachable")
 				}
 				v3 = v3 + i32(1)
@@ -10877,7 +10882,7 @@ func (m *Module) _mp_format_float(v0 float64, v1, v2, v3, v4, v5 int32) int32 {
 			m.memory[uint32(v5)] = byte(i32(0))
 			v3 = v5 - v8
 			if v3 >= v2 {
-				m.___assert_fail(i32(72828), i32(75722), i32(470), i32(67527))
+				m.___assert_fail(i32(72900), i32(75794), i32(470), i32(67599))
 				panic("unreachable")
 			}
 			if v12 == v20 {
@@ -10906,7 +10911,7 @@ func (m *Module) _gc_init(v0, v1 int32) {
 	v2 = v2 - v1<<6
 	store32(m.memory[int64(uint32(i32(132)))+110860:], uint32(v2))
 	if uint32(v2) < uint32(v0+v1+i32(1)) {
-		m.___assert_fail(i32(73583), i32(76277), i32(191), i32(76422))
+		m.___assert_fail(i32(73655), i32(76349), i32(191), i32(76494))
 		panic("unreachable")
 	}
 	v1 = v1 + i32(1)
@@ -11022,7 +11027,7 @@ l7:
 		t4 := v6 + v3
 		v8 = t3
 		if uint32(t4) > uint32(v8) {
-			m.___assert_fail(i32(74410), i32(76277), i32(520), i32(73791))
+			m.___assert_fail(i32(74482), i32(76349), i32(520), i32(73863))
 			panic("unreachable")
 		}
 		if v7&i32(0x3ffffffc) == 0 {
@@ -11134,7 +11139,7 @@ l0:
 		t7 := int32(load32(m.memory[int64(uint32(i32(144)))+110860:]))
 		v4 = t7
 		if uint32(v4) > uint32(v0<<2) {
-			m.___assert_fail(i32(78151), i32(76277), i32(692), i32(68180))
+			m.___assert_fail(i32(78223), i32(76349), i32(692), i32(68252))
 			panic("unreachable")
 		}
 		t8 := int32(load32(m.memory[int64(uint32(i32(124)))+110860:]))
@@ -11500,7 +11505,7 @@ func (m *Module) _gc_free(v0 int32) {
 		v1 = int32(uint32(v0) >> 6)
 		t6 := int32(m.memory[uint32(t5+v1)])
 		if i32_shr_u(t6, int32(uint32(v0)>>3)&i32(6))&i32(3) != i32(1) {
-			m.___assert_fail(i32(82215), i32(76277), i32(1039), i32(73816))
+			m.___assert_fail(i32(82287), i32(76349), i32(1039), i32(73888))
 			panic("unreachable")
 		}
 		v0 = int32(uint32(v0) >> 4)
@@ -11531,7 +11536,7 @@ func (m *Module) _gc_free(v0 int32) {
 	}
 	return
 l1:
-	m.___assert_fail(i32(79677), i32(76277), i32(1033), i32(73816))
+	m.___assert_fail(i32(79749), i32(76349), i32(1033), i32(73888))
 	panic("unreachable")
 }
 func (m *Module) _gc_realloc(v0, v1, v2 int32) int32 {
@@ -11564,7 +11569,7 @@ func (m *Module) _gc_realloc(v0, v1, v2 int32) int32 {
 					v3 = v0 - v3
 					t7 := int32(m.memory[uint32(t6+int32(uint32(v3)>>6))])
 					if i32_shr_u(t7, int32(uint32(v3)>>3)&i32(6))&i32(3) != i32(1) {
-						m.___assert_fail(i32(78114), i32(76277), i32(1145), i32(75198))
+						m.___assert_fail(i32(78186), i32(76349), i32(1145), i32(75270))
 						panic("unreachable")
 					}
 					v5 = int32(uint32(v3) >> 4)
@@ -11656,7 +11661,7 @@ func (m *Module) _gc_realloc(v0, v1, v2 int32) int32 {
 							t17 := v9
 							v1 = v6 & i32(6)
 							if i32_shr_u(t17, v1)&i32(3) != 0 {
-								m.___assert_fail(i32(77988), i32(76277), i32(1215), i32(75198))
+								m.___assert_fail(i32(78060), i32(76349), i32(1215), i32(75270))
 								panic("unreachable")
 							}
 							m.memory[uint32(v10)] = byte(v9 | i32_shl(i32(2), v1))
@@ -11703,7 +11708,7 @@ func (m *Module) _gc_realloc(v0, v1, v2 int32) int32 {
 			l2:
 				return v3
 			l3:
-				m.___assert_fail(i32(79677), i32(76277), i32(1141), i32(75198))
+				m.___assert_fail(i32(79749), i32(76349), i32(1141), i32(75270))
 				panic("unreachable")
 			l9:
 				return v0
@@ -12040,7 +12045,7 @@ l1:
 									if v2 != i32(78) {
 										goto l31
 									}
-									m._mp_raise_NotImplementedError(i32(68467))
+									m._mp_raise_NotImplementedError(i32(68539))
 									panic("unreachable")
 								}
 								v1 = i32(0)
@@ -12275,7 +12280,7 @@ l1:
 				v3 = t67
 			}
 		l61:
-			v1 = i32(79263)
+			v1 = i32(79335)
 			v2 = i32(40)
 			v4 = i32(1)
 		l65:
@@ -12879,7 +12884,7 @@ func (m *Module) _mp_map_lookup(v0, v1, v2 int32) int32 {
 		goto l0
 	}
 	if v3&i32(2) != 0 {
-		m.___assert_fail(i32(77221), i32(75882), i32(158), i32(69856))
+		m.___assert_fail(i32(77293), i32(75954), i32(158), i32(69928))
 		panic("unreachable")
 	}
 l0:
@@ -13368,7 +13373,7 @@ func (m *Module) _mp_builtin___build_class__(v0, v1 int32) int32 {
 	m.___stack_pointer = v2
 	{
 		if uint32(v0) <= uint32(i32(1)) {
-			m.___assert_fail(i32(68257), i32(75789), i32(50), i32(76577))
+			m.___assert_fail(i32(68329), i32(75861), i32(50), i32(76649))
 			panic("unreachable")
 		}
 		t1 := int32(load32(m.memory[int64(uint32(i32(8)))+110860:]))
@@ -13498,7 +13503,7 @@ func (m *Module) _mp_builtin_chr(v0 int32) int32 {
 		t1 := m._mp_obj_get_int(v0)
 		v0 = t1
 		if uint32(v0) > uint32(i32(255)) {
-			m._mp_raise_ValueError(i32(81696))
+			m._mp_raise_ValueError(i32(81768))
 			panic("unreachable")
 		}
 		m.memory[int64(uint32(v1))+15] = byte(v0)
@@ -13531,7 +13536,7 @@ func (m *Module) _mp_builtin_dir(v0, v1 int32) int32 {
 			v0 = i32(0)
 		l5:
 			if uint32(v0) >= uint32(v1) {
-				m.___assert_fail(i32(75344), i32(72030), i32(499), i32(74803))
+				m.___assert_fail(i32(75416), i32(72102), i32(499), i32(74875))
 				panic("unreachable")
 			}
 			{
@@ -13639,7 +13644,7 @@ l0:
 			t9 := m._mp_map_lookup(v2, i32(1818), i32(0))
 			v1 = t9
 			if v1 == 0 {
-				m._mp_raise_ValueError(i32(73959))
+				m._mp_raise_ValueError(i32(74031))
 				panic("unreachable")
 			}
 			t10 := int32(load32(m.memory[int64(uint32(v1))+4:]))
@@ -13751,7 +13756,7 @@ func (m *Module) _mp_builtin_ord(v0 int32) int32 {
 		v2 = t2
 		if v2 != i32(1) {
 			store32(m.memory[uint32(v1):], uint32(v2))
-			m._mp_raise_msg_varg(i32(88204), i32(74315), v1)
+			m._mp_raise_msg_varg(i32(88204), i32(74387), v1)
 			panic("unreachable")
 		}
 		t3 := int32(m.memory[uint32(v0)])
@@ -13762,7 +13767,7 @@ func (m *Module) _mp_builtin_ord(v0 int32) int32 {
 }
 func (m *Module) _mp_builtin_pow(v0, v1 int32) int32 {
 	if v0 != i32(2) {
-		m._mp_raise_NotImplementedError(i32(74596))
+		m._mp_raise_NotImplementedError(i32(74668))
 		panic("unreachable")
 	}
 	t0 := int32(load32(m.memory[uint32(v1):]))
@@ -13817,7 +13822,7 @@ func (m *Module) _mp_builtin___repl_print__(v0 int32) int32 {
 		goto l0
 	}
 	m._mp_obj_print_helper(i32(86432), v0, i32(1))
-	_ = m._mp_print_str(i32(86432), i32(83359))
+	_ = m._mp_print_str(i32(86432), i32(83431))
 l0:
 	return i32(6)
 }
@@ -13931,7 +13936,7 @@ func (m *Module) _mp_builtin_sorted(v0, v1, v2 int32) int32 {
 		m.___stack_pointer = v3 + i32(16)
 		return v0
 	}
-	m._mp_raise_TypeError(i32(70435))
+	m._mp_raise_TypeError(i32(70507))
 	panic("unreachable")
 }
 func (m *Module) _mp_builtin_getattr(v0, v1 int32) int32 {
@@ -14194,7 +14199,7 @@ l2:
 	return t2
 }
 func (m *Module) _math_error() {
-	m._mp_raise_ValueError(i32(68857))
+	m._mp_raise_ValueError(i32(68929))
 	panic("unreachable")
 }
 func (m *Module) _mp_math_pow(v0, v1 int32) int32 {
@@ -14291,7 +14296,7 @@ func (m *Module) _mp_math_log(v0, v1 int32) int32 {
 				goto l0
 			}
 			if v3 == float64(1) {
-				m._mp_raise_msg(i32(87664), i32(70130))
+				m._mp_raise_msg(i32(87664), i32(70202))
 				panic("unreachable")
 			}
 			t5 := m._log(v3)
@@ -14684,7 +14689,7 @@ l2:
 				t15 := int32(load32(m.memory[int64(uint32(v2))+16:]))
 				v1 = t15 + v1
 				if v1 <= i32(-1) {
-					m._mp_raise_ValueError(i32(71384))
+					m._mp_raise_ValueError(i32(71456))
 					panic("unreachable")
 				}
 			}
@@ -14696,7 +14701,7 @@ l2:
 	l3:
 		t17 := int32(load32(m.memory[int64(uint32(v2))+24:]))
 		if uint32(v9+t17) > uint32(v7+v8) {
-			m._mp_raise_ValueError(i32(71384))
+			m._mp_raise_ValueError(i32(71456))
 			panic("unreachable")
 		}
 		if v4 == 0 {
@@ -14985,7 +14990,7 @@ func (m *Module) _struct_pack_into(v0, v1 int32) int32 {
 		}
 		v3 = v4 + v3
 		if v3 <= i32(-1) {
-			m._mp_raise_ValueError(i32(71384))
+			m._mp_raise_ValueError(i32(71456))
 			panic("unreachable")
 		}
 	l0:
@@ -14996,7 +15001,7 @@ func (m *Module) _struct_pack_into(v0, v1 int32) int32 {
 		_ = m._calc_size_items(t8, v2+i32(12))
 		t10 := int32(load32(m.memory[int64(uint32(v2))+12:]))
 		if t10<<1>>1+v3 > v4 {
-			m._mp_raise_ValueError(i32(71384))
+			m._mp_raise_ValueError(i32(71456))
 			panic("unreachable")
 		}
 		t11 := int32(load32(m.memory[uint32(v1):]))
@@ -15409,7 +15414,7 @@ func (m *Module) _mp_print_mp_int(v0, v1, v2, v3, v4, v5, v6, v7 int32) int32 {
 			goto l18
 		}
 	l0:
-		m.___assert_fail(i32(78563), i32(75600), i32(237), i32(66419))
+		m.___assert_fail(i32(78635), i32(75672), i32(237), i32(66491))
 		panic("unreachable")
 	l11:
 		v7 = i32(0)
@@ -15715,11 +15720,11 @@ l3:
 							{
 								t17 := int32(load32(m.memory[uint32(v12):]))
 								if t17 == 0 {
-									t19 := m._mp_print_strn(v0, i32(73180), i32(5), v10, int32(int8(v9)), v7)
+									t19 := m._mp_print_strn(v0, i32(73252), i32(5), v10, int32(int8(v9)), v7)
 									v6 = t19 + v6
 									goto l33
 								}
-								t18 := m._mp_print_strn(v0, i32(72975), i32(4), v10, int32(int8(v9)), v7)
+								t18 := m._mp_print_strn(v0, i32(73047), i32(4), v10, int32(int8(v9)), v7)
 								v6 = t18 + v6
 								goto l33
 							}
@@ -15766,7 +15771,7 @@ l3:
 									if v8 != 0 {
 										goto l35
 									}
-									t27 := m._mp_print_strn(v0, i32(80394), i32(6), v10, int32(int8(v9)), v7)
+									t27 := m._mp_print_strn(v0, i32(80466), i32(6), v10, int32(int8(v9)), v7)
 									v8 = t27
 									goto l36
 								}
@@ -15953,7 +15958,7 @@ l33:
 	v1 = v14 + i32(1)
 	goto l47
 l23:
-	m.___assert_fail(i32(83080), i32(75600), i32(621), i32(72405))
+	m.___assert_fail(i32(83152), i32(75672), i32(621), i32(72477))
 	panic("unreachable")
 }
 func (m *Module) _mpz_init_zero(v0 int32) {
@@ -16013,7 +16018,7 @@ func (m *Module) _mpz_need_dig(v0, v1 int32) {
 		}
 	l0:
 		if v2&i32(2) != 0 {
-			m.___assert_fail(i32(0x11aaa), i32(75437), i32(686), i32(72376))
+			m.___assert_fail(i32(72434), i32(75509), i32(686), i32(72448))
 			panic("unreachable")
 		}
 		t3 := m._m_realloc(v3, v1<<1)
@@ -16176,7 +16181,7 @@ func (m *Module) _mpz_set_from_str(v0, v1, v2, v3, v4 int32) int32 {
 	var v5, v6, v7, v8 int32
 	{
 		if uint32(v4) >= uint32(i32(37)) {
-			m.___assert_fail(i32(78517), i32(75437), i32(818), i32(68665))
+			m.___assert_fail(i32(78589), i32(75509), i32(818), i32(68737))
 			panic("unreachable")
 		}
 		m._mpz_need_dig(v0, int32(uint32(v2)>>1)&i32(0xfffffff)+i32(1))
@@ -17464,7 +17469,7 @@ l0:
 l2:
 	{
 		if v8 != 0 {
-			m.___assert_fail(i32(79200), i32(75437), i32(347), i32(72389))
+			m.___assert_fail(i32(79272), i32(75509), i32(347), i32(72461))
 			panic("unreachable")
 		}
 		v2 = v1 + i32(-2)
@@ -17752,7 +17757,7 @@ func (m *Module) _mpz_clone(v0 int32) int32 {
 	{
 		t0 := int32(load32(m.memory[uint32(v0):]))
 		if uint32(t0) <= uint32(i32(3)) {
-			m.___assert_fail(i32(79245), i32(75437), i32(693), i32(73363))
+			m.___assert_fail(i32(79317), i32(75509), i32(693), i32(73435))
 			panic("unreachable")
 		}
 		t1 := m._m_malloc(i32(12))
@@ -17906,7 +17911,7 @@ func (m *Module) _mpz_divmod_inpl(v0, v1, v2, v3 int32) {
 	{
 		t1 := int32(load32(m.memory[int64(uint32(v3))+4:]))
 		if t1 == 0 {
-			m.___assert_fail(i32(79659), i32(75437), i32(1484), i32(71282))
+			m.___assert_fail(i32(79731), i32(75509), i32(1484), i32(71354))
 			panic("unreachable")
 		}
 		t2 := int32(load32(m.memory[int64(uint32(v2))+4:]))
@@ -18545,11 +18550,11 @@ l1:
 func (m *Module) _mpz_as_str_inpl(v0, v1, v2, v3, v4, v5 int32) int32 {
 	var v6, v7, v8, v9, v10, v11, v12, v13, v14 int32
 	if v5 == 0 {
-		m.___assert_fail(i32(77601), i32(75437), i32(1674), i32(71266))
+		m.___assert_fail(i32(77673), i32(75509), i32(1674), i32(71338))
 		panic("unreachable")
 	}
 	if uint32(v1+i32(-2)) >= uint32(i32(31)) {
-		m.___assert_fail(i32(78793), i32(75437), i32(1675), i32(71266))
+		m.___assert_fail(i32(78865), i32(75509), i32(1675), i32(71338))
 		panic("unreachable")
 	}
 	{
@@ -18840,7 +18845,7 @@ func (m *Module) _mp_obj_print_helper(v0, v1, v2 int32) {
 		if v1 != 0 {
 			goto l0
 		}
-		_ = m._mp_print_str(v0, i32(80401))
+		_ = m._mp_print_str(v0, i32(80473))
 		goto l1
 	l0:
 		{
@@ -18862,7 +18867,7 @@ func (m *Module) _mp_obj_print_helper(v0, v1, v2 int32) {
 	l2:
 		t6 := int32(load16(m.memory[int64(uint32(v4))+6:]))
 		store32(m.memory[uint32(v3):], uint32(t6))
-		_ = m._mp_printf(v0, i32(78273), v3)
+		_ = m._mp_printf(v0, i32(78345), v3)
 	}
 l1:
 	m.___stack_pointer = v3 + i32(16)
@@ -18885,10 +18890,10 @@ func (m *Module) _mp_obj_print_exception(v0, v1 int32) {
 		}
 		t3 := int32(uint32(v3) % uint32(i32(3)))
 		if t3 != 0 {
-			m.___assert_fail(i32(79234), i32(76031), i32(145), i32(70307))
+			m.___assert_fail(i32(79306), i32(76103), i32(145), i32(70379))
 			panic("unreachable")
 		}
-		_ = m._mp_print_str(v0, i32(83159))
+		_ = m._mp_print_str(v0, i32(83231))
 		t5 := int32(load32(m.memory[int64(uint32(v2))+28:]))
 		v4 = t5
 		if v4+i32(-3) < i32(0) {
@@ -18900,7 +18905,7 @@ func (m *Module) _mp_obj_print_exception(v0, v1 int32) {
 			t6 := int32(load32(m.memory[int64(uint32(v2))+24:]))
 			t7 := int32(load32(m.memory[uint32(t6+v3+i32(-8)):]))
 			store32(m.memory[int64(uint32(v2))+16:], uint32(t7))
-			_ = m._mp_printf(v0, i32(83119), v2+i32(16))
+			_ = m._mp_printf(v0, i32(83191), v2+i32(16))
 			{
 				t9 := int32(load32(m.memory[int64(uint32(v2))+24:]))
 				t10 := int32(load32(m.memory[uint32(t9+v3):]))
@@ -18908,12 +18913,12 @@ func (m *Module) _mp_obj_print_exception(v0, v1 int32) {
 				if v5 != 0 {
 					goto l2
 				}
-				_ = m._mp_print_str(v0, i32(83359))
+				_ = m._mp_print_str(v0, i32(83431))
 				goto l3
 			}
 		l2:
 			store32(m.memory[uint32(v2):], uint32(v5))
-			_ = m._mp_printf(v0, i32(83150), v2)
+			_ = m._mp_printf(v0, i32(83222), v2)
 		l3:
 			v3 = v3 + i32(-12)
 			v4 = v4 + i32(-3)
@@ -18924,7 +18929,7 @@ func (m *Module) _mp_obj_print_exception(v0, v1 int32) {
 	}
 l0:
 	m._mp_obj_print_helper(v0, v1, i32(2))
-	_ = m._mp_print_str(v0, i32(83359))
+	_ = m._mp_print_str(v0, i32(83431))
 	m.___stack_pointer = v2 + i32(32)
 }
 func (m *Module) _mp_obj_is_true(v0 int32) int32 {
@@ -19422,7 +19427,7 @@ func (m *Module) _mp_obj_get_float(v0 int32) float64 {
 		}
 		t2 := m._mp_obj_get_type_str(v0)
 		store32(m.memory[uint32(v1):], uint32(t2))
-		m._mp_raise_msg_varg(i32(88204), i32(67543), v1)
+		m._mp_raise_msg_varg(i32(88204), i32(67615), v1)
 		panic("unreachable")
 	}
 }
@@ -19482,7 +19487,7 @@ func (m *Module) _mp_obj_get_complex(v0, v1, v2 int32) {
 		}
 		t2 := m._mp_obj_get_type_str(v0)
 		store32(m.memory[uint32(v3):], uint32(t2))
-		m._mp_raise_msg_varg(i32(88204), i32(65741), v3)
+		m._mp_raise_msg_varg(i32(88204), i32(65813), v3)
 		panic("unreachable")
 	}
 l0:
@@ -19531,12 +19536,12 @@ l3:
 	m.___stack_pointer = v3 + i32(16)
 	return
 l2:
-	m.___assert_fail(i32(80255), i32(72057), i32(53), i32(67209))
+	m.___assert_fail(i32(80327), i32(72129), i32(53), i32(67281))
 	panic("unreachable")
 l0:
 	t7 := m._mp_obj_get_type_str(v0)
 	store32(m.memory[uint32(v3):], uint32(t7))
-	m._mp_raise_msg_varg(i32(88204), i32(66173), v3)
+	m._mp_raise_msg_varg(i32(88204), i32(66245), v3)
 	panic("unreachable")
 }
 func (m *Module) _mp_get_index(v0, v1, v2, v3 int32) int32 {
@@ -19558,7 +19563,7 @@ func (m *Module) _mp_get_index(v0, v1, v2, v3 int32) int32 {
 			t6 := m._mp_obj_get_type_str(v2)
 			store32(m.memory[int64(uint32(v4))+20:], uint32(t6))
 			store32(m.memory[int64(uint32(v4))+16:], uint32(v1))
-			m._mp_raise_msg_varg(i32(88204), i32(68540), v4+i32(16))
+			m._mp_raise_msg_varg(i32(88204), i32(68612), v4+i32(16))
 			panic("unreachable")
 		}
 		t2 := int32(load32(m.memory[int64(uint32(v4))+28:]))
@@ -19594,7 +19599,7 @@ l4:
 l5:
 	t7 := int32(load16(m.memory[int64(uint32(v0))+6:]))
 	store32(m.memory[uint32(v4):], uint32(t7))
-	m._mp_raise_msg_varg(i32(87880), i32(73719), v4)
+	m._mp_raise_msg_varg(i32(87880), i32(73791), v4)
 	panic("unreachable")
 }
 func (m *Module) _mp_obj_id(v0 int32) int32 {
@@ -19622,7 +19627,7 @@ func (m *Module) _mp_obj_len(v0 int32) int32 {
 		}
 		t2 := m._mp_obj_get_type_str(v0)
 		store32(m.memory[uint32(v1):], uint32(t2))
-		m._mp_raise_msg_varg(i32(88204), i32(82566), v1)
+		m._mp_raise_msg_varg(i32(88204), i32(82638), v1)
 		panic("unreachable")
 	}
 }
@@ -19658,15 +19663,15 @@ func (m *Module) _mp_obj_subscr(v0, v1, v2 int32) int32 {
 		switch v2 {
 		case 0:
 			store32(m.memory[int64(uint32(v3))+16:], uint32(v0))
-			m._mp_raise_msg_varg(i32(88204), i32(70393), v3+i32(16))
+			m._mp_raise_msg_varg(i32(88204), i32(70465), v3+i32(16))
 			panic("unreachable")
 		case 4:
 			store32(m.memory[int64(uint32(v3))+32:], uint32(v0))
-			m._mp_raise_msg_varg(i32(88204), i32(73551), v3+i32(32))
+			m._mp_raise_msg_varg(i32(88204), i32(73623), v3+i32(32))
 			panic("unreachable")
 		default:
 			store32(m.memory[uint32(v3):], uint32(v0))
-			m._mp_raise_msg_varg(i32(88204), i32(66652), v3)
+			m._mp_raise_msg_varg(i32(88204), i32(66724), v3)
 			panic("unreachable")
 		}
 	}
@@ -19697,7 +19702,7 @@ func (m *Module) _mp_get_buffer(v0, v1, v2 int32) int32 {
 	}
 l0:
 	if v2&i32(4) != 0 {
-		m._mp_raise_TypeError(i32(74742))
+		m._mp_raise_TypeError(i32(74814))
 		panic("unreachable")
 	}
 	return i32(0)
@@ -19758,7 +19763,7 @@ func (m *Module) _array_append(v0, v1 int32) int32 {
 		return i32(6)
 	}
 l0:
-	m.___assert_fail(i32(81945), i32(75464), i32(394), i32(74397))
+	m.___assert_fail(i32(82017), i32(75536), i32(394), i32(74469))
 	panic("unreachable")
 }
 func (m *Module) _array_extend(v0, v1 int32) int32 {
@@ -19837,7 +19842,7 @@ l3:
 	m.___stack_pointer = v2 + i32(16)
 	return i32(6)
 l0:
-	m.___assert_fail(i32(81945), i32(75464), i32(416), i32(74379))
+	m.___assert_fail(i32(82017), i32(75536), i32(416), i32(74451))
 	panic("unreachable")
 }
 func (m *Module) _array_extend_impl(v0, v1, v2, v3 int32) {
@@ -19976,7 +19981,7 @@ func (m *Module) _array_print(v0, v1, v2 int32) {
 			if v4 != i32(1) {
 				goto l0
 			}
-			_ = m._mp_print_str(v0, i32(76383))
+			_ = m._mp_print_str(v0, i32(76455))
 			t3 := int32(load32(m.memory[int64(uint32(v1))+12:]))
 			t4 := int32(load32(m.memory[int64(uint32(v1))+8:]))
 			m._mp_str_print_quoted(v0, t3, t4, i32(1))
@@ -19984,12 +19989,12 @@ func (m *Module) _array_print(v0, v1, v2 int32) {
 		}
 	l0:
 		store32(m.memory[uint32(v3):], uint32(v4))
-		_ = m._mp_printf(v0, i32(83053), v3)
+		_ = m._mp_printf(v0, i32(83125), v3)
 		t6 := int32(load32(m.memory[int64(uint32(v1))+8:]))
 		if t6 == 0 {
 			goto l1
 		}
-		_ = m._mp_print_str(v0, i32(77039))
+		_ = m._mp_print_str(v0, i32(77111))
 		{
 			t8 := int32(load32(m.memory[int64(uint32(v1))+8:]))
 			if t8 == 0 {
@@ -20001,7 +20006,7 @@ func (m *Module) _array_print(v0, v1, v2 int32) {
 				if v4 == 0 {
 					goto l3
 				}
-				_ = m._mp_print_str(v0, i32(83140))
+				_ = m._mp_print_str(v0, i32(83212))
 			l3:
 				t10 := int32(int8(m.memory[int64(uint32(v1))+4]))
 				t11 := int32(load32(m.memory[int64(uint32(v1))+12:]))
@@ -20015,10 +20020,10 @@ func (m *Module) _array_print(v0, v1, v2 int32) {
 			}
 		}
 	l2:
-		_ = m._mp_print_str(v0, i32(77031))
+		_ = m._mp_print_str(v0, i32(77103))
 	}
 l1:
-	_ = m._mp_print_str(v0, i32(82597))
+	_ = m._mp_print_str(v0, i32(82669))
 	m.___stack_pointer = v3 + i32(16)
 }
 func (m *Module) _array_iterator_new(v0, v1 int32) int32 {
@@ -20250,7 +20255,7 @@ func (m *Module) _array_subscr(v0, v1, v2 int32) int32 {
 			t2 := int32(load32(m.memory[int64(uint32(v0))+8:]))
 			t3 := m._mp_seq_get_fast_slice_indexes(t2, v1, v3+i32(4))
 			if t3 == 0 {
-				m._mp_raise_NotImplementedError(i32(74622))
+				m._mp_raise_NotImplementedError(i32(74694))
 				panic("unreachable")
 			}
 			v1 = i32(0)
@@ -20261,7 +20266,7 @@ func (m *Module) _array_subscr(v0, v1, v2 int32) int32 {
 			t5 := m._mp_binary_get_size(i32(64), t4, i32(0))
 			v2 = t5
 			if v2 == 0 {
-				m.___assert_fail(i32(78991), i32(75464), i32(550), i32(69684))
+				m.___assert_fail(i32(79063), i32(75536), i32(550), i32(69756))
 				panic("unreachable")
 			}
 			t6 := int32(int8(m.memory[int64(uint32(v0))+4]))
@@ -20363,7 +20368,7 @@ func (m *Module) _bytearray_make_new(v0, v1, v2, v3 int32) int32 {
 				return t5
 			}
 		l5:
-			m._mp_raise_TypeError(i32(72326))
+			m._mp_raise_TypeError(i32(72398))
 			panic("unreachable")
 		}
 		t0 := m._array_new(i32(1), i32(0))
@@ -20422,7 +20427,7 @@ func (m *Module) _mp_obj_attrtuple_print_helper(v0, v1, v2 int32) {
 	t0 := m.___stack_pointer
 	v3 = t0 - i32(16)
 	m.___stack_pointer = v3
-	_ = m._mp_print_str(v0, i32(82604))
+	_ = m._mp_print_str(v0, i32(82676))
 	{
 		t2 := int32(load32(m.memory[int64(uint32(v2))+4:]))
 		if t2 == 0 {
@@ -20435,11 +20440,11 @@ func (m *Module) _mp_obj_attrtuple_print_helper(v0, v1, v2 int32) {
 			if v5 == 0 {
 				goto l1
 			}
-			_ = m._mp_print_str(v0, i32(83140))
+			_ = m._mp_print_str(v0, i32(83212))
 		l1:
 			t4 := int32(load32(m.memory[uint32(v1):]))
 			store32(m.memory[uint32(v3):], uint32(t4))
-			_ = m._mp_printf(v0, i32(78466), v3)
+			_ = m._mp_printf(v0, i32(78538), v3)
 			t6 := int32(load32(m.memory[uint32(v4):]))
 			m._mp_obj_print_helper(v0, t6, i32(1))
 			v4 = v4 + i32(4)
@@ -20452,7 +20457,7 @@ func (m *Module) _mp_obj_attrtuple_print_helper(v0, v1, v2 int32) {
 		}
 	}
 l0:
-	_ = m._mp_print_str(v0, i32(82597))
+	_ = m._mp_print_str(v0, i32(82669))
 	m.___stack_pointer = v3 + i32(16)
 }
 func (m *Module) _mp_obj_attrtuple_print(v0, v1, v2 int32) {
@@ -20509,9 +20514,9 @@ func (m *Module) _bool_make_new(v0, v1, v2, v3 int32) int32 {
 }
 func (m *Module) _bool_print(v0, v1, v2 int32) {
 	t1 := v0
-	p0 := i32(72980)
+	p0 := i32(73052)
 	if v1 == i32(14) {
-		p0 = i32(73186)
+		p0 = i32(73258)
 	}
 	_ = m._mp_print_str(t1, p0)
 }
@@ -20833,16 +20838,16 @@ func (m *Module) _complex_print(v0, v1, v2 int32) {
 			if t0 != float64(0) {
 				goto l0
 			}
-			v3 = i32(71941)
+			v3 = i32(72013)
 			v4 = i32(0)
 			goto l1
 		}
 	l0:
-		_ = m._mp_print_str(v0, i32(82604))
+		_ = m._mp_print_str(v0, i32(82676))
 		t2 := math.Float64frombits(load64(m.memory[int64(uint32(v1))+8:]))
 		_ = m._mp_print_float(v0, t2, i32(103), i32(0), i32(0), i32(-1), i32(99))
 		v4 = i32(2)
-		v3 = i32(80407)
+		v3 = i32(80479)
 	}
 l1:
 	t4 := math.Float64frombits(load64(m.memory[int64(uint32(v1))+16:]))
@@ -20924,7 +20929,7 @@ func (m *Module) _mp_obj_complex_binary_op(v0 int32, v1, v2 float64, v3 int32) i
 			v7 = float64(v1 - t3)
 			goto l8
 		case 4, 17:
-			m._mp_raise_TypeError(i32(69619))
+			m._mp_raise_TypeError(i32(69691))
 			panic("unreachable")
 		case 5, 18:
 			t4 := math.Float64frombits(load64(m.memory[int64(uint32(v4))+8:]))
@@ -20936,7 +20941,7 @@ func (m *Module) _mp_obj_complex_binary_op(v0 int32, v1, v2 float64, v3 int32) i
 					goto l9
 				}
 				if v7 == float64(0) {
-					m._mp_raise_msg(i32(87664), i32(70122))
+					m._mp_raise_msg(i32(87664), i32(70194))
 					panic("unreachable")
 				}
 				v6 = float64(v2 / v7)
@@ -21009,7 +21014,7 @@ func (m *Module) _mp_obj_complex_binary_op(v0 int32, v1, v2 float64, v3 int32) i
 				goto l8
 			}
 		l13:
-			m._mp_raise_msg(i32(87664), i32(69266))
+			m._mp_raise_msg(i32(87664), i32(69338))
 			panic("unreachable")
 		default:
 			if v0 != i32(2) {
@@ -21082,7 +21087,7 @@ func (m *Module) _mp_obj_complex_get(v0, v1, v2 int32) {
 		}
 	}
 l0:
-	m.___assert_fail(i32(79373), i32(75496), i32(160), i32(67173))
+	m.___assert_fail(i32(79445), i32(75568), i32(160), i32(67245))
 	panic("unreachable")
 l1:
 	t1 := math.Float64frombits(load64(m.memory[int64(uint32(v0))+8:]))
@@ -21275,7 +21280,7 @@ func (m *Module) _dict_update(v0, v1, v2 int32) int32 {
 		return i32(6)
 	}
 l4:
-	m._mp_raise_ValueError(i32(71971))
+	m._mp_raise_ValueError(i32(72043))
 	panic("unreachable")
 }
 func (m *Module) _mp_obj_new_dict(v0 int32) int32 {
@@ -21303,13 +21308,13 @@ func (m *Module) _dict_iter_next(v0, v1 int32) int32 {
 			if uint32(t6) < uint32(i32(8)) {
 				goto l5
 			}
-			m.___assert_fail(i32(65795), i32(75691), i32(69), i32(66071))
+			m.___assert_fail(i32(65867), i32(75763), i32(69), i32(66143))
 			panic("unreachable")
 		}
 		v4 = v2 << 3
 	l4:
 		if v3 == v2 {
-			m.___assert_fail(i32(75344), i32(72030), i32(499), i32(74803))
+			m.___assert_fail(i32(75416), i32(72102), i32(499), i32(74875))
 			panic("unreachable")
 		}
 		{
@@ -21387,7 +21392,7 @@ func (m *Module) _dict_print(v0, v1, v2 int32) {
 	t0 := m.___stack_pointer
 	v3 = t0 - i32(16)
 	m.___stack_pointer = v3
-	_ = m._mp_print_str(v0, i32(65578))
+	_ = m._mp_print_str(v0, i32(65650))
 	store32(m.memory[int64(uint32(v3))+12:], uint32(i32(0)))
 	{
 		t2 := m._dict_iter_next(v1, v3+i32(12))
@@ -21401,11 +21406,11 @@ func (m *Module) _dict_print(v0, v1, v2 int32) {
 			if v5&i32(1) != 0 {
 				goto l1
 			}
-			_ = m._mp_print_str(v0, i32(83140))
+			_ = m._mp_print_str(v0, i32(83212))
 		l1:
 			t4 := int32(load32(m.memory[uint32(v4):]))
 			m._mp_obj_print_helper(v0, t4, i32(1))
-			_ = m._mp_print_str(v0, i32(83137))
+			_ = m._mp_print_str(v0, i32(83209))
 			t6 := int32(load32(m.memory[int64(uint32(v4))+4:]))
 			m._mp_obj_print_helper(v0, t6, i32(1))
 			v5 = i32(0)
@@ -21417,7 +21422,7 @@ func (m *Module) _dict_print(v0, v1, v2 int32) {
 		}
 	}
 l0:
-	_ = m._mp_print_str(v0, i32(65576))
+	_ = m._mp_print_str(v0, i32(65648))
 	m.___stack_pointer = v3 + i32(16)
 }
 func (m *Module) _dict_unary_op(v0, v1 int32) int32 {
@@ -21747,7 +21752,7 @@ func (m *Module) _dict_view_print(v0, v1, v2 int32) {
 	t1 := int32(load32(m.memory[int64(uint32(v1))+8:]))
 	t2 := int32(load32(m.memory[int64(uint32(t1<<2))+87288:]))
 	_ = m._mp_print_str(v0, t2)
-	_ = m._mp_print_str(v0, i32(77036))
+	_ = m._mp_print_str(v0, i32(77108))
 	store32(m.memory[uint32(v3):], uint32(i32(86972)))
 	store32(m.memory[int64(uint32(v3))+12:], uint32(i32(0)))
 	t5 := int64(load64(m.memory[int64(uint32(v1))+4:]))
@@ -21764,7 +21769,7 @@ func (m *Module) _dict_view_print(v0, v1, v2 int32) {
 			if v4&i32(1) != 0 {
 				goto l1
 			}
-			_ = m._mp_print_str(v0, i32(83140))
+			_ = m._mp_print_str(v0, i32(83212))
 		l1:
 			m._mp_obj_print_helper(v0, v1, i32(1))
 			v4 = i32(0)
@@ -21776,7 +21781,7 @@ func (m *Module) _dict_view_print(v0, v1, v2 int32) {
 		}
 	}
 l0:
-	_ = m._mp_print_str(v0, i32(81601))
+	_ = m._mp_print_str(v0, i32(81673))
 	m.___stack_pointer = v3 + i32(16)
 }
 func (m *Module) _dict_view_unary_op(v0, v1 int32) int32 {
@@ -21863,14 +21868,14 @@ func (m *Module) _dict_popitem(v0 int32) int32 {
 			panic("unreachable")
 		}
 		if uint32(v2) <= uint32(i32(7)) {
-			m._mp_raise_msg(i32(87916), i32(65589))
+			m._mp_raise_msg(i32(87916), i32(65661))
 			panic("unreachable")
 		}
 		store32(m.memory[int64(uint32(v1))+12:], uint32(i32(0)))
 		t2 := m._dict_iter_next(v0, v1+i32(12))
 		v2 = t2
 		if v2 == 0 {
-			m.___assert_fail(i32(66081), i32(75691), i32(368), i32(71185))
+			m.___assert_fail(i32(66153), i32(75763), i32(368), i32(71257))
 			panic("unreachable")
 		}
 		t3 := int32(load32(m.memory[int64(uint32(v0))+4:]))
@@ -21953,7 +21958,7 @@ func (m *Module) _enumerate_iternext(v0 int32) int32 {
 		return v0
 	}
 l0:
-	m.___assert_fail(i32(80576), i32(76090), i32(79), i32(66052))
+	m.___assert_fail(i32(80648), i32(76162), i32(79), i32(66124))
 	panic("unreachable")
 }
 func (m *Module) _mp_obj_is_native_exception_instance(v0 int32) int32 {
@@ -22027,7 +22032,7 @@ l0:
 	if v3 != i32(2) {
 		goto l1
 	}
-	_ = m._mp_print_str(v0, i32(83137))
+	_ = m._mp_print_str(v0, i32(83209))
 l1:
 	t5 := int32(load32(m.memory[int64(uint32(v1))+12:]))
 	v3 = t5
@@ -22062,7 +22067,7 @@ l2:
 		}
 	}
 l5:
-	_ = m._mp_print_str(v0, i32(83360))
+	_ = m._mp_print_str(v0, i32(83432))
 	return
 l3:
 	m._mp_obj_tuple_print(v0, v3, v2)
@@ -22081,7 +22086,7 @@ func (m *Module) _mp_obj_exception_get_value(v0 int32) int32 {
 func (m *Module) _get_native_exception(v0 int32) int32 {
 	t0 := m._mp_obj_is_exception_instance(v0)
 	if t0 == 0 {
-		m.___assert_fail(i32(80291), i32(75567), i32(121), i32(70330))
+		m.___assert_fail(i32(80363), i32(75639), i32(121), i32(70402))
 		panic("unreachable")
 	}
 	{
@@ -22190,7 +22195,7 @@ func (m *Module) _mp_obj_new_exception(v0 int32) int32 {
 		}
 	}
 l0:
-	m.___assert_fail(i32(65905), i32(75567), i32(384), i32(70286))
+	m.___assert_fail(i32(65977), i32(75639), i32(384), i32(70358))
 	panic("unreachable")
 }
 func (m *Module) _mp_obj_new_exception_msg(v0, v1 int32) int32 {
@@ -22245,7 +22250,7 @@ func (m *Module) _mp_obj_new_exception_msg(v0, v1 int32) int32 {
 		return v3
 	}
 l0:
-	m.___assert_fail(i32(65905), i32(75567), i32(397), i32(0x11999))
+	m.___assert_fail(i32(65977), i32(75639), i32(397), i32(72161))
 	panic("unreachable")
 }
 func (m *Module) _mp_obj_new_exception_msg_varg(v0, v1, v2 int32) int32 {
@@ -22266,7 +22271,7 @@ func (m *Module) _mp_obj_new_exception_msg_vlist(v0, v1, v2 int32) int32 {
 	m.___stack_pointer = v3
 	{
 		if v1 == 0 {
-			m.___assert_fail(i32(77589), i32(75567), i32(473), i32(66122))
+			m.___assert_fail(i32(77661), i32(75639), i32(473), i32(66194))
 			panic("unreachable")
 		}
 		t1 := int32(m.memory[int64(uint32(v0))+8])
@@ -22346,7 +22351,7 @@ func (m *Module) _mp_obj_new_exception_msg_vlist(v0, v1, v2 int32) int32 {
 		return v4
 	}
 l1:
-	m.___assert_fail(i32(65905), i32(75567), i32(476), i32(66122))
+	m.___assert_fail(i32(65977), i32(75639), i32(476), i32(66194))
 	panic("unreachable")
 }
 func (m *Module) _exc_add_strn(v0, v1, v2 int32) {
@@ -22627,7 +22632,7 @@ func (m *Module) _mp_obj_float_get(v0 int32) float64 {
 		}
 	}
 l0:
-	m.___assert_fail(i32(80230), i32(75757), i32(193), i32(67192))
+	m.___assert_fail(i32(80302), i32(75829), i32(193), i32(67264))
 	panic("unreachable")
 }
 func (m *Module) _float_unary_op(v0, v1 int32) int32 {
@@ -22893,7 +22898,7 @@ l0:
 	m.___stack_pointer = v3 + i32(32)
 	return v4
 l15:
-	m._mp_raise_msg(i32(87664), i32(70130))
+	m._mp_raise_msg(i32(87664), i32(70202))
 	panic("unreachable")
 }
 func (m *Module) _mp_obj_new_float(v0 float64) int32 {
@@ -22970,7 +22975,7 @@ func (m *Module) _fun_builtin_0_call(v0, v1, v2, v3 int32) int32 {
 		}
 	}
 l0:
-	m.___assert_fail(i32(81868), i32(75909), i32(55), i32(71491))
+	m.___assert_fail(i32(81940), i32(75981), i32(55), i32(71563))
 	panic("unreachable")
 }
 func (m *Module) _fun_builtin_1_call(v0, v1, v2, v3 int32) int32 {
@@ -22988,7 +22993,7 @@ func (m *Module) _fun_builtin_1_call(v0, v1, v2, v3 int32) int32 {
 		}
 	}
 l0:
-	m.___assert_fail(i32(81820), i32(75909), i32(67), i32(71472))
+	m.___assert_fail(i32(81892), i32(75981), i32(67), i32(71544))
 	panic("unreachable")
 }
 func (m *Module) _fun_builtin_2_call(v0, v1, v2, v3 int32) int32 {
@@ -23007,7 +23012,7 @@ func (m *Module) _fun_builtin_2_call(v0, v1, v2, v3 int32) int32 {
 		}
 	}
 l0:
-	m.___assert_fail(i32(81772), i32(75909), i32(79), i32(71453))
+	m.___assert_fail(i32(81844), i32(75981), i32(79), i32(71525))
 	panic("unreachable")
 }
 func (m *Module) _fun_builtin_3_call(v0, v1, v2, v3 int32) int32 {
@@ -23027,7 +23032,7 @@ func (m *Module) _fun_builtin_3_call(v0, v1, v2, v3 int32) int32 {
 		}
 	}
 l0:
-	m.___assert_fail(i32(81724), i32(75909), i32(91), i32(71434))
+	m.___assert_fail(i32(81796), i32(75981), i32(91), i32(71506))
 	panic("unreachable")
 }
 func (m *Module) _fun_builtin_var_call(v0, v1, v2, v3 int32) int32 {
@@ -23067,7 +23072,7 @@ func (m *Module) _fun_builtin_var_call(v0, v1, v2, v3 int32) int32 {
 		return v0
 	}
 l0:
-	m.___assert_fail(i32(79843), i32(75909), i32(103), i32(71401))
+	m.___assert_fail(i32(79915), i32(75981), i32(103), i32(71473))
 	panic("unreachable")
 }
 func (m *Module) _mp_obj_fun_bc_get_name(v0 int32) int32 {
@@ -23126,7 +23131,7 @@ l1:
 	v4 = t4
 	store32(m.memory[int64(uint32(v3))+4:], uint32(v1))
 	store32(m.memory[uint32(v3):], uint32(v4))
-	_ = m._mp_printf(v0, i32(78310), v3)
+	_ = m._mp_printf(v0, i32(78382), v3)
 	m.___stack_pointer = v3 + i32(16)
 }
 func (m *Module) _fun_bc_call(v0, v1, v2, v3 int32) int32 {
@@ -23201,7 +23206,7 @@ l3:
 		}
 	l4:
 		if v6 != i32(2) {
-			m.___assert_fail(i32(77320), i32(75909), i32(334), i32(71422))
+			m.___assert_fail(i32(77392), i32(75981), i32(334), i32(71494))
 			panic("unreachable")
 		}
 		v8 = v7 + i32(20)
@@ -23295,10 +23300,10 @@ func (m *Module) _mp_obj_new_fun_bc(v0, v1, v2, v3 int32) int32 {
 		return v0
 	}
 l3:
-	m.___assert_fail(i32(81030), i32(75909), i32(431), i32(75385))
+	m.___assert_fail(i32(81102), i32(75981), i32(431), i32(75457))
 	panic("unreachable")
 l5:
-	m.___assert_fail(i32(79616), i32(75909), i32(437), i32(75385))
+	m.___assert_fail(i32(79688), i32(75981), i32(437), i32(75457))
 	panic("unreachable")
 }
 func (m *Module) _gen_wrap_call(v0, v1, v2, v3 int32) int32 {
@@ -23350,7 +23355,7 @@ func (m *Module) _mp_obj_gen_resume(v0, v1, v2, v3 int32) int32 {
 					goto l1
 				}
 				if v4 == 0 {
-					m._mp_raise_ValueError(i32(72184))
+					m._mp_raise_ValueError(i32(72256))
 					panic("unreachable")
 				}
 				v2 = v4
@@ -23365,7 +23370,7 @@ func (m *Module) _mp_obj_gen_resume(v0, v1, v2, v3 int32) int32 {
 				if v1 == i32(6) {
 					goto l4
 				}
-				m._mp_raise_TypeError(i32(68787))
+				m._mp_raise_TypeError(i32(68859))
 				panic("unreachable")
 			}
 		l3:
@@ -23409,7 +23414,7 @@ func (m *Module) _mp_obj_gen_resume(v0, v1, v2, v3 int32) int32 {
 					if t17 == 0 {
 						goto l8
 					}
-					t18 := m._mp_obj_new_exception_msg(i32(88060), i32(70620))
+					t18 := m._mp_obj_new_exception_msg(i32(88060), i32(70692))
 					store32(m.memory[uint32(v3):], uint32(t18))
 				}
 			l8:
@@ -23430,7 +23435,7 @@ func (m *Module) _gen_instance_print(v0, v1, v2 int32) {
 	v4 = t2
 	store32(m.memory[int64(uint32(v3))+4:], uint32(v1))
 	store32(m.memory[uint32(v3):], uint32(v4))
-	_ = m._mp_printf(v0, i32(78350), v3)
+	_ = m._mp_printf(v0, i32(78422), v3)
 	m.___stack_pointer = v3 + i32(16)
 }
 func (m *Module) _gen_instance_iternext(v0 int32) int32 {
@@ -23479,7 +23484,7 @@ func (m *Module) _gen_instance_close(v0 int32) int32 {
 		default:
 			goto l2
 		case 0:
-			m._mp_raise_msg(i32(88060), i32(67007))
+			m._mp_raise_msg(i32(88060), i32(67079))
 			panic("unreachable")
 		case 1:
 			t2 := int32(load32(m.memory[int64(uint32(v1))+12:]))
@@ -23532,7 +23537,7 @@ func (m *Module) _gen_instance_pend_throw(v0, v1 int32) int32 {
 			store32(m.memory[int64(uint32(v0))+4:], uint32(v1))
 			return v2
 		}
-		m._mp_raise_ValueError(i32(72184))
+		m._mp_raise_ValueError(i32(72256))
 		panic("unreachable")
 	}
 }
@@ -23726,10 +23731,10 @@ func (m *Module) _mp_obj_new_int_from_float(v0 float64) int32 {
 		return i32_trunc_sat_f64_s(v0)<<1 | i32(1)
 	}
 	if v1&i64(0xfffffffffffff) == i64(0) {
-		m._mp_raise_msg(i32(87628), i32(66491))
+		m._mp_raise_msg(i32(87628), i32(66563))
 		panic("unreachable")
 	}
-	m._mp_raise_ValueError(i32(66516))
+	m._mp_raise_ValueError(i32(66588))
 	panic("unreachable")
 }
 func (m *Module) _mp_obj_int_print(v0, v1, v2 int32) {
@@ -23851,7 +23856,7 @@ func (m *Module) _mp_obj_int_formatted(v0, v1, v2, v3, v4, v5, v6, v7 int32) int
 		}
 	}
 l3:
-	m.___assert_fail(i32(79522), i32(75631), i32(241), i32(74543))
+	m.___assert_fail(i32(79594), i32(75703), i32(241), i32(74615))
 	panic("unreachable")
 l4:
 	v3 = v1 + i32(-2)
@@ -23907,7 +23912,7 @@ func (m *Module) _mp_int_format_size(v0, v1, v2, v3 int32) int32 {
 	var v4, v5 int32
 	{
 		if uint32(v1+i32(-2)) >= uint32(i32(15)) {
-			m.___assert_fail(i32(78614), i32(75631), i32(216), i32(72665))
+			m.___assert_fail(i32(78686), i32(75703), i32(216), i32(72737))
 			panic("unreachable")
 		}
 		t0 := int32(m.memory[uint32(v1+i32(88703))])
@@ -24214,7 +24219,7 @@ func (m *Module) _int_to_bytes(v0, v1 int32) int32 {
 		return v3
 	}
 l5:
-	m._mp_raise_msg(i32(87628), i32(71384))
+	m._mp_raise_msg(i32(87628), i32(71456))
 	panic("unreachable")
 }
 func (m *Module) _mp_obj_int_new_mpz() int32 {
@@ -24259,7 +24264,7 @@ func (m *Module) _mp_obj_int_formatted_impl(v0, v1, v2, v3, v4, v5, v6, v7 int32
 		return v9
 	}
 l0:
-	m.___assert_fail(i32(79522), i32(75403), i32(94), i32(71348))
+	m.___assert_fail(i32(79594), i32(75475), i32(94), i32(71420))
 	panic("unreachable")
 }
 func (m *Module) _mp_obj_int_from_bytes_impl(v0, v1, v2 int32) int32 {
@@ -24284,7 +24289,7 @@ func (m *Module) _mp_obj_int_to_bytes_impl(v0, v1, v2, v3 int32) int32 {
 		}
 	}
 l0:
-	m.___assert_fail(i32(79522), i32(75403), i32(116), i32(71323))
+	m.___assert_fail(i32(79594), i32(75475), i32(116), i32(71395))
 	panic("unreachable")
 }
 func (m *Module) _mp_obj_int_sign(v0 int32) int32 {
@@ -24415,7 +24420,7 @@ func (m *Module) _mp_obj_int_binary_op(v0, v1, v2 int32) int32 {
 		v5 = v3 + i32(36)
 		goto l4
 	l2:
-		m.___assert_fail(i32(79479), i32(75403), i32(186), i32(69968))
+		m.___assert_fail(i32(79551), i32(75475), i32(186), i32(70040))
 		panic("unreachable")
 	l4:
 		{
@@ -24487,7 +24492,7 @@ func (m *Module) _mp_obj_int_binary_op(v0, v1, v2 int32) int32 {
 				t15 := m._mp_obj_int_get_checked(v2)
 				v1 = t15
 				if v1 <= i32(-1) {
-					m._mp_raise_ValueError(i32(66381))
+					m._mp_raise_ValueError(i32(66453))
 					panic("unreachable")
 				}
 				if v0 == i32(25) {
@@ -24591,7 +24596,7 @@ l8:
 	m.___stack_pointer = v3 + i32(48)
 	return v1
 l11:
-	m._mp_raise_msg(i32(87664), i32(70130))
+	m._mp_raise_msg(i32(87664), i32(70202))
 	panic("unreachable")
 }
 func (m *Module) _mp_obj_int_get_checked(v0 int32) int32 {
@@ -24608,7 +24613,7 @@ func (m *Module) _mp_obj_int_get_checked(v0 int32) int32 {
 	l0:
 		t1 := m._mpz_as_int_checked(v0+i32(4), v1+i32(12))
 		if t1 == 0 {
-			m._mp_raise_msg(i32(87628), i32(74106))
+			m._mp_raise_msg(i32(87628), i32(74178))
 			panic("unreachable")
 		}
 		t2 := int32(load32(m.memory[int64(uint32(v1))+12:]))
@@ -24683,7 +24688,7 @@ func (m *Module) _mp_obj_int_as_float_impl(v0 int32) float64 {
 		}
 	}
 l0:
-	m.___assert_fail(i32(79522), i32(75403), i32(467), i32(71298))
+	m.___assert_fail(i32(79594), i32(75475), i32(467), i32(71370))
 	panic("unreachable")
 }
 func (m *Module) _mp_obj_list_make_new(v0, v1, v2, v3 int32) int32 {
@@ -24990,7 +24995,7 @@ func (m *Module) _list_pop(v0, v1 int32) int32 {
 		t1 := int32(load32(m.memory[int64(uint32(v2))+8:]))
 		v3 = t1
 		if v3 == 0 {
-			m._mp_raise_msg(i32(87880), i32(66153))
+			m._mp_raise_msg(i32(87880), i32(66225))
 			panic("unreachable")
 		}
 		t2 := int32(load32(m.memory[uint32(v2):]))
@@ -25054,7 +25059,7 @@ func (m *Module) _list_index(v0, v1 int32) int32 {
 }
 func (m *Module) _list_print(v0, v1, v2 int32) {
 	var v3, v4 int32
-	_ = m._mp_print_str(v0, i32(77041))
+	_ = m._mp_print_str(v0, i32(77113))
 	{
 		t1 := int32(load32(m.memory[int64(uint32(v1))+8:]))
 		if t1 == 0 {
@@ -25067,7 +25072,7 @@ func (m *Module) _list_print(v0, v1, v2 int32) {
 			if v4 == 0 {
 				goto l1
 			}
-			_ = m._mp_print_str(v0, i32(83140))
+			_ = m._mp_print_str(v0, i32(83212))
 		l1:
 			t3 := int32(load32(m.memory[int64(uint32(v1))+12:]))
 			t4 := int32(load32(m.memory[uint32(t3+v3):]))
@@ -25081,7 +25086,7 @@ func (m *Module) _list_print(v0, v1, v2 int32) {
 		}
 	}
 l0:
-	_ = m._mp_print_str(v0, i32(77031))
+	_ = m._mp_print_str(v0, i32(77103))
 }
 func (m *Module) _list_unary_op(v0, v1 int32) int32 {
 	var v2 int32
@@ -25694,7 +25699,7 @@ func (m *Module) _module_print(v0, v1, v2 int32) {
 			if v4 != 0 {
 				goto l0
 			}
-			v4 = i32(83360)
+			v4 = i32(83432)
 			goto l1
 		}
 	l0:
@@ -25714,12 +25719,12 @@ l1:
 		t8 := m._mp_obj_str_get_str(t7)
 		store32(m.memory[int64(uint32(v3))+20:], uint32(t8))
 		store32(m.memory[int64(uint32(v3))+16:], uint32(v4))
-		_ = m._mp_printf(v0, i32(78415), v3+i32(16))
+		_ = m._mp_printf(v0, i32(78487), v3+i32(16))
 		goto l3
 	}
 l2:
 	store32(m.memory[uint32(v3):], uint32(v4))
-	_ = m._mp_printf(v0, i32(78439), v3)
+	_ = m._mp_printf(v0, i32(78511), v3)
 l3:
 	m.___stack_pointer = v3 + i32(32)
 }
@@ -26015,7 +26020,7 @@ func (m *Module) _namedtuple_make_new(v0, v1, v2, v3 int32) int32 {
 		if t2 != v6 {
 			store32(m.memory[int64(uint32(v4))+36:], uint32(v5))
 			store32(m.memory[int64(uint32(v4))+32:], uint32(v6))
-			m._mp_raise_msg_varg(i32(88204), i32(70996), v4+i32(32))
+			m._mp_raise_msg_varg(i32(88204), i32(71068), v4+i32(32))
 			panic("unreachable")
 		}
 		t3 := m._mp_obj_malloc_helper(v6<<2+i32(8), v0)
@@ -26078,7 +26083,7 @@ func (m *Module) _namedtuple_make_new(v0, v1, v2, v3 int32) int32 {
 				t10 := int32(load32(m.memory[uint32(v6):]))
 				if t10 != 0 {
 					store32(m.memory[int64(uint32(v4))+16:], uint32(v12))
-					m._mp_raise_msg_varg(i32(88204), i32(82780), v4+i32(16))
+					m._mp_raise_msg_varg(i32(88204), i32(82852), v4+i32(16))
 					panic("unreachable")
 				}
 				t11 := int32(load32(m.memory[uint32(v11+i32(4)):]))
@@ -26095,7 +26100,7 @@ func (m *Module) _namedtuple_make_new(v0, v1, v2, v3 int32) int32 {
 	}
 l4:
 	store32(m.memory[uint32(v4):], uint32(v12))
-	m._mp_raise_msg_varg(i32(88204), i32(82827), v4)
+	m._mp_raise_msg_varg(i32(88204), i32(82899), v4)
 	panic("unreachable")
 }
 func (m *Module) _namedtuple_print(v0, v1, v2 int32) {
@@ -26106,7 +26111,7 @@ func (m *Module) _namedtuple_print(v0, v1, v2 int32) {
 	t1 := int32(load32(m.memory[uint32(v1):]))
 	t2 := int32(load16(m.memory[int64(uint32(t1))+6:]))
 	store32(m.memory[uint32(v3):], uint32(t2))
-	_ = m._mp_printf(v0, i32(69821), v3)
+	_ = m._mp_printf(v0, i32(69893), v3)
 	t4 := int32(load32(m.memory[uint32(v1):]))
 	m._mp_obj_attrtuple_print_helper(v0, t4+i32(56), v1)
 	m.___stack_pointer = v3 + i32(16)
@@ -26116,7 +26121,7 @@ func (m *Module) _namedtuple_attr(v0, v1, v2 int32) {
 	{
 		t0 := int32(load32(m.memory[uint32(v2):]))
 		if t0 != 0 {
-			m._mp_raise_msg(i32(87736), i32(73038))
+			m._mp_raise_msg(i32(87736), i32(73110))
 			panic("unreachable")
 		}
 		{
@@ -26157,7 +26162,7 @@ func (m *Module) _namedtuple_attr(v0, v1, v2 int32) {
 	}
 }
 func (m *Module) _none_print(v0, v1, v2 int32) {
-	_ = m._mp_print_str(v0, i32(73373))
+	_ = m._mp_print_str(v0, i32(73445))
 }
 func (m *Module) _object_make_new(v0, v1, v2, v3 int32) int32 {
 	m._mp_arg_check_num_sig(v1, v2, i32(0))
@@ -26189,7 +26194,7 @@ func (m *Module) _object___new__(v0 int32) int32 {
 		}
 	}
 l0:
-	m._mp_raise_TypeError(i32(73254))
+	m._mp_raise_TypeError(i32(73326))
 	panic("unreachable")
 }
 func (m *Module) _polymorph_it_iternext(v0 int32) int32 {
@@ -26275,7 +26280,7 @@ func (m *Module) _range_make_new(v0, v1, v2, v3 int32) int32 {
 		if v1 != 0 {
 			goto l1
 		}
-		m._mp_raise_ValueError(i32(70085))
+		m._mp_raise_ValueError(i32(70157))
 		panic("unreachable")
 	}
 	store32(m.memory[int64(uint32(v2))+8:], uint32(v0))
@@ -26315,19 +26320,19 @@ func (m *Module) _range_print(v0, v1, v2 int32) {
 	m.___stack_pointer = v3
 	t1 := int64(load64(m.memory[int64(uint32(v1))+4:]))
 	store64(m.memory[int64(uint32(v3))+16:], uint64(t1))
-	_ = m._mp_printf(v0, i32(75185), v3+i32(16))
+	_ = m._mp_printf(v0, i32(75257), v3+i32(16))
 	{
 		t3 := int32(load32(m.memory[int64(uint32(v1))+12:]))
 		v1 = t3
 		if v1 != i32(1) {
 			goto l0
 		}
-		_ = m._mp_print_str(v0, i32(82597))
+		_ = m._mp_print_str(v0, i32(82669))
 		goto l1
 	}
 l0:
 	store32(m.memory[uint32(v3):], uint32(v1))
-	_ = m._mp_printf(v0, i32(81155), v3)
+	_ = m._mp_printf(v0, i32(81227), v3)
 l1:
 	m.___stack_pointer = v3 + i32(32)
 }
@@ -26565,12 +26570,12 @@ func (m *Module) _set_print(v0, v1, v2 int32) {
 			if t0 != 0 {
 				goto l0
 			}
-			v3 = i32(82560)
+			v3 = i32(82632)
 			goto l1
 		}
 	l0:
-		_ = m._mp_print_str(v0, i32(65578))
-		v3 = i32(65576)
+		_ = m._mp_print_str(v0, i32(65650))
+		v3 = i32(65648)
 		t2 := int32(load32(m.memory[int64(uint32(v1))+4:]))
 		v4 = t2
 		if v4 == 0 {
@@ -26590,7 +26595,7 @@ func (m *Module) _set_print(v0, v1, v2 int32) {
 					if v7&i32(1) != 0 {
 						goto l4
 					}
-					_ = m._mp_print_str(v0, i32(83140))
+					_ = m._mp_print_str(v0, i32(83212))
 					t6 := int32(load32(m.memory[int64(uint32(v1))+12:]))
 					t7 := int32(load32(m.memory[uint32(t6+v5):]))
 					v8 = t7
@@ -27014,7 +27019,7 @@ func (m *Module) _set_equal(v0, v1 int32) int32 {
 		return v2
 	}
 l0:
-	m.___assert_fail(i32(80200), i32(75661), i32(349), i32(71747))
+	m.___assert_fail(i32(80272), i32(75733), i32(349), i32(71819))
 	panic("unreachable")
 }
 func (m *Module) _set_getiter(v0, v1 int32) int32 {
@@ -27190,7 +27195,7 @@ func (m *Module) _set_pop(v0 int32) int32 {
 	if v0 != 0 {
 		return v0
 	}
-	m._mp_raise_msg(i32(87916), i32(67091))
+	m._mp_raise_msg(i32(87916), i32(67163))
 	panic("unreachable")
 }
 func (m *Module) _set_remove(v0, v1 int32) int32 {
@@ -27208,23 +27213,23 @@ func (m *Module) _singleton_print(v0, v1, v2 int32) {
 	m.___stack_pointer = v3
 	t1 := int32(load32(m.memory[int64(uint32(v1))+4:]))
 	store32(m.memory[uint32(v3):], uint32(t1))
-	_ = m._mp_printf(v0, i32(69821), v3)
+	_ = m._mp_printf(v0, i32(69893), v3)
 	m.___stack_pointer = v3 + i32(16)
 }
 func _slice_unary_op(v0, v1 int32) int32 {
 	return i32(0)
 }
 func (m *Module) _slice_print(v0, v1, v2 int32) {
-	_ = m._mp_print_str(v0, i32(82599))
+	_ = m._mp_print_str(v0, i32(82671))
 	t1 := int32(load32(m.memory[int64(uint32(v1))+4:]))
 	m._mp_obj_print_helper(v0, t1, i32(1))
-	_ = m._mp_print_str(v0, i32(83140))
+	_ = m._mp_print_str(v0, i32(83212))
 	t3 := int32(load32(m.memory[int64(uint32(v1))+8:]))
 	m._mp_obj_print_helper(v0, t3, i32(1))
-	_ = m._mp_print_str(v0, i32(83140))
+	_ = m._mp_print_str(v0, i32(83212))
 	t5 := int32(load32(m.memory[int64(uint32(v1))+12:]))
 	m._mp_obj_print_helper(v0, t5, i32(1))
-	_ = m._mp_print_str(v0, i32(82597))
+	_ = m._mp_print_str(v0, i32(82669))
 }
 func (m *Module) _mp_obj_new_slice(v0, v1, v2 int32) int32 {
 	var v3 int32
@@ -27253,7 +27258,7 @@ func (m *Module) _mp_obj_slice_indices(v0, v1, v2 int32) {
 				t1 := m._mp_obj_get_int(v3)
 				v3 = t1
 				if v3 == 0 {
-					m._mp_raise_ValueError(i32(70145))
+					m._mp_raise_ValueError(i32(70217))
 					panic("unreachable")
 				}
 				if v3 < i32(1) {
@@ -27411,7 +27416,7 @@ func (m *Module) _mp_str_print_quoted(v0, v1, v2, v3 int32) {
 		}
 		v7 = p2
 		store32(m.memory[int64(uint32(t3))+80:], uint32(v7))
-		_ = m._mp_printf(v0, i32(76334), v4+i32(80))
+		_ = m._mp_printf(v0, i32(76406), v4+i32(80))
 	l13:
 		{
 			t5 := int32(m.memory[uint32(v1)])
@@ -27421,14 +27426,14 @@ func (m *Module) _mp_str_print_quoted(v0, v1, v2, v3 int32) {
 				goto l5
 			}
 			store32(m.memory[int64(uint32(v4))+32:], uint32(v7))
-			_ = m._mp_printf(v0, i32(76333), v4+i32(32))
+			_ = m._mp_printf(v0, i32(76405), v4+i32(32))
 			goto l6
 		}
 	l5:
 		if v2 != i32(92) {
 			goto l7
 		}
-		_ = m._mp_print_str(v0, i32(77033))
+		_ = m._mp_print_str(v0, i32(77105))
 		goto l6
 	l7:
 		{
@@ -27447,23 +27452,23 @@ func (m *Module) _mp_str_print_quoted(v0, v1, v2, v3 int32) {
 				goto l8
 			}
 			store32(m.memory[int64(uint32(v4))+64:], uint32(v2))
-			_ = m._mp_printf(v0, i32(76334), v4+i32(64))
+			_ = m._mp_printf(v0, i32(76406), v4+i32(64))
 			goto l6
 		}
 	l8:
 		switch v2 + i32(-9) {
 		case 1:
-			_ = m._mp_print_str(v0, i32(71103))
+			_ = m._mp_print_str(v0, i32(71175))
 			goto l6
 		case 4:
-			_ = m._mp_print_str(v0, i32(69800))
+			_ = m._mp_print_str(v0, i32(69872))
 			goto l6
 		case 0:
-			_ = m._mp_print_str(v0, i32(67611))
+			_ = m._mp_print_str(v0, i32(67683))
 			goto l6
 		default:
 			store32(m.memory[int64(uint32(v4))+48:], uint32(v2))
-			_ = m._mp_printf(v0, i32(65822), v4+i32(48))
+			_ = m._mp_printf(v0, i32(65894), v4+i32(48))
 		}
 	l6:
 		v1 = v1 + i32(1)
@@ -27475,10 +27480,10 @@ func (m *Module) _mp_str_print_quoted(v0, v1, v2, v3 int32) {
 l0:
 	v7 = i32(39)
 	store32(m.memory[int64(uint32(v4))+16:], uint32(i32(39)))
-	_ = m._mp_printf(v0, i32(76334), v4+i32(16))
+	_ = m._mp_printf(v0, i32(76406), v4+i32(16))
 l14:
 	store32(m.memory[uint32(v4):], uint32(v7))
-	_ = m._mp_printf(v0, i32(76334), v4)
+	_ = m._mp_printf(v0, i32(76406), v4)
 	m.___stack_pointer = v4 + i32(96)
 }
 func (m *Module) _mp_obj_str_make_new(v0, v1, v2, v3 int32) int32 {
@@ -28001,7 +28006,7 @@ func (m *Module) _mp_obj_str_binary_op(v0, v1, v2 int32) int32 {
 						switch t23 + i32(-37) {
 						case 3:
 							if v6 == 0 {
-								m._mp_raise_TypeError(i32(67380))
+								m._mp_raise_TypeError(i32(67452))
 								panic("unreachable")
 							}
 							v14 = v0 + i32(2)
@@ -28015,7 +28020,7 @@ func (m *Module) _mp_obj_str_binary_op(v0, v1, v2 int32) int32 {
 							l17:
 								{
 									if uint32(v1) >= uint32(v10) {
-										m._mp_raise_ValueError(i32(65709))
+										m._mp_raise_ValueError(i32(65781))
 										panic("unreachable")
 									}
 									v1 = v1 + i32(1)
@@ -28301,7 +28306,7 @@ func (m *Module) _mp_obj_str_binary_op(v0, v1, v2 int32) int32 {
 									v2 = t41
 									t42 := int32(load32(m.memory[int64(uint32(v3))+36:]))
 									if t42 != i32(1) {
-										m._mp_raise_TypeError(i32(69773))
+										m._mp_raise_TypeError(i32(69845))
 										panic("unreachable")
 									}
 									_ = m._mp_print_strn(v3+i32(52), v2, i32(1), v12, i32(32), v16)
@@ -28331,7 +28336,7 @@ func (m *Module) _mp_obj_str_binary_op(v0, v1, v2 int32) int32 {
 									goto l9
 								}
 							l52:
-								m._mp_raise_TypeError(i32(74876))
+								m._mp_raise_TypeError(i32(74948))
 								panic("unreachable")
 							case 1, 6, 18:
 								{
@@ -28361,7 +28366,7 @@ func (m *Module) _mp_obj_str_binary_op(v0, v1, v2 int32) int32 {
 					store32(m.memory[int64(uint32(v3))+4:], uint32(v2))
 					store32(m.memory[uint32(v3):], uint32(v2))
 					store32(m.memory[int64(uint32(v3))+8:], uint32(v0-v7))
-					m._mp_raise_msg_varg(i32(88240), i32(75045), v3)
+					m._mp_raise_msg_varg(i32(88240), i32(75117), v3)
 					panic("unreachable")
 				}
 				m._vstr_add_byte(v3+i32(60), v2)
@@ -28374,14 +28379,14 @@ func (m *Module) _mp_obj_str_binary_op(v0, v1, v2 int32) int32 {
 			}
 			goto l7
 		l10:
-			m._mp_raise_ValueError(i32(67593))
+			m._mp_raise_ValueError(i32(67665))
 			panic("unreachable")
 		l30:
-			m._mp_raise_TypeError(i32(67785))
+			m._mp_raise_TypeError(i32(67857))
 			panic("unreachable")
 		}
 	l2:
-		m.___assert_fail(i32(80255), i32(72057), i32(53), i32(67209))
+		m.___assert_fail(i32(80327), i32(72129), i32(53), i32(67281))
 		panic("unreachable")
 	l7:
 		if v6 != 0 {
@@ -28390,7 +28395,7 @@ func (m *Module) _mp_obj_str_binary_op(v0, v1, v2 int32) int32 {
 		if v8 == v5 {
 			goto l80
 		}
-		m._mp_raise_TypeError(i32(67666))
+		m._mp_raise_TypeError(i32(67738))
 		panic("unreachable")
 	l80:
 		p103 := i32(90592)
@@ -28463,7 +28468,7 @@ func (m *Module) _bad_implicit_conversion(v0 int32) {
 		p4 = i32(66)
 	}
 	store32(m.memory[int64(uint32(t5))+4:], uint32(p4))
-	m._mp_raise_msg_varg(i32(88204), i32(65646), v1)
+	m._mp_raise_msg_varg(i32(88204), i32(65718), v1)
 	panic("unreachable")
 }
 func (m *Module) _str_join(v0, v1 int32) int32 {
@@ -28534,7 +28539,7 @@ l3:
 					p13 = i32(90640)
 				}
 				if p13 != v6 {
-					m._mp_raise_TypeError(i32(67458))
+					m._mp_raise_TypeError(i32(67530))
 					panic("unreachable")
 				}
 				t14 := int32(load32(m.memory[int64(uint32(v2))+40:]))
@@ -28705,7 +28710,7 @@ l2:
 				t29 := int32(load32(m.memory[int64(uint32(v2))+8:]))
 				v4 = t29
 				if v4 == 0 {
-					m._mp_raise_ValueError(i32(68841))
+					m._mp_raise_ValueError(i32(68913))
 					panic("unreachable")
 				}
 			l17:
@@ -28921,7 +28926,7 @@ func (m *Module) _str_rsplit(v0, v1 int32) int32 {
 			v8 = t10
 			{
 				if v4 == i32(6) {
-					m._mp_raise_NotImplementedError(i32(80379))
+					m._mp_raise_NotImplementedError(i32(80451))
 					panic("unreachable")
 				}
 				t11 := m._mp_obj_str_get_data(v4, v2+i32(8))
@@ -28930,7 +28935,7 @@ func (m *Module) _str_rsplit(v0, v1 int32) int32 {
 					t12 := int32(load32(m.memory[int64(uint32(v2))+8:]))
 					v0 = t12
 					if v0 == 0 {
-						m._mp_raise_ValueError(i32(68841))
+						m._mp_raise_ValueError(i32(68913))
 						panic("unreachable")
 					}
 					t13 := int32(load32(m.memory[int64(uint32(v2))+12:]))
@@ -29126,7 +29131,7 @@ l7:
 	if v3 == 0 {
 		goto l9
 	}
-	m._mp_raise_ValueError(i32(74265))
+	m._mp_raise_ValueError(i32(74337))
 	panic("unreachable")
 l8:
 	v1 = (v1-v6)<<1 | i32(1)
@@ -29292,7 +29297,7 @@ l11:
 	m.___stack_pointer = v3 + i32(16)
 	return v1
 l7:
-	m.___assert_fail(i32(80255), i32(72057), i32(53), i32(67209))
+	m.___assert_fail(i32(80327), i32(72129), i32(53), i32(67281))
 	panic("unreachable")
 }
 func (m *Module) _str_endswith(v0, v1 int32) int32 {
@@ -29316,7 +29321,7 @@ func (m *Module) _str_uni_strip(v0, v1, v2 int32) int32 {
 			goto l0
 		}
 		v5 = i32(6)
-		v6 = i32(83143)
+		v6 = i32(83215)
 		goto l1
 	l0:
 		t3 := int32(load32(m.memory[int64(uint32(v2))+4:]))
@@ -29492,7 +29497,7 @@ l5:
 			if uint32(v18) >= uint32(v17) {
 				goto l16
 			}
-			m.___assert_fail(i32(68022), i32(75852), i32(916), i32(70071))
+			m.___assert_fail(i32(68094), i32(75924), i32(916), i32(0x111ff))
 			panic("unreachable")
 		l16:
 			v1 = v18 - v17 + i32(1)
@@ -29500,7 +29505,7 @@ l5:
 				goto l18
 			}
 			if v17 != 0 {
-				m.___assert_fail(i32(79147), i32(75852), i32(922), i32(70071))
+				m.___assert_fail(i32(79219), i32(75924), i32(922), i32(0x111ff))
 				panic("unreachable")
 			}
 		l17:
@@ -29591,7 +29596,7 @@ l95:
 				goto l5
 			}
 		l4:
-			m._mp_raise_ValueError(i32(72212))
+			m._mp_raise_ValueError(i32(72284))
 			panic("unreachable")
 		case 0:
 			v12 = i32(0)
@@ -29733,7 +29738,7 @@ l9:
 		goto l18
 	}
 l16:
-	m._mp_raise_ValueError(i32(69584))
+	m._mp_raise_ValueError(i32(69656))
 	panic("unreachable")
 l17:
 	v1 = v11
@@ -29744,23 +29749,23 @@ l18:
 				{
 					{
 						if uint32(v1) >= uint32(v2) {
-							m._mp_raise_ValueError(i32(67569))
+							m._mp_raise_ValueError(i32(67641))
 							panic("unreachable")
 						}
 						t10 := int32(m.memory[uint32(v1)])
 						if t10 != i32(125) {
-							m._mp_raise_ValueError(i32(69426))
+							m._mp_raise_ValueError(i32(69498))
 							panic("unreachable")
 						}
 						if v14 == 0 {
 							t21 := int32(load32(m.memory[uint32(v3):]))
 							v11 = t21
 							if v11 <= i32(-1) {
-								m._mp_raise_ValueError(i32(72252))
+								m._mp_raise_ValueError(i32(72324))
 								panic("unreachable")
 							}
 							if uint32(v11) >= uint32(v10) {
-								m._mp_raise_msg(i32(87880), i32(73741))
+								m._mp_raise_msg(i32(87880), i32(73813))
 								panic("unreachable")
 							}
 							t22 := v3
@@ -29776,7 +29781,7 @@ l18:
 							if t12 != 0 {
 								t18 := int32(load32(m.memory[uint32(v3):]))
 								if t18 >= i32(1) {
-									m._mp_raise_ValueError(i32(70670))
+									m._mp_raise_ValueError(i32(70742))
 									panic("unreachable")
 								}
 								v15 = i32(0)
@@ -29847,7 +29852,7 @@ l18:
 					v11 = v14
 				l34:
 					if uint32(v15) >= uint32(v10) {
-						m._mp_raise_msg(i32(87880), i32(73741))
+						m._mp_raise_msg(i32(87880), i32(73813))
 						panic("unreachable")
 					}
 					store32(m.memory[uint32(v3):], uint32(i32(-1)))
@@ -29858,7 +29863,7 @@ l18:
 				if uint32(v11) >= uint32(v13) {
 					goto l38
 				}
-				m._mp_raise_NotImplementedError(i32(74571))
+				m._mp_raise_NotImplementedError(i32(74643))
 				panic("unreachable")
 			l38:
 				v11 = i32(0)
@@ -29878,7 +29883,7 @@ l18:
 						if v15 == 0 {
 							goto l43
 						}
-						m.___assert_fail(i32(82762), i32(75852), i32(1175), i32(69375))
+						m.___assert_fail(i32(82834), i32(75924), i32(1175), i32(69447))
 						panic("unreachable")
 					case 0:
 						v11 = i32(1)
@@ -29915,7 +29920,7 @@ l18:
 					v19 = i32(0)
 					{
 						{
-							t32 := m._memchr(i32(76944), int32(int8(v15)), i32(5))
+							t32 := m._memchr(i32(77016), int32(int8(v15)), i32(5))
 							if t32 == 0 {
 								goto l48
 							}
@@ -29938,7 +29943,7 @@ l18:
 					l50:
 						v17 = i32(0)
 						v11 = v16
-						t34 := m._memchr(i32(76944), int32(int8(v13)), i32(5))
+						t34 := m._memchr(i32(77016), int32(int8(v13)), i32(5))
 						if t34 == 0 {
 							goto l49
 						}
@@ -30129,7 +30134,7 @@ l18:
 					v11 = i32(0)
 					goto l68
 				l67:
-					t50 := m._memchr(i32(83064), int32(int8(v11)), i32(16))
+					t50 := m._memchr(i32(83136), int32(int8(v11)), i32(16))
 					t51 := v15
 					v19 = t50
 					var p52 int32
@@ -30138,7 +30143,7 @@ l18:
 					}
 					t53 := int32(m.memory[uint32(t51+p52)])
 					if t53 != 0 {
-						m._mp_raise_ValueError(i32(69559))
+						m._mp_raise_ValueError(i32(69631))
 						panic("unreachable")
 					}
 					p54 := i32(0)
@@ -30182,13 +30187,13 @@ l18:
 			}
 			v15 = v11 & i32(255)
 			if v15 == i32(99) {
-				m._mp_raise_ValueError(i32(83002))
+				m._mp_raise_ValueError(i32(83074))
 				panic("unreachable")
 			}
 			if v15 != i32(115) {
 				goto l72
 			}
-			m._mp_raise_ValueError(i32(69515))
+			m._mp_raise_ValueError(i32(69587))
 			panic("unreachable")
 		l72:
 			p56 := i32(32)
@@ -30323,7 +30328,7 @@ l18:
 						t70 := m._mp_obj_get_type_str(v18)
 						store32(m.memory[int64(uint32(v7))+20:], uint32(t70))
 						store32(m.memory[int64(uint32(v7))+16:], uint32(v15))
-						m._mp_raise_msg_varg(i32(88240), i32(82646), v7+i32(16))
+						m._mp_raise_msg_varg(i32(88240), i32(82718), v7+i32(16))
 						panic("unreachable")
 					}
 					t68 := m._mp_obj_get_float(v18)
@@ -30333,7 +30338,7 @@ l18:
 			}
 		l89:
 			if v17 == i32(61) {
-				m._mp_raise_ValueError(i32(69462))
+				m._mp_raise_ValueError(i32(69534))
 				panic("unreachable")
 			}
 			{
@@ -30345,7 +30350,7 @@ l18:
 					t78 := m._mp_obj_get_type_str(v18)
 					store32(m.memory[int64(uint32(v7))+36:], uint32(t78))
 					store32(m.memory[int64(uint32(v7))+32:], uint32(int8(v11)))
-					m._mp_raise_msg_varg(i32(88240), i32(82646), v7+i32(32))
+					m._mp_raise_msg_varg(i32(88240), i32(82718), v7+i32(32))
 					panic("unreachable")
 				}
 			l93:
@@ -30383,7 +30388,7 @@ l82:
 	t81 := m._mp_obj_get_type_str(v18)
 	store32(m.memory[int64(uint32(v7))+4:], uint32(t81))
 	store32(m.memory[uint32(v7):], uint32(v22))
-	m._mp_raise_msg_varg(i32(88240), i32(82646), v7)
+	m._mp_raise_msg_varg(i32(88240), i32(82718), v7)
 	panic("unreachable")
 }
 func (m *Module) _str_replace(v0, v1 int32) int32 {
@@ -30614,7 +30619,7 @@ func (m *Module) _str_replace(v0, v1 int32) int32 {
 				t32 := int32(load32(m.memory[int64(uint32(v2))+12:]))
 				v9 = t32
 				if v9 == 0 {
-					m.___assert_fail(i32(77642), i32(75852), i32(1770), i32(74073))
+					m.___assert_fail(i32(77714), i32(75924), i32(1770), i32(74145))
 					panic("unreachable")
 				}
 				t33 := int32(load32(m.memory[int64(uint32(v2))+28:]))
@@ -31185,7 +31190,7 @@ func (m *Module) _bytes_make_new(v0, v1, v2, v3 int32) int32 {
 				}
 			l4:
 				if v1 != i32(1) {
-					m._mp_raise_TypeError(i32(67759))
+					m._mp_raise_TypeError(i32(67831))
 					panic("unreachable")
 				}
 				{
@@ -31215,7 +31220,7 @@ func (m *Module) _bytes_make_new(v0, v1, v2, v3 int32) int32 {
 									t17 := m._mp_obj_get_int(v2)
 									v2 = t17
 									if uint32(v2) >= uint32(i32(256)) {
-										m._mp_raise_ValueError(i32(73766))
+										m._mp_raise_ValueError(i32(73838))
 										panic("unreachable")
 									}
 									m._vstr_add_byte(v4+i32(20), v2)
@@ -31299,7 +31304,7 @@ l2:
 	m.___stack_pointer = v4 + i32(64)
 	return v2
 l5:
-	m._mp_raise_TypeError(i32(72326))
+	m._mp_raise_TypeError(i32(72398))
 	panic("unreachable")
 }
 func (m *Module) _mp_obj_str_get_buffer(v0, v1, v2 int32) int32 {
@@ -31391,7 +31396,7 @@ l1:
 					v1 = i32(1)
 					t7 := int32(load32(m.memory[uint32(v0):]))
 					t8 := int32(load32(m.memory[int64(uint32(v0))+4:]))
-					m.t0[uint(t8)].(func(int32, int32, int32))(t7, i32(76393), i32(1))
+					m.t0[uint(t8)].(func(int32, int32, int32))(t7, i32(76465), i32(1))
 					goto l5
 				}
 				v1 = i32(0)
@@ -31450,7 +31455,7 @@ l1:
 				{
 					t8 := m._mp_seq_get_fast_slice_indexes(v0, v1, v3)
 					if t8 == 0 {
-						m._mp_raise_NotImplementedError(i32(74622))
+						m._mp_raise_NotImplementedError(i32(74694))
 						panic("unreachable")
 					}
 					t9 := int32(load32(m.memory[uint32(v3):]))
@@ -31890,7 +31895,7 @@ func (m *Module) _stringio_write(v0, v1, v2, v3 int32) int32 {
 		t0 := int32(load32(m.memory[int64(uint32(v0))+4:]))
 		v4 = t0
 		if v4 == 0 {
-			m._mp_raise_ValueError(i32(73522))
+			m._mp_raise_ValueError(i32(73594))
 			panic("unreachable")
 		}
 		{
@@ -31995,9 +32000,9 @@ func (m *Module) _stringio_print(v0, v1, v2 int32) {
 	v4 = t1
 	store32(m.memory[uint32(v3):], uint32(v1))
 	t3 := v0
-	p2 := i32(78226)
+	p2 := i32(78298)
 	if v4 == i32(90704) {
-		p2 = i32(78244)
+		p2 = i32(78316)
 	}
 	_ = m._mp_printf(t3, p2, v3)
 	m.___stack_pointer = v3 + i32(16)
@@ -32008,7 +32013,7 @@ func (m *Module) _stringio_read(v0, v1, v2, v3 int32) int32 {
 		t0 := int32(load32(m.memory[int64(uint32(v0))+4:]))
 		v4 = t0
 		if v4 == 0 {
-			m._mp_raise_ValueError(i32(73522))
+			m._mp_raise_ValueError(i32(73594))
 			panic("unreachable")
 		}
 		v5 = i32(0)
@@ -32124,13 +32129,13 @@ func (m *Module) _stringio_getvalue(v0 int32) int32 {
 			t5 := m._mp_obj_new_str_of_type(p2, t3, t4)
 			return t5
 		}
-		m._mp_raise_ValueError(i32(73522))
+		m._mp_raise_ValueError(i32(73594))
 		panic("unreachable")
 	}
 }
 func (m *Module) _mp_obj_tuple_print(v0, v1, v2 int32) {
 	var v3, v4, v5 int32
-	_ = m._mp_print_str(v0, i32(82604))
+	_ = m._mp_print_str(v0, i32(82676))
 	{
 		t1 := int32(load32(m.memory[int64(uint32(v1))+4:]))
 		if t1 == 0 {
@@ -32143,7 +32148,7 @@ func (m *Module) _mp_obj_tuple_print(v0, v1, v2 int32) {
 			if v4 == 0 {
 				goto l1
 			}
-			_ = m._mp_print_str(v0, i32(83140))
+			_ = m._mp_print_str(v0, i32(83212))
 		l1:
 			t3 := int32(load32(m.memory[uint32(v3):]))
 			m._mp_obj_print_helper(v0, t3, i32(1))
@@ -32159,10 +32164,10 @@ func (m *Module) _mp_obj_tuple_print(v0, v1, v2 int32) {
 		if v5 != i32(1) {
 			goto l0
 		}
-		_ = m._mp_print_str(v0, i32(79332))
+		_ = m._mp_print_str(v0, i32(79404))
 	}
 l0:
-	_ = m._mp_print_str(v0, i32(82597))
+	_ = m._mp_print_str(v0, i32(82669))
 }
 func (m *Module) _mp_obj_tuple_unary_op(v0, v1 int32) int32 {
 	var v2, v3 int32
@@ -32402,7 +32407,7 @@ func (m *Module) _mp_obj_tuple_subscr(v0, v1, v2 int32) int32 {
 			t2 := int32(load32(m.memory[int64(uint32(v0))+4:]))
 			t3 := m._mp_seq_get_fast_slice_indexes(t2, v1, v3+i32(4))
 			if t3 == 0 {
-				m._mp_raise_NotImplementedError(i32(74622))
+				m._mp_raise_NotImplementedError(i32(74694))
 				panic("unreachable")
 			}
 			{
@@ -32623,14 +32628,14 @@ func (m *Module) _instance_count_native_bases(v0, v1 int32) int32 {
 l0:
 	return v2
 l3:
-	m.___assert_fail(i32(80751), i32(76155), i32(74), i32(68439))
+	m.___assert_fail(i32(80823), i32(76227), i32(74), i32(68511))
 	panic("unreachable")
 }
 func (m *Module) _mp_obj_new_instance(v0, v1 int32) int32 {
 	t0 := m._instance_count_native_bases(v0, v1)
 	v1 = t0
 	if uint32(v1) >= uint32(i32(2)) {
-		m.___assert_fail(i32(78884), i32(76155), i32(103), i32(74039))
+		m.___assert_fail(i32(78956), i32(76227), i32(103), i32(74111))
 		panic("unreachable")
 	}
 	t1 := m._mp_obj_malloc_helper(v1<<2|i32(16), v0)
@@ -32671,12 +32676,12 @@ func (m *Module) _mp_obj_class_lookup(v0, v1 int32) {
 		v2 = t0
 		t1 := int32(load32(m.memory[uint32(v2):]))
 		if t1 != 0 {
-			m.___assert_fail(i32(77474), i32(76155), i32(138), i32(69836))
+			m.___assert_fail(i32(77546), i32(76227), i32(138), i32(69908))
 			panic("unreachable")
 		}
 		t2 := int32(load32(m.memory[int64(uint32(v2))+4:]))
 		if t2 != 0 {
-			m.___assert_fail(i32(77443), i32(76155), i32(139), i32(69836))
+			m.___assert_fail(i32(77515), i32(76227), i32(139), i32(69908))
 			panic("unreachable")
 		}
 	l18:
@@ -32719,7 +32724,7 @@ func (m *Module) _mp_obj_class_lookup(v0, v1 int32) {
 			t8 := int32(load32(m.memory[uint32(v3+v2<<2+i32(-4)):]))
 			t9 := m._mp_obj_is_dict_or_ordereddict(t8)
 			if t9 == 0 {
-				m.___assert_fail(i32(82436), i32(76155), i32(160), i32(69836))
+				m.___assert_fail(i32(82508), i32(76227), i32(160), i32(69908))
 				panic("unreachable")
 			}
 			t10 := int32(m.memory[int64(uint32(v1))+19])
@@ -32752,7 +32757,7 @@ func (m *Module) _mp_obj_class_lookup(v0, v1 int32) {
 						t19 := int32(load32(m.memory[int64(uint32(v3))+16:]))
 						v3 = t19
 						if v3 == i32(91044) {
-							m._mp_raise_msg(i32(87736), i32(66086))
+							m._mp_raise_msg(i32(87736), i32(66158))
 							panic("unreachable")
 						}
 					}
@@ -32866,10 +32871,10 @@ func (m *Module) _mp_obj_class_lookup(v0, v1 int32) {
 		return
 	}
 l14:
-	m.___assert_fail(i32(80751), i32(76155), i32(220), i32(69836))
+	m.___assert_fail(i32(80823), i32(76227), i32(220), i32(69908))
 	panic("unreachable")
 l17:
-	m.___assert_fail(i32(80751), i32(76155), i32(233), i32(69836))
+	m.___assert_fail(i32(80823), i32(76227), i32(233), i32(69908))
 	panic("unreachable")
 }
 func (m *Module) _mp_obj_instance_call(v0, v1, v2, v3 int32) int32 {
@@ -32891,7 +32896,7 @@ func (m *Module) _mp_obj_instance_call(v0, v1, v2, v3 int32) int32 {
 		case 0:
 			t3 := m._mp_obj_get_type_str(v0)
 			store32(m.memory[uint32(v4):], uint32(t3))
-			m._mp_raise_msg_varg(i32(88204), i32(73659), v4)
+			m._mp_raise_msg_varg(i32(88204), i32(73731), v4)
 			panic("unreachable")
 		case 4:
 			t4 := int32(load32(m.memory[int64(uint32(v0))+16:]))
@@ -33029,7 +33034,7 @@ func (m *Module) _type_make_new(v0, v1, v2, v3 int32) int32 {
 					if t16 == 0 {
 						t40 := int32(load16(m.memory[int64(uint32(v1))+6:]))
 						store32(m.memory[uint32(v4):], uint32(t40))
-						m._mp_raise_msg_varg(i32(88204), i32(73300), v4)
+						m._mp_raise_msg_varg(i32(88204), i32(73372), v4)
 						panic("unreachable")
 					}
 					{
@@ -33150,7 +33155,7 @@ func (m *Module) _type_make_new(v0, v1, v2, v3 int32) int32 {
 	l18:
 		t31 := m._instance_count_native_bases(v3, v4+i32(12))
 		if uint32(t31) >= uint32(i32(2)) {
-			m._mp_raise_TypeError(i32(67237))
+			m._mp_raise_TypeError(i32(67309))
 			panic("unreachable")
 		}
 		t32 := m._mp_map_lookup(v7+i32(4), i32(194), i32(0))
@@ -33177,7 +33182,7 @@ func (m *Module) _type_make_new(v0, v1, v2, v3 int32) int32 {
 		store32(m.memory[int64(uint32(v1))+4:], uint32(v2))
 		goto l23
 	default:
-		m._mp_raise_TypeError(i32(67860))
+		m._mp_raise_TypeError(i32(67932))
 		panic("unreachable")
 	case 0:
 		t38 := int32(load32(m.memory[uint32(v3):]))
@@ -33191,7 +33196,7 @@ l3:
 	m._mp_raise_TypeError(i32(0))
 	panic("unreachable")
 l5:
-	m.___assert_fail(i32(80255), i32(72057), i32(53), i32(67209))
+	m.___assert_fail(i32(80327), i32(72129), i32(53), i32(67281))
 	panic("unreachable")
 l8:
 	m._mp_raise_TypeError(i32(0))
@@ -33205,7 +33210,7 @@ func (m *Module) _mp_obj_instance_make_new(v0, v1, v2, v3 int32) int32 {
 	{
 		t1 := int32(m.memory[int64(uint32(v0))+5])
 		if t1&i32(2) == 0 {
-			m.___assert_fail(i32(80433), i32(76155), i32(289), i32(65983))
+			m.___assert_fail(i32(80505), i32(76227), i32(289), i32(66055))
 			panic("unreachable")
 		}
 		store64(m.memory[int64(uint32(v4))+40:], uint64(i64(0)))
@@ -33300,7 +33305,7 @@ func (m *Module) _mp_obj_instance_make_new(v0, v1, v2, v3 int32) int32 {
 				if v7 != i32(6) {
 					t21 := m._mp_obj_get_type_str(v7)
 					store32(m.memory[uint32(v4):], uint32(t21))
-					m._mp_raise_msg_varg(i32(88204), i32(82606), v4)
+					m._mp_raise_msg_varg(i32(88204), i32(82678), v4)
 					panic("unreachable")
 				}
 			}
@@ -33389,7 +33394,7 @@ l0:
 		v2 = t16
 		store32(m.memory[int64(uint32(v3))+4:], uint32(v1))
 		store32(m.memory[uint32(v3):], uint32(v2))
-		_ = m._mp_printf(v0, i32(78332), v3)
+		_ = m._mp_printf(v0, i32(78404), v3)
 	}
 l6:
 	m.___stack_pointer = v3 + i32(48)
@@ -33582,7 +33587,7 @@ func (m *Module) _mp_obj_instance_attr(v0, v1, v2 int32) {
 			t2 := m._mp_obj_get_type(v0)
 			t3 := int32(m.memory[int64(uint32(t2))+5])
 			if t3&i32(2) == 0 {
-				m.___assert_fail(i32(82165), i32(76155), i32(589), i32(68629))
+				m.___assert_fail(i32(82237), i32(76227), i32(589), i32(68701))
 				panic("unreachable")
 			}
 			{
@@ -33633,7 +33638,7 @@ func (m *Module) _mp_obj_instance_attr(v0, v1, v2 int32) {
 							t18 := int32(load32(m.memory[uint32(t17):]))
 							v0 = t18
 							if v0 == i32(6) {
-								m._mp_raise_msg(i32(87736), i32(73058))
+								m._mp_raise_msg(i32(87736), i32(73130))
 								panic("unreachable")
 							}
 							t19 := m._mp_call_function_n_kw(v0, i32(1), i32(0), v3+i32(20))
@@ -33769,7 +33774,7 @@ func (m *Module) _type_print(v0, v1, v2 int32) {
 	m.___stack_pointer = v3
 	t1 := int32(load16(m.memory[int64(uint32(v1))+6:]))
 	store32(m.memory[uint32(v3):], uint32(t1))
-	_ = m._mp_printf(v0, i32(78453), v3)
+	_ = m._mp_printf(v0, i32(78525), v3)
 	m.___stack_pointer = v3 + i32(16)
 }
 func (m *Module) _type_call(v0, v1, v2, v3 int32) int32 {
@@ -33789,7 +33794,7 @@ func (m *Module) _type_call(v0, v1, v2, v3 int32) int32 {
 		}
 		t2 := int32(load16(m.memory[int64(uint32(v0))+6:]))
 		store32(m.memory[uint32(v4):], uint32(t2))
-		m._mp_raise_msg_varg(i32(88204), i32(68504), v4)
+		m._mp_raise_msg_varg(i32(88204), i32(68576), v4)
 		panic("unreachable")
 	}
 }
@@ -33913,7 +33918,7 @@ func (m *Module) _type_attr(v0, v1, v2 int32) {
 			t16 := int32(load32(m.memory[uint32(v5+v4<<2+i32(-4)):]))
 			t17 := m._mp_obj_is_dict_or_ordereddict(t16)
 			if t17 == 0 {
-				m.___assert_fail(i32(82348), i32(76155), i32(1123), i32(68619))
+				m.___assert_fail(i32(82420), i32(76227), i32(1123), i32(68691))
 				panic("unreachable")
 			}
 			t18 := int32(m.memory[int64(uint32(v0))+19])
@@ -33952,7 +33957,7 @@ func (m *Module) _type_attr(v0, v1, v2 int32) {
 					goto l16
 				}
 				if v6&i32(1) != 0 {
-					m._mp_raise_msg(i32(87736), i32(67934))
+					m._mp_raise_msg(i32(87736), i32(68006))
 					panic("unreachable")
 				}
 				store16(m.memory[int64(uint32(v0))+4:], uint16(v6|i32(2)))
@@ -33968,7 +33973,7 @@ func (m *Module) _type_attr(v0, v1, v2 int32) {
 		return
 	}
 l0:
-	m.___assert_fail(i32(80712), i32(76155), i32(1067), i32(68619))
+	m.___assert_fail(i32(80784), i32(76227), i32(1067), i32(68691))
 	panic("unreachable")
 }
 func (m *Module) _super_make_new(v0, v1, v2, v3 int32) int32 {
@@ -34031,7 +34036,7 @@ func (m *Module) _mp_obj_is_subclass(v0, v1 int32) int32 {
 					}
 				}
 			l3:
-				m.___assert_fail(i32(80255), i32(72057), i32(53), i32(67209))
+				m.___assert_fail(i32(80327), i32(72129), i32(53), i32(67281))
 				panic("unreachable")
 			}
 			v3 = i32(1)
@@ -34039,7 +34044,7 @@ func (m *Module) _mp_obj_is_subclass(v0, v1 int32) int32 {
 			goto l7
 		}
 	l0:
-		m._mp_raise_TypeError(i32(68382))
+		m._mp_raise_TypeError(i32(68454))
 		panic("unreachable")
 	l4:
 		t8 := int32(load32(m.memory[int64(uint32(v1))+4:]))
@@ -34074,13 +34079,13 @@ l6:
 	return v4
 }
 func (m *Module) _super_print(v0, v1, v2 int32) {
-	_ = m._mp_print_str(v0, i32(83131))
+	_ = m._mp_print_str(v0, i32(83203))
 	t1 := int32(load32(m.memory[int64(uint32(v1))+4:]))
 	m._mp_obj_print_helper(v0, t1, i32(0))
-	_ = m._mp_print_str(v0, i32(83140))
+	_ = m._mp_print_str(v0, i32(83212))
 	t3 := int32(load32(m.memory[int64(uint32(v1))+8:]))
 	m._mp_obj_print_helper(v0, t3, i32(0))
-	_ = m._mp_print_str(v0, i32(78464))
+	_ = m._mp_print_str(v0, i32(78536))
 }
 func (m *Module) _super_attr(v0, v1, v2 int32) {
 	var v3, v4, v5, v6, v7 int32
@@ -34185,15 +34190,15 @@ func (m *Module) _super_attr(v0, v1, v2 int32) {
 						}
 					}
 				l6:
-					m.___assert_fail(i32(80830), i32(76155), i32(1383), i32(68608))
+					m.___assert_fail(i32(80902), i32(76227), i32(1383), i32(68680))
 					panic("unreachable")
 				}
 			l2:
-				m.___assert_fail(i32(80788), i32(76155), i32(1358), i32(68608))
+				m.___assert_fail(i32(80860), i32(76227), i32(1358), i32(68680))
 				panic("unreachable")
 			}
 		l1:
-			m.___assert_fail(i32(79803), i32(76155), i32(1355), i32(68608))
+			m.___assert_fail(i32(79875), i32(76227), i32(1355), i32(68680))
 			panic("unreachable")
 		l5:
 			if v1 == i32(89308) {
@@ -34305,7 +34310,7 @@ func (m *Module) _mp_builtin_issubclass(v0, v1 int32) int32 {
 		}
 	}
 l0:
-	m._mp_raise_TypeError(i32(67987))
+	m._mp_raise_TypeError(i32(68059))
 	panic("unreachable")
 }
 func (m *Module) _mp_builtin_isinstance(v0, v1 int32) int32 {
@@ -34341,7 +34346,7 @@ func (m *Module) _static_class_method_make_new(v0, v1, v2, v3 int32) int32 {
 	if v0 == i32(91220) {
 		goto l0
 	}
-	m.___assert_fail(i32(74171), i32(76155), i32(1530), i32(66008))
+	m.___assert_fail(i32(74243), i32(76227), i32(1530), i32(66080))
 	panic("unreachable")
 l0:
 	m._mp_arg_check_num_sig(v1, v2, i32(0x20002))
@@ -34536,7 +34541,7 @@ func (m *Module) _mp_parse_node_convert_to_obj(v0 int32) int32 {
 	{
 		t0 := m._mp_parse_node_is_const(v0)
 		if t0 == 0 {
-			m.___assert_fail(i32(80118), i32(76126), i32(397), i32(71914))
+			m.___assert_fail(i32(80190), i32(76198), i32(397), i32(71986))
 			panic("unreachable")
 		}
 		if v0&i32(1) != 0 {
@@ -34552,7 +34557,7 @@ func (m *Module) _mp_parse_node_convert_to_obj(v0 int32) int32 {
 				if v1 == i32(45) {
 					t3 := int32(load32(m.memory[int64(uint32(v0))+8:]))
 					if t3 != 0 {
-						m.___assert_fail(i32(81540), i32(76126), i32(432), i32(71914))
+						m.___assert_fail(i32(81612), i32(76198), i32(432), i32(71986))
 						panic("unreachable")
 					}
 					return i32(90928)
@@ -34564,7 +34569,7 @@ func (m *Module) _mp_parse_node_convert_to_obj(v0 int32) int32 {
 				return t2
 			}
 		l10:
-			m.___assert_fail(i32(80329), i32(76126), i32(431), i32(71914))
+			m.___assert_fail(i32(80401), i32(76198), i32(431), i32(71986))
 			panic("unreachable")
 		}
 		v1 = int32(uint32(v0) >> 4)
@@ -34572,7 +34577,7 @@ func (m *Module) _mp_parse_node_convert_to_obj(v0 int32) int32 {
 		case 0:
 			goto l3
 		default:
-			m.___assert_fail(i32(77361), i32(76126), i32(414), i32(71914))
+			m.___assert_fail(i32(77433), i32(76198), i32(414), i32(71986))
 			panic("unreachable")
 		case 4:
 			v0 = i32(6)
@@ -34584,7 +34589,7 @@ func (m *Module) _mp_parse_node_convert_to_obj(v0 int32) int32 {
 			case 3:
 				return i32(30)
 			default:
-				m.___assert_fail(i32(77196), i32(76126), i32(423), i32(71914))
+				m.___assert_fail(i32(77268), i32(76198), i32(423), i32(71986))
 				panic("unreachable")
 			case 0:
 				return i32(90028)
@@ -34703,7 +34708,7 @@ l11:
 								goto l24
 							}
 							if v4 != i32(1) {
-								m.___assert_fail(i32(78938), i32(76126), i32(1384), i32(73160))
+								m.___assert_fail(i32(79010), i32(76198), i32(1384), i32(73232))
 								panic("unreachable")
 							}
 							t61 := int32(load32(m.memory[int64(uint32(v3))+32:]))
@@ -34748,7 +34753,7 @@ l11:
 										goto l14
 									}
 									if v8 == 0 {
-										m.___assert_fail(i32(79060), i32(76126), i32(1141), i32(73160))
+										m.___assert_fail(i32(79132), i32(76198), i32(1141), i32(73232))
 										panic("unreachable")
 									}
 									t22 := int32(load16(m.memory[uint32(v12+i32(91664)+v8<<1+i32(-2)):]))
@@ -34833,7 +34838,7 @@ l11:
 								}
 							l18:
 								if v8 != v6 {
-									m.___assert_fail(i32(71133), i32(76126), i32(1186), i32(73160))
+									m.___assert_fail(i32(71205), i32(76198), i32(1186), i32(73232))
 									panic("unreachable")
 								}
 							l23:
@@ -34847,7 +34852,7 @@ l11:
 									t36 := int32(load32(m.memory[int64(uint32(v3))+28:]))
 									v4 = t36
 									if v4 == 0 {
-										m.___assert_fail(i32(68064), i32(76126), i32(546), i32(66979))
+										m.___assert_fail(i32(68136), i32(76198), i32(546), i32(67051))
 										panic("unreachable")
 									}
 									t37 := int32(load32(m.memory[int64(uint32(v3))+32:]))
@@ -34857,7 +34862,7 @@ l11:
 										goto l26
 									}
 									if v4 == i32(1) {
-										m.___assert_fail(i32(68064), i32(76126), i32(546), i32(66979))
+										m.___assert_fail(i32(68136), i32(76198), i32(546), i32(67051))
 										panic("unreachable")
 									}
 									{
@@ -34917,7 +34922,7 @@ l11:
 										}
 									l33:
 										if uint32(v12) <= uint32(v4) {
-											m.___assert_fail(i32(68064), i32(76126), i32(546), i32(66979))
+											m.___assert_fail(i32(68136), i32(76198), i32(546), i32(67051))
 											panic("unreachable")
 										}
 										t44 := int32(load32(m.memory[uint32(v14+(v4^i32(-1))<<2):]))
@@ -34948,7 +34953,7 @@ l11:
 										l59:
 											{
 												if v7 == 0 {
-													m.___assert_fail(i32(78998), i32(76126), i32(541), i32(66968))
+													m.___assert_fail(i32(79070), i32(76198), i32(541), i32(67040))
 													panic("unreachable")
 												}
 												t74 := v3
@@ -35036,11 +35041,11 @@ l11:
 										m._push_rule_from_arg(v3+i32(12), v4)
 										goto l11
 									}
-									m.___assert_fail(i32(77916), i32(76126), i32(1309), i32(73160))
+									m.___assert_fail(i32(77988), i32(76198), i32(1309), i32(73232))
 									panic("unreachable")
 								}
 							default:
-								m.___assert_fail(i32(77043), i32(76126), i32(1253), i32(73160))
+								m.___assert_fail(i32(77115), i32(76198), i32(1253), i32(73232))
 								panic("unreachable")
 							}
 						}
@@ -35101,7 +35106,7 @@ l11:
 							m._push_rule_from_arg(v3+i32(12), v7)
 							goto l11
 						}
-						m.___assert_fail(i32(77894), i32(76126), i32(1126), i32(73160))
+						m.___assert_fail(i32(77966), i32(76198), i32(1126), i32(73232))
 						panic("unreachable")
 					}
 				}
@@ -35171,16 +35176,16 @@ l11:
 		}
 	l24:
 		v7 = i32(88168)
-		v4 = i32(66740)
+		v4 = i32(66812)
 		switch v9 + i32(-2) {
 		case 3:
 			goto l55
 		case 0:
-			v4 = i32(71632)
+			v4 = i32(71704)
 			goto l55
 		default:
 			v7 = i32(88132)
-			v4 = i32(65780)
+			v4 = i32(65852)
 		}
 	l55:
 		t69 := m._mp_obj_new_exception_msg(v7, v4)
@@ -35192,7 +35197,7 @@ l11:
 		panic("unreachable")
 	}
 l48:
-	m.___assert_fail(i32(78931), i32(76126), i32(1316), i32(73160))
+	m.___assert_fail(i32(79003), i32(76198), i32(1316), i32(73232))
 	panic("unreachable")
 l32:
 	{
@@ -35387,7 +35392,7 @@ func (m *Module) _push_rule_from_arg(v0, v1 int32) {
 	if v1&i32(57344)|i32(4096) == i32(12288) {
 		goto l0
 	}
-	m.___assert_fail(i32(77799), i32(76126), i32(319), i32(72114))
+	m.___assert_fail(i32(77871), i32(76198), i32(319), i32(72186))
 	panic("unreachable")
 l0:
 	t0 := int32(load32(m.memory[int64(uint32(v0))+24:]))
@@ -35417,7 +35422,7 @@ func (m *Module) _push_result_rule(v0, v1, v2, v3 int32) {
 							t1 := int32(load32(m.memory[int64(uint32(v0))+16:]))
 							v5 = t1
 							if v5 == 0 {
-								m.___assert_fail(i32(68064), i32(76126), i32(546), i32(66979))
+								m.___assert_fail(i32(68136), i32(76198), i32(546), i32(67051))
 								panic("unreachable")
 							}
 							t2 := int32(load32(m.memory[int64(uint32(v0))+20:]))
@@ -35436,13 +35441,13 @@ func (m *Module) _push_result_rule(v0, v1, v2, v3 int32) {
 							goto l6
 						case 0:
 							if v3 != i32(2) {
-								m.___assert_fail(i32(78817), i32(76126), i32(985), i32(73452))
+								m.___assert_fail(i32(78889), i32(76198), i32(985), i32(73524))
 								panic("unreachable")
 							}
 							t5 := int32(load32(m.memory[int64(uint32(v0))+16:]))
 							v5 = t5
 							if v5 == 0 {
-								m.___assert_fail(i32(68064), i32(76126), i32(546), i32(66979))
+								m.___assert_fail(i32(68136), i32(76198), i32(546), i32(67051))
 								panic("unreachable")
 							}
 							v3 = i32(2)
@@ -35469,13 +35474,13 @@ func (m *Module) _push_result_rule(v0, v1, v2, v3 int32) {
 									t10 := int32(load32(m.memory[int64(uint32(v0))+16:]))
 									v3 = t10
 									if v3 == 0 {
-										m.___assert_fail(i32(68064), i32(76126), i32(546), i32(66979))
+										m.___assert_fail(i32(68136), i32(76198), i32(546), i32(67051))
 										panic("unreachable")
 									}
 									t11 := int32(load32(m.memory[int64(uint32(v0))+20:]))
 									t12 := int32(load32(m.memory[uint32(t11+v3<<2+i32(-4)):]))
 									if v5 != t12 {
-										m.___assert_fail(i32(81916), i32(76126), i32(996), i32(73452))
+										m.___assert_fail(i32(81988), i32(76198), i32(996), i32(73524))
 										panic("unreachable")
 									}
 									m.memory[int64(uint32(v5))+4] = byte(i32(146))
@@ -35491,7 +35496,7 @@ func (m *Module) _push_result_rule(v0, v1, v2, v3 int32) {
 							t25 := int32(load32(m.memory[int64(uint32(v0))+16:]))
 							v5 = t25
 							if v5 == 0 {
-								m.___assert_fail(i32(68064), i32(76126), i32(546), i32(66979))
+								m.___assert_fail(i32(68136), i32(76198), i32(546), i32(67051))
 								panic("unreachable")
 							}
 							{
@@ -35677,7 +35682,7 @@ func (m *Module) _push_result_rule(v0, v1, v2, v3 int32) {
 						t60 := int32(load32(m.memory[int64(uint32(v0))+16:]))
 						v5 = t60
 						if v5 == 0 {
-							m.___assert_fail(i32(68064), i32(76126), i32(546), i32(66979))
+							m.___assert_fail(i32(68136), i32(76198), i32(546), i32(67051))
 							panic("unreachable")
 						}
 						t61 := int32(load32(m.memory[int64(uint32(v0))+20:]))
@@ -35699,7 +35704,7 @@ func (m *Module) _push_result_rule(v0, v1, v2, v3 int32) {
 						}
 					l43:
 						if v5 == i32(1) {
-							m.___assert_fail(i32(68064), i32(76126), i32(546), i32(66979))
+							m.___assert_fail(i32(68136), i32(76198), i32(546), i32(67051))
 							panic("unreachable")
 						}
 						if v7 != 0 {
@@ -35734,7 +35739,7 @@ func (m *Module) _push_result_rule(v0, v1, v2, v3 int32) {
 						v8 = t69
 						t70 := m._mp_parse_node_is_const(v8)
 						if t70 == 0 {
-							t80 := m._mp_obj_new_exception_msg(i32(88132), i32(66758))
+							t80 := m._mp_obj_new_exception_msg(i32(88132), i32(66830))
 							v3 = t80
 							t81 := int32(load32(m.memory[int64(uint32(v0))+24:]))
 							t82 := int32(load32(m.memory[uint32(t81):]))
@@ -35751,7 +35756,7 @@ func (m *Module) _push_result_rule(v0, v1, v2, v3 int32) {
 						v7 = t73
 						t74 := int32(load32(m.memory[int64(uint32(v7))+4:]))
 						if t74 != 0 {
-							m.___assert_fail(i32(77416), i32(76126), i32(849), i32(67888))
+							m.___assert_fail(i32(77488), i32(76198), i32(849), i32(67960))
 							panic("unreachable")
 						}
 						store32(m.memory[int64(uint32(v7))+4:], uint32(v6))
@@ -35773,7 +35778,7 @@ func (m *Module) _push_result_rule(v0, v1, v2, v3 int32) {
 					t49 := int32(load32(m.memory[int64(uint32(v0))+16:]))
 					v5 = t49
 					if v5 == 0 {
-						m.___assert_fail(i32(68064), i32(76126), i32(546), i32(66979))
+						m.___assert_fail(i32(68136), i32(76198), i32(546), i32(67051))
 						panic("unreachable")
 					}
 					t50 := int32(load32(m.memory[int64(uint32(v0))+20:]))
@@ -35784,7 +35789,7 @@ func (m *Module) _push_result_rule(v0, v1, v2, v3 int32) {
 						goto l33
 					}
 					if v5 == i32(1) {
-						m.___assert_fail(i32(68064), i32(76126), i32(546), i32(66979))
+						m.___assert_fail(i32(68136), i32(76198), i32(546), i32(67051))
 						panic("unreachable")
 					}
 					{
@@ -35813,7 +35818,7 @@ func (m *Module) _push_result_rule(v0, v1, v2, v3 int32) {
 						}
 					l35:
 						if v5&i32(-32) != i32(992) {
-							m.___assert_fail(i32(77117), i32(76126), i32(812), i32(67888))
+							m.___assert_fail(i32(77189), i32(76198), i32(812), i32(67960))
 							panic("unreachable")
 						}
 						v6 = v6 + i32(-62)
@@ -35862,7 +35867,7 @@ func (m *Module) _push_result_rule(v0, v1, v2, v3 int32) {
 				t85 := int32(load32(m.memory[int64(uint32(v0))+4:]))
 				v5 = t85
 				if v5 == 0 {
-					m.___assert_fail(i32(71106), i32(76126), i32(334), i32(73469))
+					m.___assert_fail(i32(71178), i32(76198), i32(334), i32(73541))
 					panic("unreachable")
 				}
 				t86 := int32(load32(m.memory[int64(uint32(v0))+8:]))
@@ -35881,27 +35886,27 @@ func (m *Module) _push_result_rule(v0, v1, v2, v3 int32) {
 				t89 := int32(load32(m.memory[int64(uint32(v0))+4:]))
 				v5 = t89
 				if v5 == 0 {
-					m.___assert_fail(i32(71106), i32(76126), i32(334), i32(73469))
+					m.___assert_fail(i32(71178), i32(76198), i32(334), i32(73541))
 					panic("unreachable")
 				}
 				t90 := int32(load32(m.memory[int64(uint32(v0))+8:]))
 				v6 = t90 + v5<<3
 				t91 := int32(m.memory[uint32(v6+i32(-5))])
 				if t91<<24 != i32(-0x6b000000) {
-					m.___assert_fail(i32(76337), i32(76126), i32(942), i32(73504))
+					m.___assert_fail(i32(76409), i32(76198), i32(942), i32(73576))
 					panic("unreachable")
 				}
 				if v5 == i32(1) {
-					m.___assert_fail(i32(71106), i32(76126), i32(334), i32(73469))
+					m.___assert_fail(i32(71178), i32(76198), i32(334), i32(73541))
 					panic("unreachable")
 				}
 				t92 := int32(m.memory[uint32(v6+i32(-13))])
 				if t92<<24 != i32(-0x6e000000) {
-					m.___assert_fail(i32(70010), i32(76126), i32(943), i32(73504))
+					m.___assert_fail(i32(70082), i32(76198), i32(943), i32(73576))
 					panic("unreachable")
 				}
 				if uint32(v5) <= uint32(i32(2)) {
-					m.___assert_fail(i32(71106), i32(76126), i32(334), i32(73469))
+					m.___assert_fail(i32(71178), i32(76198), i32(334), i32(73541))
 					panic("unreachable")
 				}
 				t93 := int32(m.memory[uint32(v6+i32(-21))])
@@ -36052,7 +36057,7 @@ func (m *Module) _peek_result(v0, v1 int32) int32 {
 			t2 := int32(load32(m.memory[uint32(t1+v2<<2+(v1^i32(-1))<<2):]))
 			return t2
 		}
-		m.___assert_fail(i32(68064), i32(76126), i32(546), i32(66979))
+		m.___assert_fail(i32(68136), i32(76198), i32(546), i32(67051))
 		panic("unreachable")
 	}
 }
@@ -36069,7 +36074,7 @@ func (m *Module) _pop_result(v0 int32) int32 {
 			t3 := int32(load32(m.memory[uint32(t2+v1<<2):]))
 			return t3
 		}
-		m.___assert_fail(i32(78998), i32(76126), i32(541), i32(66968))
+		m.___assert_fail(i32(79070), i32(76198), i32(541), i32(67040))
 		panic("unreachable")
 	}
 }
@@ -36379,7 +36384,7 @@ func (m *Module) _mp_parse_num_integer(v0, v1, v2, v3 int32) int32 {
 		}
 	}
 l0:
-	m._mp_raise_ValueError(i32(78528))
+	m._mp_raise_ValueError(i32(78600))
 	panic("unreachable")
 l2:
 	{
@@ -36505,7 +36510,7 @@ l13:
 		p21 = i32(0)
 	}
 	store32(m.memory[uint32(t20):], uint32(p21))
-	t22 := m._mp_obj_new_exception_msg_varg(i32(88240), i32(75145), v4)
+	t22 := m._mp_obj_new_exception_msg_varg(i32(88240), i32(75217), v4)
 	m._raise_exc(t22, v3)
 	panic("unreachable")
 }
@@ -36987,7 +36992,7 @@ func (m *Module) _mp_parse_num_decimal(v0, v1, v2, v3, v4 int32) int32 {
 				}
 			}
 		l9:
-			t24 := m._mp_obj_new_exception_msg(i32(88240), i32(69658))
+			t24 := m._mp_obj_new_exception_msg(i32(88240), i32(69730))
 			m._raise_exc(t24, v4)
 			panic("unreachable")
 		}
@@ -37237,7 +37242,7 @@ func (m *Module) _qstr_from_strn(v0, v1 int32) int32 {
 		{
 			{
 				if uint32(v1) >= uint32(i32(256)) {
-					m._mp_raise_msg(i32(88060), i32(72170))
+					m._mp_raise_msg(i32(88060), i32(72242))
 					panic("unreachable")
 				}
 				v2 = v1 + i32(1)
@@ -37434,7 +37439,7 @@ l0:
 		if uint32(v2) < uint32(t5) {
 			return v1
 		}
-		m.___assert_fail(i32(71077), i32(75824), i32(198), i32(68655))
+		m.___assert_fail(i32(71149), i32(75896), i32(198), i32(68727))
 		panic("unreachable")
 	}
 }
@@ -37592,7 +37597,7 @@ func (m *Module) _mp_load_global(v0 int32) int32 {
 			goto l0
 		}
 		store32(m.memory[uint32(v1):], uint32(v0))
-		m._mp_raise_msg_varg(i32(87988), i32(74779), v1)
+		m._mp_raise_msg_varg(i32(87988), i32(74851), v1)
 		panic("unreachable")
 	}
 l0:
@@ -37745,7 +37750,7 @@ func (m *Module) _mp_unary_op(v0, v1 int32) int32 {
 					v3 = v1
 					goto l1
 				default:
-					m.___assert_fail(i32(77092), i32(76215), i32(331), i32(69956))
+					m.___assert_fail(i32(77164), i32(76287), i32(331), i32(70028))
 					panic("unreachable")
 				case 2:
 					v3 = (v4^i32(-1))<<1 | i32(1)
@@ -37766,7 +37771,7 @@ func (m *Module) _mp_unary_op(v0, v1 int32) int32 {
 					store32(m.memory[int64(uint32(v2))+4:], uint32(t23))
 					t24 := int32(m.memory[int64(uint32(v0))+91056])
 					store32(m.memory[uint32(v2):], uint32(t24))
-					m._mp_raise_msg_varg(i32(88204), i32(82695), v2)
+					m._mp_raise_msg_varg(i32(88204), i32(82767), v2)
 					panic("unreachable")
 				}
 				v3 = i32(0)
@@ -37891,7 +37896,7 @@ func (m *Module) _mp_binary_op(v0, v1, v2 int32) int32 {
 						goto l29
 					case 12, 25:
 						if v5 <= i32(-1) {
-							m._mp_raise_ValueError(i32(66381))
+							m._mp_raise_ValueError(i32(66453))
 							panic("unreachable")
 						}
 						{
@@ -37912,7 +37917,7 @@ func (m *Module) _mp_binary_op(v0, v1, v2 int32) int32 {
 						}
 					case 13, 26:
 						if v5 <= i32(-1) {
-							m._mp_raise_ValueError(i32(66381))
+							m._mp_raise_ValueError(i32(66453))
 							panic("unreachable")
 						}
 						t13 := v7
@@ -38110,7 +38115,7 @@ func (m *Module) _mp_binary_op(v0, v1, v2 int32) int32 {
 				v1 = v7
 				goto l6
 			l36:
-				m._mp_raise_msg(i32(87664), i32(70130))
+				m._mp_raise_msg(i32(87664), i32(70202))
 				panic("unreachable")
 			case 5:
 				p47 := i32(14)
@@ -38133,7 +38138,7 @@ func (m *Module) _mp_binary_op(v0, v1, v2 int32) int32 {
 		store32(m.memory[int64(uint32(v3))+4:], uint32(v5))
 		t51 := int32(m.memory[int64(uint32(v0))+91072])
 		store32(m.memory[uint32(v3):], uint32(t51))
-		m._mp_raise_msg_varg(i32(88204), i32(82725), v3)
+		m._mp_raise_msg_varg(i32(88204), i32(82797), v3)
 		panic("unreachable")
 	}
 l29:
@@ -38157,7 +38162,7 @@ func (m *Module) _mp_getiter(v0, v1 int32) int32 {
 	v2 = t0 - i32(16)
 	m.___stack_pointer = v2
 	if v0 == 0 {
-		m.___assert_fail(i32(70886), i32(76215), i32(1299), i32(69318))
+		m.___assert_fail(i32(70958), i32(76287), i32(1299), i32(69390))
 		panic("unreachable")
 	}
 	{
@@ -38221,7 +38226,7 @@ func (m *Module) _mp_getiter(v0, v1 int32) int32 {
 		if t11 == 0 {
 			t14 := m._mp_obj_get_type_str(v0)
 			store32(m.memory[uint32(v2):], uint32(t14))
-			m._mp_raise_msg_varg(i32(88204), i32(73625), v2)
+			m._mp_raise_msg_varg(i32(88204), i32(73697), v2)
 			panic("unreachable")
 		}
 		{
@@ -38439,7 +38444,7 @@ func (m *Module) _mp_iternext(v0 int32) int32 {
 			}
 			store32(m.memory[uint32(v1):], uint32(v0))
 			store32(m.memory[int64(uint32(i32(0)))+111280:], uint32(i32(0)))
-			m._invoke_viii(i32(404), i32(88204), i32(68757), v1)
+			m._invoke_viii(i32(404), i32(88204), i32(68829), v1)
 			t32 := int32(load32(m.memory[int64(uint32(i32(0)))+111280:]))
 			v3 = t32
 			store32(m.memory[int64(uint32(i32(0)))+111280:], uint32(i32(0)))
@@ -38698,7 +38703,7 @@ l1:
 		v4 = t6
 		t7 := int32(load32(m.memory[uint32(v4):]))
 		if t7 != i32(86924) {
-			m.___assert_fail(i32(67283), i32(76215), i32(1215), i32(74085))
+			m.___assert_fail(i32(67355), i32(76287), i32(1215), i32(74157))
 			panic("unreachable")
 		}
 		t8 := m._mp_map_lookup(v4+i32(4), v1<<3|i32(2), i32(0))
@@ -38745,7 +38750,7 @@ func (m *Module) _mp_call_function_n_kw(v0, v1, v2, v3 int32) int32 {
 		if v6 == 0 {
 			t5 := m._mp_obj_get_type_str(v0)
 			store32(m.memory[uint32(v4):], uint32(t5))
-			m._mp_raise_msg_varg(i32(88204), i32(73659), v4)
+			m._mp_raise_msg_varg(i32(88204), i32(73731), v4)
 			panic("unreachable")
 		}
 		t3 := int32(load32(m.memory[uint32(v5+v6<<2+i32(16)):]))
@@ -38961,7 +38966,7 @@ l5:
 						t19 := int32(load32(m.memory[int64(uint32(v3))+12:]))
 						v2 = t19
 						if uint32(v2+v4) > uint32(v0) {
-							m.___assert_fail(i32(75219), i32(76215), i32(829), i32(69697))
+							m.___assert_fail(i32(75291), i32(76287), i32(829), i32(69769))
 							panic("unreachable")
 						}
 						{
@@ -39010,7 +39015,7 @@ l5:
 				}
 			l15:
 				if uint32(v4) >= uint32(v0) {
-					m.___assert_fail(i32(75320), i32(76215), i32(850), i32(69697))
+					m.___assert_fail(i32(75392), i32(76287), i32(850), i32(69769))
 					panic("unreachable")
 				}
 				store32(m.memory[uint32(v1+v4<<2):], uint32(v2))
@@ -39066,7 +39071,7 @@ l5:
 					}
 					t30 := int32(load32(m.memory[int64(uint32(v8))+4:]))
 					if uint32(int32(uint32(t30)>>2)&i32(0x3ffffffe)+v0) > uint32(v6) {
-						m.___assert_fail(i32(75250), i32(76215), i32(877), i32(69697))
+						m.___assert_fail(i32(75322), i32(76287), i32(877), i32(69769))
 						panic("unreachable")
 					}
 					t31 := int32(load32(m.memory[int64(uint32(v8))+8:]))
@@ -39184,7 +39189,7 @@ l5:
 		l29:
 			v12 = v0 + i32(2)
 			if uint32(v12) > uint32(v6) {
-				m.___assert_fail(i32(75291), i32(76215), i32(925), i32(69697))
+				m.___assert_fail(i32(75363), i32(76287), i32(925), i32(69769))
 				panic("unreachable")
 			}
 			v0 = v1 + v0<<2
@@ -39227,7 +39232,7 @@ func (m *Module) _mp_load_method(v0, v1, v2 int32) {
 				v2 = t4
 				store32(m.memory[int64(uint32(v3))+4:], uint32(v1))
 				store32(m.memory[uint32(v3):], uint32(v2))
-				m._mp_raise_msg_varg(i32(87736), i32(82942), v3)
+				m._mp_raise_msg_varg(i32(87736), i32(83014), v3)
 				panic("unreachable")
 			}
 		}
@@ -39236,7 +39241,7 @@ func (m *Module) _mp_load_method(v0, v1, v2 int32) {
 		v2 = t3
 		store32(m.memory[int64(uint32(v3))+20:], uint32(v1))
 		store32(m.memory[int64(uint32(v3))+16:], uint32(v2))
-		m._mp_raise_msg_varg(i32(87736), i32(82908), v3+i32(16))
+		m._mp_raise_msg_varg(i32(87736), i32(82980), v3+i32(16))
 		panic("unreachable")
 	}
 }
@@ -39324,11 +39329,11 @@ l4:
 	return
 l2:
 	store32(m.memory[uint32(v3):], uint32(v4))
-	m._mp_raise_msg_varg(i32(88240), i32(71873), v3)
+	m._mp_raise_msg_varg(i32(88240), i32(71945), v3)
 	panic("unreachable")
 l3:
 	store32(m.memory[int64(uint32(v3))+16:], uint32(v1))
-	m._mp_raise_msg_varg(i32(88240), i32(81115), v3+i32(16))
+	m._mp_raise_msg_varg(i32(88240), i32(81187), v3+i32(16))
 	panic("unreachable")
 }
 func (m *Module) _mp_unpack_ex(v0, v1, v2 int32) {
@@ -39490,7 +39495,7 @@ l10:
 	v4 = v9
 l8:
 	store32(m.memory[uint32(v3):], uint32(v4))
-	m._mp_raise_msg_varg(i32(88240), i32(71873), v3)
+	m._mp_raise_msg_varg(i32(88240), i32(71945), v3)
 	panic("unreachable")
 }
 func (m *Module) _mp_load_attr(v0, v1 int32) int32 {
@@ -39777,7 +39782,7 @@ func (m *Module) _mp_store_attr(v0, v1, v2 int32) {
 		v0 = t5
 		store32(m.memory[int64(uint32(v3))+4:], uint32(v1))
 		store32(m.memory[uint32(v3):], uint32(v0))
-		m._mp_raise_msg_varg(i32(87736), i32(82908), v3)
+		m._mp_raise_msg_varg(i32(87736), i32(82980), v3)
 		panic("unreachable")
 	}
 l1:
@@ -39809,7 +39814,7 @@ func (m *Module) _mp_iternext_allow_raise(v0 int32) int32 {
 		if v2 == 0 {
 			t12 := m._mp_obj_get_type_str(v0)
 			store32(m.memory[uint32(v1):], uint32(t12))
-			m._mp_raise_msg_varg(i32(88204), i32(68757), v1)
+			m._mp_raise_msg_varg(i32(88204), i32(68829), v1)
 			panic("unreachable")
 		}
 		t6 := int32(load32(m.memory[int64(uint32(v1))+12:]))
@@ -39846,7 +39851,7 @@ func (m *Module) _mp_resume(v0, v1, v2, v3 int32) int32 {
 			p2 = 1
 		}
 		if p1^p2 == 0 {
-			m.___assert_fail(i32(81637), i32(76215), i32(1424), i32(73396))
+			m.___assert_fail(i32(81709), i32(76287), i32(1424), i32(73468))
 			panic("unreachable")
 		}
 		{
@@ -39950,7 +39955,7 @@ func (m *Module) _mp_resume(v0, v1, v2, v3 int32) int32 {
 			}
 		l7:
 			if v2 == 0 {
-				m.___assert_fail(i32(77544), i32(76215), i32(1468), i32(73396))
+				m.___assert_fail(i32(77616), i32(76287), i32(1468), i32(73468))
 				panic("unreachable")
 			}
 			{
@@ -40011,7 +40016,7 @@ func (m *Module) _mp_resume(v0, v1, v2, v3 int32) int32 {
 					goto l11
 				}
 				v1 = i32(2)
-				t43 := m._mp_obj_new_exception_msg(i32(88060), i32(70620))
+				t43 := m._mp_obj_new_exception_msg(i32(88060), i32(70692))
 				v0 = t43
 				goto l6
 			}
@@ -40042,7 +40047,7 @@ l0:
 		if t2 != 0 {
 			goto l1
 		}
-		t3 := m._mp_obj_new_exception_msg(i32(88204), i32(70351))
+		t3 := m._mp_obj_new_exception_msg(i32(88204), i32(70423))
 		v0 = t3
 	}
 l1:
@@ -40094,7 +40099,7 @@ func (m *Module) _mp_import_from(v0, v1 int32) int32 {
 		t6 := int32(load32(m.memory[int64(uint32(v3))+8:]))
 		if t6 == 0 {
 			store32(m.memory[uint32(v3):], uint32(v1))
-			m._mp_raise_msg_varg(i32(87808), i32(69803), v3)
+			m._mp_raise_msg_varg(i32(87808), i32(69875), v3)
 			panic("unreachable")
 		}
 		m._mp_load_method_maybe(v0, i32(23), v3+i32(8))
@@ -40232,10 +40237,10 @@ func (m *Module) _m_malloc_fail(v0 int32) {
 		t1 := m._gc_is_locked()
 		if t1 == 0 {
 			store32(m.memory[uint32(v1):], uint32(v0))
-			m._mp_raise_msg_varg(i32(87952), i32(68336), v1)
+			m._mp_raise_msg_varg(i32(87952), i32(68408), v1)
 			panic("unreachable")
 		}
-		m._mp_raise_msg(i32(87952), i32(74835))
+		m._mp_raise_msg(i32(87952), i32(74907))
 		panic("unreachable")
 	}
 }
@@ -40273,7 +40278,7 @@ func (m *Module) fn823(v0, v1 int32) int32 {
 		}
 	}
 l0:
-	m.___assert_fail(i32(65905), i32(72030), i32(1123), i32(78905))
+	m.___assert_fail(i32(65977), i32(72102), i32(1123), i32(78977))
 	panic("unreachable")
 }
 func (m *Module) _mp_raise_StopIteration(v0 int32) {
@@ -40291,7 +40296,7 @@ func (m *Module) _mp_raise_TypeError_int_conversion(v0 int32) {
 	m.___stack_pointer = v1
 	t1 := m._mp_obj_get_type_str(v0)
 	store32(m.memory[uint32(v1):], uint32(t1))
-	m._mp_raise_msg_varg(i32(88204), i32(66467), v1)
+	m._mp_raise_msg_varg(i32(88204), i32(66539), v1)
 	panic("unreachable")
 }
 func (m *Module) _mp_raise_OSError(v0 int32) {
@@ -40309,7 +40314,7 @@ func (m *Module) _checked_fun_call(v0, v1, v2, v3 int32) int32 {
 		if t1 == t2 {
 			goto l0
 		}
-		m._mp_raise_TypeError(i32(73276))
+		m._mp_raise_TypeError(i32(73348))
 		panic("unreachable")
 	}
 l0:
@@ -40427,7 +40432,7 @@ func (m *Module) _scope_new(v0, v1, v2 int32) int32 {
 		return v3
 	}
 l2:
-	m.___assert_fail(i32(80145), i32(76186), i32(58), i32(65895))
+	m.___assert_fail(i32(80217), i32(76258), i32(58), i32(65967))
 	panic("unreachable")
 }
 func (m *Module) _scope_free(v0 int32) {
@@ -40616,7 +40621,7 @@ func (m *Module) _scope_check_to_close_over(v0, v1 int32) {
 									m.memory[uint32(v0)] = byte(i32(5))
 									return
 								default:
-									m.___assert_fail(i32(77655), i32(76186), i32(132), i32(67638))
+									m.___assert_fail(i32(77727), i32(76258), i32(132), i32(67710))
 									panic("unreachable")
 								}
 							}
@@ -40630,7 +40635,7 @@ func (m *Module) _scope_check_to_close_over(v0, v1 int32) {
 								goto l7
 							}
 						}
-						m.___assert_fail(i32(77571), i32(76186), i32(119), i32(67638))
+						m.___assert_fail(i32(77643), i32(76258), i32(119), i32(67710))
 						panic("unreachable")
 					}
 					v0 = v0 + i32(8)
@@ -40955,7 +40960,7 @@ l3:
 		}
 	}
 l1:
-	m._mp_raise_ValueError(i32(73984))
+	m._mp_raise_ValueError(i32(74056))
 	panic("unreachable")
 }
 func (m *Module) _mp_seq_count_obj(v0, v1, v2 int32) int32 {
@@ -43301,7 +43306,7 @@ l281:
 																						goto l9
 																					}
 																					store32(m.memory[int64(uint32(i32(0)))+111280:], uint32(i32(0)))
-																					m._invoke_viiii(i32(435), i32(82089), i32(75973), i32(1250), i32(73851))
+																					m._invoke_viiii(i32(435), i32(82161), i32(76045), i32(1250), i32(73923))
 																					t622 := int32(load32(m.memory[int64(uint32(i32(0)))+111280:]))
 																					v7 = t622
 																					store32(m.memory[int64(uint32(i32(0)))+111280:], uint32(i32(0)))
@@ -43321,7 +43326,7 @@ l281:
 																				}
 																			default:
 																				store32(m.memory[int64(uint32(i32(0)))+111280:], uint32(i32(0)))
-																				m._invoke_viiii(i32(435), i32(77285), i32(75973), i32(1249), i32(73851))
+																				m._invoke_viiii(i32(435), i32(77357), i32(76045), i32(1249), i32(73923))
 																				t613 := int32(load32(m.memory[int64(uint32(i32(0)))+111280:]))
 																				v7 = t613
 																				store32(m.memory[int64(uint32(i32(0)))+111280:], uint32(i32(0)))
@@ -44635,7 +44640,7 @@ l281:
 																							goto l1
 																						}
 																						store32(m.memory[int64(uint32(i32(0)))+111280:], uint32(i32(0)))
-																						m._invoke_viiii(i32(435), i32(82524), i32(75973), i32(658), i32(73851))
+																						m._invoke_viiii(i32(435), i32(82596), i32(76045), i32(658), i32(73923))
 																						t235 := int32(load32(m.memory[int64(uint32(i32(0)))+111280:]))
 																						v7 = t235
 																						store32(m.memory[int64(uint32(i32(0)))+111280:], uint32(i32(0)))
@@ -44792,7 +44797,7 @@ l281:
 																					goto l156
 																				}
 																				store32(m.memory[int64(uint32(i32(0)))+111280:], uint32(i32(0)))
-																				m._invoke_viiii(i32(435), i32(71853), i32(75973), i32(740), i32(73851))
+																				m._invoke_viiii(i32(435), i32(71925), i32(76045), i32(740), i32(73923))
 																				t268 := int32(load32(m.memory[int64(uint32(i32(0)))+111280:]))
 																				v7 = t268
 																				store32(m.memory[int64(uint32(i32(0)))+111280:], uint32(i32(0)))
@@ -44888,7 +44893,7 @@ l281:
 																						goto l9
 																					}
 																					store32(m.memory[int64(uint32(i32(0)))+111280:], uint32(i32(0)))
-																					m._invoke_viiii(i32(435), i32(82524), i32(75973), i32(758), i32(73851))
+																					m._invoke_viiii(i32(435), i32(82596), i32(76045), i32(758), i32(73923))
 																					t308 := int32(load32(m.memory[int64(uint32(i32(0)))+111280:]))
 																					v7 = t308
 																					store32(m.memory[int64(uint32(i32(0)))+111280:], uint32(i32(0)))
@@ -44928,7 +44933,7 @@ l281:
 																				goto l161
 																			}
 																			store32(m.memory[int64(uint32(i32(0)))+111280:], uint32(i32(0)))
-																			m._invoke_viiii(i32(435), i32(71853), i32(75973), i32(690), i32(73851))
+																			m._invoke_viiii(i32(435), i32(71925), i32(76045), i32(690), i32(73923))
 																			t274 := int32(load32(m.memory[int64(uint32(i32(0)))+111280:]))
 																			v7 = t274
 																			store32(m.memory[int64(uint32(i32(0)))+111280:], uint32(i32(0)))
@@ -44972,7 +44977,7 @@ l281:
 																						goto l85
 																					}
 																					store32(m.memory[int64(uint32(i32(0)))+111280:], uint32(i32(0)))
-																					m._invoke_viiii(i32(435), i32(79893), i32(75973), i32(699), i32(73851))
+																					m._invoke_viiii(i32(435), i32(79965), i32(76045), i32(699), i32(73923))
 																					t283 := int32(load32(m.memory[int64(uint32(i32(0)))+111280:]))
 																					v7 = t283
 																					store32(m.memory[int64(uint32(i32(0)))+111280:], uint32(i32(0)))
@@ -45042,7 +45047,7 @@ l281:
 																					goto l166
 																				}
 																				store32(m.memory[int64(uint32(i32(0)))+111280:], uint32(i32(0)))
-																				m._invoke_viiii(i32(435), i32(81274), i32(75973), i32(711), i32(73851))
+																				m._invoke_viiii(i32(435), i32(81346), i32(76045), i32(711), i32(73923))
 																				t295 := int32(load32(m.memory[int64(uint32(i32(0)))+111280:]))
 																				v7 = t295
 																				store32(m.memory[int64(uint32(i32(0)))+111280:], uint32(i32(0)))
@@ -45092,7 +45097,7 @@ l281:
 																		goto l178
 																	}
 																	store32(m.memory[int64(uint32(i32(0)))+111280:], uint32(i32(0)))
-																	m._invoke_viiii(i32(435), i32(71853), i32(75973), i32(814), i32(73851))
+																	m._invoke_viiii(i32(435), i32(71925), i32(76045), i32(814), i32(73923))
 																	t338 := int32(load32(m.memory[int64(uint32(i32(0)))+111280:]))
 																	v7 = t338
 																	store32(m.memory[int64(uint32(i32(0)))+111280:], uint32(i32(0)))
@@ -45253,7 +45258,7 @@ l281:
 																			goto l227
 																		}
 																		store32(m.memory[int64(uint32(i32(0)))+111280:], uint32(i32(0)))
-																		m._invoke_viiii(i32(435), i32(81274), i32(75973), i32(1148), i32(73851))
+																		m._invoke_viiii(i32(435), i32(81346), i32(76045), i32(1148), i32(73923))
 																		t547 := int32(load32(m.memory[int64(uint32(i32(0)))+111280:]))
 																		v7 = t547
 																		store32(m.memory[int64(uint32(i32(0)))+111280:], uint32(i32(0)))
@@ -45319,7 +45324,7 @@ l281:
 															t557 := int32(load32(m.memory[int64(uint32(v2))+56:]))
 															if t557 != v4+i32(-12) {
 																store32(m.memory[int64(uint32(i32(0)))+111280:], uint32(i32(0)))
-																m._invoke_viiii(i32(435), i32(78967), i32(75973), i32(1155), i32(73851))
+																m._invoke_viiii(i32(435), i32(79039), i32(76045), i32(1155), i32(73923))
 																t558 := int32(load32(m.memory[int64(uint32(i32(0)))+111280:]))
 																v7 = t558
 																store32(m.memory[int64(uint32(i32(0)))+111280:], uint32(i32(0)))
@@ -45364,7 +45369,7 @@ l281:
 												}
 											l114:
 												store32(m.memory[int64(uint32(i32(0)))+111280:], uint32(i32(0)))
-												t653 := m._invoke_iii(i32(457), i32(87988), i32(66696))
+												t653 := m._invoke_iii(i32(457), i32(87988), i32(66768))
 												v1 = t653
 												t654 := int32(load32(m.memory[int64(uint32(i32(0)))+111280:]))
 												v7 = t654
@@ -45436,7 +45441,7 @@ l281:
 											if uint32(v7) > uint32(i32(211)) {
 												if uint32(v7) > uint32(i32(249)) {
 													store32(m.memory[int64(uint32(i32(0)))+111280:], uint32(i32(0)))
-													t676 := m._invoke_iii(i32(457), i32(88096), i32(73837))
+													t676 := m._invoke_iii(i32(457), i32(88096), i32(73909))
 													v10 = t676
 													t677 := int32(load32(m.memory[int64(uint32(i32(0)))+111280:]))
 													v7 = t677
@@ -45645,7 +45650,7 @@ l281:
 							}
 						l234:
 							store32(m.memory[int64(uint32(i32(0)))+111280:], uint32(i32(0)))
-							t694 := m._invoke_iii(i32(457), i32(88060), i32(73192))
+							t694 := m._invoke_iii(i32(457), i32(88060), i32(73264))
 							v1 = t694
 							t695 := int32(load32(m.memory[int64(uint32(i32(0)))+111280:]))
 							v7 = t695
@@ -46033,7 +46038,7 @@ l281:
 								goto l298
 							}
 							store32(m.memory[int64(uint32(i32(0)))+111280:], uint32(i32(0)))
-							m._invoke_viiii(i32(435), i32(71853), i32(75973), i32(1468), i32(73851))
+							m._invoke_viiii(i32(435), i32(71925), i32(76045), i32(1468), i32(73923))
 							t756 := int32(load32(m.memory[int64(uint32(i32(0)))+111280:]))
 							v7 = t756
 							store32(m.memory[int64(uint32(i32(0)))+111280:], uint32(i32(0)))
@@ -46436,7 +46441,7 @@ func (m *Module) ___assert_fail(v0, v1, v2, v3 int32) {
 	store32(m.memory[int64(uint32(v4))+8:], uint32(v3))
 	store32(m.memory[int64(uint32(v4))+4:], uint32(v1))
 	store32(m.memory[uint32(v4):], uint32(v0))
-	_ = m._fprintf(i32(110600), i32(83326), v4)
+	_ = m._fprintf(i32(110600), i32(83398), v4)
 	_abort()
 	panic("unreachable")
 }
@@ -50640,7 +50645,7 @@ l7:
 													v33 = -v33
 													v34 = i32(1)
 													v35 = i32(0)
-													v36 = i32(65839)
+													v36 = i32(65911)
 													goto l100
 												l99:
 													if v28&i32(2048) == 0 {
@@ -50648,13 +50653,13 @@ l7:
 													}
 													v34 = i32(1)
 													v35 = i32(0)
-													v36 = i32(65842)
+													v36 = i32(65914)
 													goto l100
 												l101:
 													v34 = v28 & i32(1)
-													p109 := i32(65840)
+													p109 := i32(65912)
 													if v34 != 0 {
-														p109 = i32(65845)
+														p109 = i32(65917)
 													}
 													v36 = p109
 													var p110 int32
@@ -51506,7 +51511,7 @@ l7:
 															if t250&i32(32) != 0 {
 																goto l181
 															}
-															_ = m.___fwritex(i32(79330), i32(1), v0)
+															_ = m.___fwritex(i32(79402), i32(1), v0)
 														}
 													l181:
 														if v22 >= i32(1) {
@@ -51667,13 +51672,13 @@ l7:
 															goto l109
 														}
 														v18 = v29 & i32(32)
-														p121 := i32(77412)
+														p121 := i32(77484)
 														if v18 != 0 {
-															p121 = i32(71099)
+															p121 = i32(71171)
 														}
-														p122 := i32(77770)
+														p122 := i32(77842)
 														if v18 != 0 {
-															p122 = i32(72418)
+															p122 = i32(72490)
 														}
 														p123 := p122
 														if v33 != v33 {
@@ -51769,14 +51774,14 @@ l7:
 												goto l65
 											default:
 												v22 = i32(0)
-												v30 = i32(65829)
+												v30 = i32(65901)
 												v18 = v15
 												v27 = v28
 												v24 = v23
 												goto l87
 											case 52:
 												v22 = i32(0)
-												v30 = i32(65829)
+												v30 = i32(65901)
 												t55 := int64(load64(m.memory[int64(uint32(v5))+40:]))
 												v31 = t55
 												goto l67
@@ -51825,7 +51830,7 @@ l7:
 												fallthrough
 											case 23, 55:
 												v22 = i32(0)
-												v30 = i32(65829)
+												v30 = i32(65901)
 												{
 													t64 := int64(load64(m.memory[int64(uint32(v5))+40:]))
 													v32 = t64
@@ -51845,7 +51850,7 @@ l7:
 														if v28&i32(8) == 0 {
 															goto l76
 														}
-														v30 = int32(uint32(v29)>>4) + i32(65829)
+														v30 = int32(uint32(v29)>>4) + i32(65901)
 														v22 = i32(2)
 														goto l76
 													}
@@ -51871,7 +51876,7 @@ l7:
 												}
 											l78:
 												v22 = i32(0)
-												v30 = i32(65829)
+												v30 = i32(65901)
 												if v28&i32(8) == 0 {
 													goto l76
 												}
@@ -51894,7 +51899,7 @@ l7:
 													v31 = i64(0) - v31
 													store64(m.memory[int64(uint32(t70))+40:], uint64(v31))
 													v22 = i32(1)
-													v30 = i32(65829)
+													v30 = i32(65901)
 													goto l67
 												}
 											l80:
@@ -51902,13 +51907,13 @@ l7:
 													goto l81
 												}
 												v22 = i32(1)
-												v30 = i32(65830)
+												v30 = i32(65902)
 												goto l67
 											l81:
 												v22 = v28 & i32(1)
-												p71 := i32(65829)
+												p71 := i32(65901)
 												if v22 != 0 {
-													p71 = i32(65831)
+													p71 = i32(65903)
 												}
 												v30 = p71
 											}
@@ -52004,7 +52009,7 @@ l7:
 								l65:
 									t90 := int32(load32(m.memory[int64(uint32(v5))+40:]))
 									v18 = t90
-									p91 := i32(80394)
+									p91 := i32(80466)
 									if v18 != 0 {
 										p91 = v18
 									}
@@ -52021,7 +52026,7 @@ l7:
 								v24 = t95
 								v18 = t93 + v24
 								v22 = i32(0)
-								v30 = i32(65829)
+								v30 = i32(65901)
 								if v23 > i32(-1) {
 									goto l87
 								}
@@ -52187,7 +52192,7 @@ l7:
 							if t270&i32(32) != 0 {
 								goto l197
 							}
-							_ = m.___fwritex(i32(79330), i32(1), v0)
+							_ = m.___fwritex(i32(79402), i32(1), v0)
 						}
 					l197:
 						v18 = v13 - v19
@@ -52657,7 +52662,7 @@ l7:
 	l88:
 		m.memory[int64(uint32(v5))+39] = byte(v18)
 		v22 = i32(0)
-		v30 = i32(65829)
+		v30 = i32(65901)
 		v24 = i32(1)
 		v19 = v9
 		v18 = v15
@@ -53105,7 +53110,7 @@ l0:
 	m.___stack_pointer = v5 + i32(256)
 }
 func (m *Module) _long_double_not_supported() {
-	_ = m._fputs(i32(83195), i32(110600))
+	_ = m._fputs(i32(83267), i32(110600))
 	_abort()
 	panic("unreachable")
 }

@@ -235,9 +235,7 @@ def visit(n):
 		wg      sync.WaitGroup
 	)
 	for i := range 8 {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			got, err := p.Call(ctx, "visit", micropython.Int(int64(i)))
 			if err != nil {
 				return
@@ -248,7 +246,7 @@ def visit(n):
 			// out[1] is always 1: each call starts from the snapshot, so the
 			// increment another call made is not there.
 			doubled = append(doubled, int(out[0].(int64))+int(out[1].(int64))-1)
-		}()
+		})
 	}
 	wg.Wait()
 

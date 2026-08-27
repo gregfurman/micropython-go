@@ -68,7 +68,7 @@ func constants(header, prefix string) (map[string]int, error) {
 	}
 
 	out := map[string]int{}
-	for _, line := range strings.Split(string(src), "\n") {
+	for line := range strings.SplitSeq(string(src), "\n") {
 		m := constantRE.FindStringSubmatch(line)
 		if m == nil || !strings.HasPrefix(m[1], prefix) {
 			continue
