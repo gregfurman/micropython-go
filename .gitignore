@@ -6,3 +6,11 @@ wasi-sdk-*/
 
 .claude
 .vscode
+
+.o
+.wasm
+
+_obj
+
+build/minimal/build-embed/
+build/minimal/micropython_embed
