@@ -1,19 +1,18 @@
 # MicroPython for Go (WASI)
 
-A pure-Go port of MicroPython, compiled to WebAssembly and translated to Go via `wasm2go`.
+A pure-Go embedding of MicroPython. The interpreter is compiled to WebAssembly and translated to Go with `wasm2go`.
 
-This package allows you to embed a full MicroPython interpreter directly into your Go applications. Because it is pure Go (no CGO) and requires no external WebAssembly runtime (like wazero or wasmtime), it is incredibly fast, easy to deploy, and completely sandboxed.
+Embed a full MicroPython interpreter directly in a Go application. It uses no CGO and no external WebAssembly runtime such as wazero or wasmtime.
 
 * **No CGO required:** Runs entirely in native Go.
-* **No WASI dependencies:** Does not require a filesystem, standard I/O, or OS access.
-* **Fast:** ~1.5M calls/sec on a reused interpreter; ~24k/sec when each call is isolated (see [Performance](#performance)).
+* **Isolated:** The guest has no filesystem or OS access. It reaches Go only through functions you register yourself.
+* **Fast:** Reused interpreters avoid snapshot work; isolated programs trade some throughput for state isolation.
 * **Concurrent:** Built-in pooling allows parallel Python execution across goroutines.
 
 ## Installation
 
 ```bash
 go get github.com/gregfurman/micropython-go
-
 ```
 
 ## Quick Start
@@ -53,14 +52,14 @@ def score(row):
 	}
 	defer p.Close()
 
-	// Call the Python function from Go. 
+	// Call the Python function from Go.
 	// This is safe to run concurrently across multiple goroutines!
 	got, err := p.Call(ctx, "score", map[string]any{"id": "r-1", "a": 4, "b": 5})
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	fmt.Printf("%#v\n", got) 
+	fmt.Printf("%#v\n", got)
 	// Output: map[string]interface {}{"id":"r-1", "ok":true, "score":13}
 }
 
@@ -86,7 +85,7 @@ fmt.Println(val) // Output: 10
 
 ### 3. Passing data in
 
-Arguments are ordinary Go values. Where Go has one type for two Python, e.g a slice could be a `list` or a `tuple`, build the value instead using the public SDK:
+Arguments are ordinary Go values. When Go's type does not preserve the desired Python distinction—for example, a slice could mean a `list` or a `tuple`—use the public value builders:
 
 ```go
 p.Call(ctx, "f", []any{1, 2})                              // list
@@ -113,7 +112,7 @@ if _, err := p.Call(ctx, "lookup", "missing"); errors.As(err, &exc) {
 }
 ```
 
-A call stops when its context does, which is the only thing that bounds a runaway guest:
+A call stops when its context does. You can also interrupt an in-flight `Instance` from another goroutine with `Cancel`:
 
 ```go
 ctx, cancel := context.WithTimeout(ctx, time.Second)
@@ -121,83 +120,108 @@ defer cancel()
 _, err := p.Call(ctx, "maybe_forever") // context.DeadlineExceeded
 ```
 
+### 4. Defining host functions with Go
+
+`DefineFunction` binds a Go function to a global Python name, so the guest can call out to fetch data, consult a cache, or reach anything else the interpreter has no access to on its own. Nothing is reachable unless you register it.
+
+```go
+in, _ := micropython.NewInstance(ctx)
+defer in.Close()
+
+rates := map[string]float64{"EUR": 1.09, "GBP": 1.27}
+
+in.DefineFunction(ctx, "usd", func(args []any) (any, error) {
+    code := args[0].(string)
+    rate, ok := rates[code]
+    if !ok {
+        return nil, micropython.Raise("KeyError", code)
+    }
+    return rate * float64(args[1].(int64)), nil
+})
+
+out, _ := in.Exec(ctx, `print(round(usd("EUR", 100), 2))`)
+fmt.Print(out) // 109.0
+```
+
+Arguments arrive already converted to native Go values, and the return value is converted back, both following the Type Conversion table below. A Python `list` or `tuple` arrives as `[]any`, a `dict` as a `map[any]any`, and returning a `Value` built with `Of`, `Tuple` or `Str` lets you pick the Python type exactly.
+
+A binding is part of interpreter state, so it lasts for the life of the `Instance` and any `Clone` taken afterwards inherits it. Redefining a name replaces it. `Program` has no equivalent: its calls are rewound to a snapshot, so host functions belong to an `Instance`.
+
+#### Failure
+
+Returning an error raises an exception at the Python call site. An ordinary Go error becomes `HostError`, a class this port adds so guest code can single out host-boundary failures:
+
+```python
+try:
+    fetch()
+except HostError as e:
+    print("host call failed:", e)
+```
+
+`HostError` subclasses `RuntimeError`, so an existing `except RuntimeError` handler still catches a failed host call and you only reach for the narrower name when you want to tell the two apart.
+
+To raise something Python already understands, return `micropython.Raise`, which resolves against the builtin exceptions and falls back to `HostError` if the name is not one of them:
+
+```go
+return nil, micropython.Raise("KeyError", code)   // guest catches KeyError
+```
+
+A panic inside the function is recovered and raised as `HostError` rather than unwinding into the interpreter. Either way the `Instance` stays usable, and the failure reaches Go as a `*PythonError` carrying the same type and message.
+
 ## Type Conversion
 
-Go and Python types cross as a compact binary format rather than JSON, except for custom structs, which take a JSON round trip.
+Values cross the Go/Wasm boundary as direct tagged values. Ordinary Go maps, slices, and scalar values are converted recursively; custom structs use an `encoding/json` fallback.
 
-| Go Type | Python Type |
-| --- | --- |
-| `nil` | `None` |
-| `bool` | `bool` |
-| `int`, `int64`, etc. | `int` |
-| `float64` | `float` |
-| `string` | `str` |
-| `[]byte` | `bytes` |
-| `[]any`, `[]string`, `[]int` | `list` |
-| `map[string]any` | `dict` |
-| `micropython.Tuple(...)` | `tuple` |
-| `micropython.Set(...)` | `set` |
-| `struct{...}` | *JSON round-trip to* `dict` |
-| `micropython.Of(v)` | whatever the rules above make of `v`, explicitly |
+| Go Type                               | Python Type                                      |
+|---------------------------------------|--------------------------------------------------|
+| `nil`                                 | `None`                                           |
+| `bool`                                | `bool`                                           |
+| all signed and unsigned integer types | `int`                                            |
+| `float32`, `float64`                  | `float`                                          |
+| `string`                              | `str`                                            |
+| `[]byte`                              | `bytes`                                          |
+| non-byte slices and arrays            | `list`                                           |
+| Go maps                               | `dict`                                           |
+| `micropython.Tuple(...)`              | `tuple`                                          |
+| `micropython.Set(...)`                | `set`                                            |
+| `micropython.FrozenSet(...)`          | `frozenset`                                      |
+| `struct{...}`                         | *JSON round-trip to* `dict`                      |
+| `micropython.Of(v)`                   | whatever the rules above make of `v`, explicitly |
 
-Results come back the same way. A Python `tuple` arrives as `micropython.Tuple` and a `set` as `micropython.Set` -- distinct slice types, so a tuple is still recognisable as one.
 
 ## Building the Wasm Module (For Contributors)
 
 If you are modifying the underlying C code or the MicroPython build configuration, you will need to recompile the WebAssembly module.
 
-MicroPython is included as a submodule pinned to `v1.28.0`. You will need [wasi-sdk](https://github.com/WebAssembly/wasi-sdk) (25+) and [Binaryen](https://github.com/WebAssembly/binaryen) installed.
+The embedded MicroPython sources are version `v1.28.0`. You need [wasi-sdk](https://github.com/WebAssembly/wasi-sdk) (25+) and [Binaryen](https://github.com/WebAssembly/binaryen). Binaryen is required to make the generated Go module safe for the Go garbage collector.
 
 ```bash
-# 1. Point to your WASI SDK and Binaryen installations
+# Point to your WASI SDK and Binaryen installations.
 export WASI_SDK_PATH=/path/to/wasi-sdk-33.0
 export BINARYEN_PATH=/path/to/binaryen
 
-# 2. Build the out/micropython.wasm binary
+# Build out/guest.wasm and regenerate internal/micropython/micropython.go.
 make
 
-# 3. Translate the .wasm file into pure Go using wasm2go
-make wasm2go
-
-# 4. Run the Go tests to verify
+# Run the Go tests.
 make test
 
 ```
 
-## Performance
+## Heap size
 
-Measured on an M3 Pro, `go test -bench`.
-
-| | calls/sec |
-| --- | --- |
-| `Instance.Call` (state persists) | ~1,500,000 |
-| `Program.Call` (isolated, 2 MB heap) | ~25,000 |
-| `Program.Call` (isolated, 256 KB heap) | ~147,000 |
-
-The gap is the isolation: a `Program` rewinds the interpreter's memory after every call so no call can see what another did, and that copy is proportional to the heap.
-
-### Tuning the heap
-
-The Python heap is most of what an interpreter costs to create, and to rewind between calls via snapshotting. It defaults to 2 MB and is set per `Program` or `Instance`:
+The Python heap is most of an interpreter's allocation cost. `Program` also copies it when restoring a snapshot, so smaller heaps reduce isolated-call cost. The default is 2 MiB and can be set per `Program` or `Instance`:
 
 ```go
 p, err := micropython.Compile(ctx, src, micropython.WithHeapSize(256*1024))
 ```
 
-| heap | `Program.Call` | calls/sec |
-| --- | --- | --- |
-| 256 KB | 6.8 µs | ~147,000 |
-| 512 KB | 11.7 µs | ~85,000 |
-| 1 MB | 20.8 µs | ~48,000 |
-| 2 MB (default) | 39.5 µs | ~25,000 |
-
 Too small and the guest raises `MemoryError` and the `Program` stays usable. Size it to what your script actually allocates.
 
-The shadow stack is fixed at build time (`WASM_STACK_SIZE`) because the linker places it, and it bounds recursion depth together with `MICROPY_C_STACK_SIZE`.
+The Wasm shadow stack is fixed at build time to 1 MiB. Recursion is bounded well before that by `MICROPY_C_STACK_SIZE`, which this port sets to 96 KiB in `build/mpconfigport.h`.
 
 ## Limitations
 
-* **No standard I/O or filesystem:** `import` cannot reach real files, `open()` raises `OSError`, `os` and `sys.stdout` are absent, and `print()` output is captured by `Exec` rather than written to `stdout`.
-* **Stack depth:** recursion is bounded by the host C stack to about 359 Python frames at the default `MICROPY_C_STACK_SIZE`.
-* **Structs via JSON:** primitives, maps and slices use the binary format; custom Go structs go through `encoding/json`. Use `map[string]any` on a hot path.
-* **No host functions:** Python cannot call back into Go.
+* **No standard I/O or filesystem:** `import` cannot reach real files, `open()` raises `OSError`, `os` and `sys.stdout` are absent, and `print()` output is returned by `Exec` rather than written to stdout.
+* **Stack depth:** recursion is bounded by the host C stack to roughly 340-385 Python frames, depending on how many arguments and locals each frame carries. Overflowing raises `RuntimeError` and leaves the interpreter usable.
+* **Structs via JSON:** scalars, maps, and slices use direct values; custom Go structs go through `encoding/json`. Prefer maps on hot paths.

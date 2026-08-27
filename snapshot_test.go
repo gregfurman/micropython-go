@@ -78,7 +78,7 @@ func runSuite(t *testing.T, contents []byte) {
 				t.Fatalf("could not load script at [%s]: %v", testPath, err)
 			}
 
-			resp, err := in.Exec(t.Context(), string(src))
+			got, err := in.Exec(t.Context(), string(src))
 			if err != nil {
 				if exc, ok := errors.AsType[*PythonError](err); ok {
 					switch exc.Type() {
@@ -94,7 +94,6 @@ func runSuite(t *testing.T, contents []byte) {
 				t.Fatalf("Instance.Exec failed: %v", err)
 			}
 
-			got, _ := resp.(string)
 			if want := snap.Recorded.Stdout; want != got {
 				t.Errorf("unexpected stdout:\nwant: %q\ngot:  %q", want, got)
 			}

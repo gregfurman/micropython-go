@@ -33,11 +33,6 @@ func (e *Exception) Type() string { return e.typ }
 // as text. Empty for one raised with no arguments.
 func (e *Exception) Message() string { return e.msg }
 
-func (e *Exception) lower(w Writer) {
-	w.Tag(TagException)
-	Str(e.typ).lower(w)
-	Str(e.msg).lower(w)
-}
 func (e *Exception) lift() any { return error(e) }
 
 // ------------------------------------------------------------------

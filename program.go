@@ -8,7 +8,6 @@ import (
 	"sync"
 
 	"github.com/gregfurman/micropython-go/internal/api"
-	"github.com/gregfurman/micropython-go/internal/host"
 )
 
 // Program represents a pre-compiled MicroPython script that is safe for
@@ -20,7 +19,7 @@ import (
 //
 // To prevent memory leaks, Close must be called when the Program is no longer needed.
 type Program struct {
-	snap *host.Snapshot
+	snap *api.Snapshot
 
 	maxIdle int
 

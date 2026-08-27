@@ -1,7 +1,6 @@
 package micropython
 
 import (
-	"github.com/gregfurman/micropython-go/internal/host"
 	"github.com/gregfurman/micropython-go/internal/value"
 )
 
@@ -72,6 +71,18 @@ type PythonError = value.Exception
 // Exception builds a Python exception as a Value, for binding one the guest can raise.
 func Exception(typ, msg string) Value { return Value{val: value.NewException(typ, msg)} }
 
+// Raise returns an error that makes the guest raise a specific Python exception.
+// Return it from a HostFunc to control which class the caller sees:
+//
+//	in.DefineFunction(ctx, "lookup", func(args []any) (any, error) {
+//	    return nil, micropython.Raise("KeyError", "missing")
+//	})
+//
+// Python then catches it as a KeyError. A typ that does not name a builtin
+// exception falls back to HostError, as does any other error a HostFunc
+// returns, carrying that error's text as the message.
+func Raise(typ, msg string) error { return value.NewException(typ, msg) }
+
 // Tuple creates a Python tuple from the given values.
 func Tuple(items ...Value) Value { return Value{val: value.NewTuple(unwrap(items)...)} }
 
@@ -119,7 +130,7 @@ func Of(v any) Value {
 		return built
 	}
 
-	x, err := host.ToValue(v)
+	x, err := value.FromGo(v)
 	if err != nil {
 		return Value{val: value.Invalid(err)}
 	}

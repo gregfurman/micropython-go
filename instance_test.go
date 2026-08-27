@@ -3,6 +3,7 @@ package micropython
 import (
 	"context"
 	"errors"
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -10,6 +11,14 @@ import (
 
 	"github.com/gregfurman/micropython-go/internal/value"
 )
+
+const catchAs = `
+ok = False
+try:
+    f()
+except %s:
+    ok = True
+`
 
 func newT(t *testing.T) *Instance {
 	t.Helper()
@@ -25,7 +34,13 @@ func TestExecThenCall(t *testing.T) {
 	ctx := context.Background()
 	in := newT(t)
 
-	if _, err := in.Exec(ctx, "def double(n):\n    return n * 2\n\ndef shout(s):\n    return s.upper()\n"); err != nil {
+	if _, err := in.Exec(ctx, `
+def double(n):
+    return n * 2
+
+def shout(s):
+    return s.upper()
+`); err != nil {
 		t.Fatal(err)
 	}
 
@@ -247,8 +262,9 @@ def unknown():
         return "fallback:" + str(e)
 `, WithGlobals(Globals{
 		"BAD": Exception("ValueError", "bad input"),
-		// A type the guest has never heard of falls back rather than failing
-		// twice on the way to reporting the first failure.
+		// A type the guest has never heard of falls back to HostError, which
+		// subclasses RuntimeError, rather than failing twice on the way to
+		// reporting the first failure.
 		"ODD": Exception("NoSuchError", "still readable"),
 	}))
 	if err != nil {
@@ -372,5 +388,173 @@ func TestWithHeapSize(t *testing.T) {
 	defer big.Close()
 	if got, err := big.Call(t.Context(), "big", 2*1024*1024); err != nil || got != int64(2*1024*1024) {
 		t.Errorf("2MB in a 4MB heap: %#v, %v", got, err)
+	}
+}
+
+func TestDefineFunction(t *testing.T) {
+	ctx := context.Background()
+	in := newT(t)
+
+	if err := in.DefineFunction(ctx, "shout", func(args []any) (any, error) {
+		s, ok := args[0].(string)
+		if !ok {
+			return nil, fmt.Errorf("want str, got %T", args[0])
+		}
+		return strings.ToUpper(s), nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Callable from an expression, from a script, and as a value passed around.
+	if got, err := in.Eval(ctx, `shout("hi")`); err != nil || got != "HI" {
+		t.Errorf("shout(\"hi\") = %#v, %v", got, err)
+	}
+	if _, err := in.Exec(ctx, `
+def twice(s):
+    return shout(s) + shout(s)
+`); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := in.Call(ctx, "twice", "ab"); err != nil || got != "ABAB" {
+		t.Errorf("twice(\"ab\") = %#v, %v", got, err)
+	}
+}
+
+func TestDefineFunctionArgumentsAndResults(t *testing.T) {
+	ctx := context.Background()
+	in := newT(t)
+
+	if err := in.DefineFunction(ctx, "echo", func(args []any) (any, error) {
+		return args[0], nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	tests := []struct {
+		expr string
+		want any
+	}{
+		{`echo("s")`, "s"},
+		{`echo(7)`, int64(7)},
+		{`echo(1.5)`, 1.5},
+		{`echo(True)`, true},
+		{`echo(None) is None`, true},
+		{`echo(b"xy")`, []byte("xy")},
+		{`echo([1, "a"])`, []any{int64(1), "a"}},
+		{`echo({"k": 1}) == {"k": 1}`, true},
+	}
+	for _, tc := range tests {
+		got, err := in.Eval(ctx, tc.expr)
+		if err != nil {
+			t.Errorf("%s: %v", tc.expr, err)
+			continue
+		}
+		if !reflect.DeepEqual(got, tc.want) {
+			t.Errorf("%s = %#v, want %#v", tc.expr, got, tc.want)
+		}
+	}
+}
+
+func TestDefineFunctionErrors(t *testing.T) {
+	ctx := context.Background()
+
+	tests := []struct {
+		name     string
+		fn       HostFunc
+		wantType string
+		wantMsg  string
+	}{
+		{"plain error", func([]any) (any, error) { return nil, errors.New("boom") }, "HostError", "boom"},
+		{"Raise names a builtin", func([]any) (any, error) { return nil, Raise("KeyError", "missing") }, "KeyError", "missing"},
+		{"Raise with unknown class", func([]any) (any, error) { return nil, Raise("Nope", "x") }, "HostError", "x"},
+		{"panic", func([]any) (any, error) { panic("kaboom") }, "HostError", "host function panicked"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			in := newT(t)
+			if err := in.DefineFunction(ctx, "f", tc.fn); err != nil {
+				t.Fatal(err)
+			}
+
+			_, err := in.Eval(ctx, `f()`)
+			var exc *PythonError
+			if !errors.As(err, &exc) {
+				t.Fatalf("err = %v (%T), want *PythonError", err, err)
+			}
+			if exc.Type() != tc.wantType {
+				t.Errorf("Type = %q, want %q", exc.Type(), tc.wantType)
+			}
+			if !strings.Contains(exc.Message(), tc.wantMsg) {
+				t.Errorf("Message = %q, want it to contain %q", exc.Message(), tc.wantMsg)
+			}
+
+			// Guest code can catch it, and the instance survives.
+			if _, err := in.Exec(ctx, fmt.Sprintf(catchAs, tc.wantType)); err != nil {
+				t.Fatalf("guest could not catch %s: %v", tc.wantType, err)
+			}
+			if got, err := in.Eval(ctx, "ok"); err != nil || got != true {
+				t.Errorf("except %s did not fire: %#v, %v", tc.wantType, got, err)
+			}
+		})
+	}
+}
+
+func TestDefineFunctionNil(t *testing.T) {
+	if err := newT(t).DefineFunction(context.Background(), "f", nil); err == nil {
+		t.Fatal("DefineFunction(nil) = nil, want error")
+	}
+}
+
+func TestDefineFunctionSurvivesClone(t *testing.T) {
+	ctx := context.Background()
+	in := newT(t)
+
+	calls := 0
+	if err := in.DefineFunction(ctx, "tick", func([]any) (any, error) {
+		calls++
+		return int64(calls), nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := in.Eval(ctx, "tick()"); err != nil {
+		t.Fatal(err)
+	}
+
+	clone, err := in.Clone(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer clone.Close()
+
+	// The clone reaches the same Go closure, so the counter keeps advancing.
+	if got, err := clone.Eval(ctx, "tick()"); err != nil || got != int64(2) {
+		t.Errorf("tick() on clone = %#v, %v; want 2", got, err)
+	}
+}
+
+func TestHostErrorHierarchy(t *testing.T) {
+	ctx := context.Background()
+	in := newT(t)
+
+	if err := in.DefineFunction(ctx, "f", func([]any) (any, error) {
+		return nil, errors.New("boom")
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	// NOTE: HostErrors are subclasses of RuntimeError
+	for _, class := range []string{"HostError", "RuntimeError", "Exception"} {
+		if _, err := in.Exec(ctx, fmt.Sprintf(catchAs, class)); err != nil {
+			t.Fatalf("except %s: %v", class, err)
+		}
+		if got, err := in.Eval(ctx, "ok"); err != nil || got != true {
+			t.Errorf("except %s did not catch HostError: %#v, %v", class, got, err)
+		}
+	}
+
+	// It is still narrower than RuntimeError: a plain RuntimeError is not one.
+	if got, err := in.Eval(ctx, "isinstance(RuntimeError('x'), HostError)"); err != nil || got != false {
+		t.Errorf("RuntimeError is not a HostError: %#v, %v", got, err)
 	}
 }

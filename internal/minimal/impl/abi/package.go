@@ -1,3 +1,0 @@
-//go:generate sh -c "go tool cgo -godefs -- -I../../../../build/minimal -I../../../../build/minimal/micropython_embed -m32 abi_cgo.go > abi.go"
-//go:generate go fmt ./...
-package abi

@@ -1,15 +1,11 @@
-BUILD ?= out
-
-
 SYNC_SUBMODULE ?= 1
+
 ifeq ($(SYNC_SUBMODULE),1)
 ifneq ($(wildcard .git),)
 SUBMODULE_SYNC := $(shell \
 	git submodule sync --quiet -- micropython 2>/dev/null; \
-	git submodule update --init -- micropython 2>/dev/null)
-ifneq ($(strip $(SUBMODULE_SYNC)),)
-$(info $(SUBMODULE_SYNC))
-endif
+	git submodule update --init -- micropython 2>/dev/null \
+)
 endif
 endif
 
@@ -17,123 +13,79 @@ ifeq ($(wildcard micropython/py/mkenv.mk),)
 $(error MicroPython submodule is missing. Run: git submodule update --init)
 endif
 
-include micropython/py/mkenv.mk
+V ?= 0
+ifeq ($(V),0)
+Q := @
+endif
 
-# Must come before py.mk.
-QSTR_DEFS = build/qstrdefsport.h
+BUILD_DIR   := build
+OUT_DIR     := out
+MPY_DIR     := micropython
+EMBED_PORT  := $(MPY_DIR)/ports/embed
 
-MICROPY_ROM_TEXT_COMPRESSION ?= 1
+# Scratch dir for embed.mk, which is only run to produce $(EMBED_BUILD)/genhdr.
+EMBED_BUILD := $(OUT_DIR)/build-embed
 
-# https://github.com/WebAssembly/wasi-sdk
+
 WASI_SDK ?= $(firstword $(wildcard $(WASI_SDK_PATH) ./wasi-sdk-*))
-WASI_TARGET ?= wasm32-wasip1
 
 ifeq ($(wildcard $(WASI_SDK)/bin/clang),)
-$(error No wasi-sdk found. Set WASI_SDK_PATH=/path/to/wasi-sdk, or unpack a \
-release next to this Makefile. wasi-sdk 25 or newer is required.)
+$(error No wasi-sdk found. Set WASI_SDK_PATH=/path/to/wasi-sdk, or unpack a release next to this Makefile.)
 endif
 
-CC = $(WASI_SDK)/bin/clang --target=$(WASI_TARGET)
-LD = $(CC)
-AR = $(WASI_SDK)/bin/llvm-ar
-SIZE = $(WASI_SDK)/bin/llvm-size
-STRIP = $(WASI_SDK)/bin/llvm-strip
+CC := $(WASI_SDK)/bin/clang
 
-include $(TOP)/py/py.mk
+WASM_OPT ?= $(if $(BINARYEN_PATH),\
+	$(BINARYEN_PATH)/bin/wasm-opt,\
+	$(if $(wildcard /opt/homebrew/opt/binaryen/bin/wasm-opt),\
+		/opt/homebrew/opt/binaryen/bin/wasm-opt,\
+		wasm-opt))
 
-# py.mk names mpconfigport.h as a bare prerequisite.
-vpath %.h build
+MINIMAL_WASM := $(OUT_DIR)/guest.wasm
+LINKED_WASM  := $(OUT_DIR)/guest.linked.wasm
+GO_OUT       := internal/micropython/micropython.go
 
-# build/ first: its setjmp.h has to shadow wasi-libc's, which refuses to
-# compile without exception handling.
-INC += -Ibuild
-INC += -I$(TOP)
-INC += -I$(BUILD)
+BUILD_SRCS := \
+	$(BUILD_DIR)/guest.c \
+	$(BUILD_DIR)/types.c \
+	$(BUILD_DIR)/wasm_sjlj.c
 
-# wasm-ld's 64k default is not enough for the parser and compiler, which
-# recurse on nested expressions.
-WASM_STACK_SIZE ?= 1048576
+EMBED_SRCS := \
+	$(wildcard $(MPY_DIR)/py/*.c) \
+	$(wildcard $(EMBED_PORT)/port/*.c) \
+	$(MPY_DIR)/extmod/modjson.c \
+	$(MPY_DIR)/extmod/modre.c
 
-# Not bounded by WASM_STACK_SIZE: every Python frame also costs a host stack
-# frame in an invoke_* trampoline, and the host runs out first. ~274 bytes per
-# frame with SPILL_POINTERS=1, so this allows a recursion depth of about 359.
-# Needs `make clean` to take effect -- the build does not track CFLAGS.
-MICROPY_C_STACK_SIZE ?= 98304
+SRCS := $(BUILD_SRCS) $(EMBED_SRCS)
+OBJS := $(SRCS:%.c=$(OUT_DIR)/%.o)
+DEPS := $(OBJS:.o=.d)
 
-MICROPY_HEAP_SIZE ?= 2097152
+CFLAGS := \
+	-target wasm32-wasip1 \
+	-Os \
+	-I$(BUILD_DIR) \
+	-I$(EMBED_BUILD) \
+	-I$(MPY_DIR) \
+	-I$(EMBED_PORT) \
+	-I$(EMBED_PORT)/port \
+	-Wall \
+	-fno-common \
+	-mllvm \
+	-enable-emscripten-sjlj
 
-CFLAGS += $(INC) -Wall -Werror -Wdouble-promotion -Wfloat-conversion -std=gnu99 $(COPT)
-CFLAGS += -DMICROPY_HEAP_SIZE=$(MICROPY_HEAP_SIZE)
-CFLAGS += -DMICROPY_C_STACK_SIZE=$(MICROPY_C_STACK_SIZE)
+LDFLAGS := \
+	-target wasm32-wasip1 \
+	-nostartfiles \
+	-Wl,--no-entry \
+	-Wl,--export=malloc \
+	-Wl,--export=free \
+	-Wl,--import-undefined \
+	-Wl,--export-table \
+	-Wl,--export=__stack_pointer \
+	-Wl,-z,stack-size=1048576 \
+	-mexec-model=reactor
 
-# NLR needs setjmp/longjmp. wasi-libc's (-mllvm -wasm-enable-sjlj -lsetjmp)
-# requires the Wasm exception handling proposal; this lowering puts no
-# exception handling in the module and delegates the unwind to the host. See
-# build/wasm_sjlj.c.
-CFLAGS += -mllvm -enable-emscripten-sjlj
-
-# What wasm2go accepts, minus tail calls, whose behaviour it does not
-# guarantee. Must NOT include exception handling as its not handled.
-WASM_FEATURES ?= \
-	-mmutable-globals \
-	-mmultivalue \
-	-mnontrapping-fptoint \
-	-msign-ext \
-	-mreference-types \
-	-mbulk-memory \
-	-mextended-const
-
-CFLAGS += $(WASM_FEATURES)
-
-# Link-time only; clang rejects it as a compile flag.
-LDFLAGS += -mexec-model=reactor
-
-LDFLAGS += -Wl,--gc-sections
-# invoke_* and _emscripten_throw_longjmp come from the host and reach back in
-# through the indirect function table.
-LDFLAGS += -Wl,--import-undefined -Wl,--export-table
-# The host rewinds the shadow stack after an unwind.
-LDFLAGS += -Wl,--export=__stack_pointer
-# Shadow stack at the bottom of memory, so overflowing it traps rather than
-# silently corrupting the heap.
-LDFLAGS += -Wl,--stack-first -Wl,-z,stack-size=$(WASM_STACK_SIZE)
-
-CSUPEROPT = -Os
-
-ifeq ($(DEBUG), 1)
-CFLAGS += -O0 -g
-else
-CFLAGS += -Os -DNDEBUG
-CFLAGS += -fdata-sections -ffunction-sections
-endif
-
-LIBS =
-
-SRC_C = \
-	build/main.c \
-	build/wasm_api.c \
-	build/wasm_value.c \
-	build/wasm_build.c \
-	build/wasm_sjlj.c \
-
-# Just include json and re packages.
-SRC_C += \
-	micropython/extmod/modjson.c \
-	micropython/extmod/modre.c \
-
-SRC_QSTR += build/wasm_api.c build/wasm_build.c
-SRC_QSTR += micropython/extmod/modjson.c micropython/extmod/modre.c
-
-OBJ += $(PY_CORE_O)
-OBJ += $(addprefix $(BUILD)/, $(SRC_C:.c=.o))
-
-# Forces pointer-typed Wasm locals into the shadow stack, where gc_collect()'s
-# conservative scan can see them. Without it the GC eventually frees a live
-# object held only in a Wasm local, surfacing much later as a null indirect
-# call. SPILL_POINTERS=0 exists only to measure the difference.
-SPILL_POINTERS ?= 1
-WASM_OPT ?= $(if $(BINARYEN_PATH),$(BINARYEN_PATH)/bin/wasm-opt,wasm-opt)
-WASM_OPT_FEATURES = \
+WASM_OPT_FEATURES := \
 	--enable-mutable-globals \
 	--enable-multivalue \
 	--enable-nontrapping-float-to-int \
@@ -142,32 +94,52 @@ WASM_OPT_FEATURES = \
 	--enable-bulk-memory \
 	--enable-extended-const
 
-all: $(BUILD)/micropython.wasm
+.PHONY: all wasm2go test clean generate-embed
 
-# minifies... 	
-$(BUILD)/micropython.linked.wasm: $(OBJ)
-	$(Q)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
+all: wasm2go
 
-ifeq ($(SPILL_POINTERS), 1)
-$(BUILD)/micropython.wasm: $(BUILD)/micropython.linked.wasm
-	$(Q)$(WASM_OPT) --spill-pointers $(WASM_OPT_FEATURES) -o $@ $<
-	$(Q)ls -l $@
-else
-$(BUILD)/micropython.wasm: $(BUILD)/micropython.linked.wasm
-	$(Q)cp $< $@
-	$(Q)ls -l $@
-endif
-
-GO_OUT = internal/micropython/micropython.go
-
-.PHONY: wasm2go test
 wasm2go: $(GO_OUT)
 
-$(GO_OUT): $(BUILD)/micropython.wasm
-	$(Q)go tool wasm2go -embed -pkg micropython -unsafe -o $@ $<
+# Prevents re-trigger this on every build.
+GENHDR_STAMP := $(EMBED_BUILD)/.genhdr.stamp
+
+$(GENHDR_STAMP): $(SRCS) $(wildcard $(BUILD_DIR)/*.h) $(BUILD_DIR)/micropython_embed.mk
+	$(Q)$(MAKE) \
+		-C $(BUILD_DIR) \
+		-f micropython_embed.mk \
+		MICROPYTHON_TOP=../$(MPY_DIR) \
+		BUILD=../$(EMBED_BUILD) \
+		genhdr
+	$(Q)mkdir -p $(dir $@)
+	$(Q)touch $@
+
+generate-embed: $(GENHDR_STAMP)
+
+$(OBJS): | $(GENHDR_STAMP)
+
+$(OUT_DIR)/%.o: %.c
+	$(Q)mkdir -p $(dir $@)
+	$(Q)$(CC) $(CFLAGS) -MMD -MP -c $< -o $@
+
+$(LINKED_WASM): $(OBJS)
+	$(Q)mkdir -p $(dir $@)
+	$(Q)$(CC) -target wasm32-wasip1 -o $@ $^ $(LDFLAGS)
+
+$(MINIMAL_WASM): $(LINKED_WASM)
+	$(Q)$(WASM_OPT) \
+		--spill-pointers \
+		$(WASM_OPT_FEATURES) \
+		-o $@ \
+		$<
+
+$(GO_OUT): $(MINIMAL_WASM)
+	$(Q)go tool wasm2go -embed -unsafe -o $@ $<
 	$(Q)gofmt -w $@
 
-test: $(GO_OUT)
+test: wasm2go
 	$(Q)go test ./...
 
-include $(TOP)/py/mkrules.mk
+clean:
+	$(Q)rm -rf $(OUT_DIR)
+
+-include $(DEPS)

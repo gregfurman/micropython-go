@@ -303,7 +303,14 @@ func ExampleInstance() {
 	}
 	defer in.Close()
 
-	if _, err := in.Exec(ctx, "total = 0\ndef add(n):\n    global total\n    total += n\n    return total\n"); err != nil {
+	if _, err := in.Exec(ctx, `
+total = 0
+
+def add(n):
+    global total
+    total += n
+    return total
+`); err != nil {
 		log.Fatal(err)
 	}
 
@@ -350,4 +357,92 @@ func ExampleInstance_Exec() {
 	// line 0
 	// line 1
 	// line 2
+}
+
+// DefineFunction lets Python call back into Go. The binding is part of the
+// interpreter's state, so it stays available to everything that runs after it.
+func ExampleInstance_DefineFunction() {
+	ctx := context.Background()
+
+	in, err := micropython.NewInstance(ctx)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer in.Close()
+
+	rates := map[string]float64{"EUR": 1.09, "GBP": 1.27}
+
+	// Arguments arrive as native Go values; the result is converted back.
+	err = in.DefineFunction(ctx, "usd", func(args []any) (any, error) {
+		code, ok := args[0].(string)
+		if !ok {
+			return nil, fmt.Errorf("usd: want a currency code, got %T", args[0])
+		}
+		rate, ok := rates[code]
+		if !ok {
+			return nil, micropython.Raise("KeyError", code)
+		}
+		return rate * float64(args[1].(int64)), nil
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	out, err := in.Exec(ctx, `
+for code in ("EUR", "GBP", "JPY"):
+    try:
+        print(code, round(usd(code, 100), 2))
+    except KeyError as e:
+        print(code, "no rate for", e)
+`)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Print(out)
+
+	// Output:
+	// EUR 109.0
+	// GBP 127.0
+	// JPY no rate for JPY
+}
+
+// A host function that fails for a reason with no Python equivalent raises
+// HostError, so guest code can catch host-boundary failures on their own
+// without also catching the interpreter's errors.
+func ExampleInstance_DefineFunction_error() {
+	ctx := context.Background()
+
+	in, err := micropython.NewInstance(ctx)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer in.Close()
+
+	if err := in.DefineFunction(ctx, "fetch", func([]any) (any, error) {
+		return nil, errors.New("connection refused")
+	}); err != nil {
+		log.Fatal(err)
+	}
+
+	// In Python, as HostError.
+	out, err := in.Exec(ctx, `
+try:
+    fetch()
+except HostError as e:
+    print("guest caught:", e)
+`)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Print(out)
+
+	// In Go, as an ordinary error carrying the same text.
+	var exc *micropython.PythonError
+	if _, err := in.Eval(ctx, "fetch()"); errors.As(err, &exc) {
+		fmt.Printf("host saw: %s / %s\n", exc.Type(), exc.Message())
+	}
+
+	// Output:
+	// guest caught: connection refused
+	// host saw: HostError / connection refused
 }

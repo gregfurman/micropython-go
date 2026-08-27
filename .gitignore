@@ -12,5 +12,6 @@ wasi-sdk-*/
 
 _obj
 
-build/minimal/build-embed/
-build/minimal/micropython_embed
+build/build-embed/
+build/micropython_embed
+build/genhdr
