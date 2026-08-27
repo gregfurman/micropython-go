@@ -94,9 +94,17 @@ WASM_OPT_FEATURES := \
 	--enable-bulk-memory \
 	--enable-extended-const
 
-.PHONY: all wasm2go test clean generate-embed
+.PHONY: all wasm2go test clean generate-embed sync
 
 all: wasm2go
+
+micropython/py/mkenv.mk:
+	git submodule sync --quiet -- micropython
+	git submodule update --init --depth 1 -- micropython
+
+sync:
+	git submodule sync --quiet -- micropython
+	git submodule update --init --depth 1 -- micropython
 
 wasm2go: $(GO_OUT)
 

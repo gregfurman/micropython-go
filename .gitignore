@@ -1,4 +1,5 @@
-# Build output.  The C sources live in build/, which is tracked.
+# Build output. The C sources live in build/, which is tracked; everything
+# generated now lands in out/, including the embed package and genhdr.
 out/
 
 # Unpack a wasi-sdk release here, or set WASI_SDK_PATH.
@@ -7,11 +8,7 @@ wasi-sdk-*/
 .claude
 .vscode
 
+# Stray object files. The build's own objects are already under out/, but
+# cgo -godefs leaves these behind when regenerating internal/host/abi.
 *.o
-*.wasm
-
-_obj
-
-build/build-embed/
-build/micropython_embed
-build/genhdr
+_obj/
