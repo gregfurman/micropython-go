@@ -12,3 +12,5 @@ wasi-sdk-*/
 # cgo -godefs leaves these behind when regenerating internal/host/abi.
 *.o
 _obj/
+
+.DS_Store
