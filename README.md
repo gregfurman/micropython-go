@@ -224,11 +224,10 @@ Functionally, this implementation differs due to:
 - **Stack depth:** recursion is bounded by the host C stack to roughly 340-385 Python frames, depending on how many arguments and locals each frame carries. Overflowing raises `RuntimeError` and leaves the interpreter usable. The limit is `MICROPY_C_STACK_SIZE` in `build/mpconfigport.h`, set to 96 KiB.
 - **Structs via JSON:** scalars, maps, and slices use direct values; custom Go structs go through `encoding/json`. Prefer maps on hot paths.
 
-## LLM/AI disclosure
-
-Since I'm unfamiliar with C and the `clang` ecosystem, Claude Opus 5 on High Effort was used to assist. If anyone can see obvious issues (be idiomatic or some other scarier problem), contributions would be welcome!
 
 ## Contributing
+
+Contributions are welcome, especially on the C and build tooling. Since I work primarily in Go, and those parts were written with AI assistance.
 
 Changing the C sources or build configuration means recompiling the WebAssembly module. The embedded MicroPython sources are `v1.28.0`. You need [wasi-sdk](https://github.com/WebAssembly/wasi-sdk) 25+ and [Binaryen](https://github.com/WebAssembly/binaryen), which makes the generated Go module safe for the garbage collector.
 
