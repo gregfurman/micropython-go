@@ -1,8 +1,15 @@
 # Embedded MicroPython Environment For Go
 
+[![Go Reference](https://pkg.go.dev/badge/github.com/gregfurman/micropython-go.svg)](https://pkg.go.dev/github.com/gregfurman/yourrepo)
+
+<p align="center">
+  <img src="./logo.png" alt="If you're hovering over this it's already too late" width="200">
+</p>
+
+
 `micropython-go` is a `cgo`-free embeddable interpreter for [MicroPython](https://github.com/micropython/micropython).
 
-It uses a custom [`WASM`](https://webassembly.org/) build of MicroPython, transpiled to native Go code using [wasm2go](https://github.com/ncruces/wasm2go).
+It uses a custom [WASM](https://webassembly.org/) build of MicroPython, transpiled to native Go code using [wasm2go](https://github.com/ncruces/wasm2go).
 
 > [!IMPORTANT]
 > This project is still experimental and until a tagged (and stable) version is released, both the public API and internal modules are subject to breaking changes.
