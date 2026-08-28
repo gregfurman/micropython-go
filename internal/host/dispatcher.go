@@ -10,6 +10,8 @@ import (
 	"github.com/gregfurman/micropython-go/internal/host/memory"
 )
 
+// TODO: this should probably be folded into the Module approach
+
 type dispatcher struct {
 	mem   *memory.Memory
 	codec *codec.Codec

@@ -25,7 +25,9 @@ func (e *Env) Xhost_stdout(ptr, n int32) {
 	e.host.Stdout(ptr, n)
 }
 
-func (e *Env) Xhost_poll() int32 { return e.host.Poll() }
+func (e *Env) Xhost_poll() int32 {
+	return e.host.Poll()
+}
 
 // longjmp is the panic value used for a module-initiated unwind. Anything else
 // panicking through an invoke_* is a genuine failure and is re-panicked.

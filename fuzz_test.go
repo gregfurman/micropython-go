@@ -152,7 +152,7 @@ func FuzzProgram(f *testing.F) {
 	f.Add("", "f", []byte{})
 
 	f.Fuzz(func(t *testing.T, src, name string, seed []byte) {
-		p, err := Compile(context.Background(), src)
+		p, err := CompileSource(context.Background(), src)
 		if err != nil {
 			// Source that does not load is an ordinary answer, not a crash.
 			return
@@ -182,10 +182,10 @@ func FuzzProgram(f *testing.F) {
 			t.Skip("guest did not return")
 		}
 		if err != nil {
-			t.Fatalf("Program unusable after Compile(%q)+Call(%q): %v", src, name, err)
+			t.Fatalf("Program unusable after CompileSource(%q)+Call(%q): %v", src, name, err)
 		}
 		if got != int64(4) {
-			t.Fatalf("Program wrong after Compile(%q)+Call(%q): len('abcd') = %#v", src, name, got)
+			t.Fatalf("Program wrong after CompileSource(%q)+Call(%q): len('abcd') = %#v", src, name, got)
 		}
 	})
 }

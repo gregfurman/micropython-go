@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -50,7 +51,7 @@ def double(n):
 
 func newProgram(t *testing.T) *Program {
 	t.Helper()
-	p, err := Compile(t.Context(), handlerSrc)
+	p, err := CompileSource(t.Context(), handlerSrc)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -124,7 +125,7 @@ func TestProgramConcurrent(t *testing.T) {
 }
 
 func TestProgramClose(t *testing.T) {
-	p, err := Compile(t.Context(), handlerSrc)
+	p, err := CompileSource(t.Context(), handlerSrc)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -137,7 +138,7 @@ func TestProgramClose(t *testing.T) {
 }
 
 func TestPoolBounded(t *testing.T) {
-	p, err := Compile(t.Context(), "def f(n):\n    return n\n", WithPoolSize(12))
+	p, err := CompileSource(t.Context(), "def f(n):\n    return n\n", WithPoolSize(12))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -175,7 +176,7 @@ func TestPoolBounded(t *testing.T) {
 }
 
 func TestProgramCallsDoNotLeakState(t *testing.T) {
-	p, err := Compile(t.Context(), `
+	p, err := CompileSource(t.Context(), `
 counter = 0
 
 def bump():
@@ -223,7 +224,7 @@ func TestProgramsAreIndependent(t *testing.T) {
 
 	programs := make([]*Program, n)
 	for i := range programs {
-		p, err := Compile(t.Context(), fmt.Sprintf(counterSrc, fmt.Sprintf("p%d", i)))
+		p, err := CompileSource(t.Context(), fmt.Sprintf(counterSrc, fmt.Sprintf("p%d", i)))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -252,11 +253,11 @@ func TestProgramsAreIndependent(t *testing.T) {
 }
 
 func TestProgramCloseIsLocal(t *testing.T) {
-	a, err := Compile(t.Context(), fmt.Sprintf(counterSrc, "a"))
+	a, err := CompileSource(t.Context(), fmt.Sprintf(counterSrc, "a"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	b, err := Compile(t.Context(), fmt.Sprintf(counterSrc, "b"))
+	b, err := CompileSource(t.Context(), fmt.Sprintf(counterSrc, "b"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -282,7 +283,7 @@ func TestProgramsConcurrentAcrossPrograms(t *testing.T) {
 	errs := make(chan error, programs*goroutines)
 
 	for i := range programs {
-		p, err := Compile(t.Context(), fmt.Sprintf(counterSrc, fmt.Sprintf("p%d", i)))
+		p, err := CompileSource(t.Context(), fmt.Sprintf(counterSrc, fmt.Sprintf("p%d", i)))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -316,7 +317,7 @@ func TestProgramsConcurrentAcrossPrograms(t *testing.T) {
 }
 
 func TestProgramRepeatedCalls(t *testing.T) {
-	p, err := Compile(t.Context(), fmt.Sprintf(counterSrc, "x"))
+	p, err := CompileSource(t.Context(), fmt.Sprintf(counterSrc, "x"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -334,7 +335,7 @@ func TestProgramRepeatedCalls(t *testing.T) {
 }
 
 func TestProgramRealisticHandler(t *testing.T) {
-	p, err := Compile(t.Context(), `
+	p, err := CompileSource(t.Context(), `
 import json
 import re
 
@@ -403,13 +404,13 @@ func TestCompileRejects(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p, err := Compile(t.Context(), tt.src)
+			p, err := CompileSource(t.Context(), tt.src)
 			if err == nil {
 				p.Close()
 				t.Fatalf("Compile accepted %q", tt.src)
 			}
 			if !strings.Contains(err.Error(), tt.want) {
-				t.Errorf("Compile(%q) = %v, want it to mention %s", tt.src, err, tt.want)
+				t.Errorf("CompileSource(%q) = %v, want it to mention %s", tt.src, err, tt.want)
 			}
 		})
 	}
@@ -417,7 +418,7 @@ func TestCompileRejects(t *testing.T) {
 
 func spinner(t *testing.T) *Program {
 	t.Helper()
-	p, err := Compile(context.Background(), spinSrc)
+	p, err := CompileSource(context.Background(), spinSrc)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -484,7 +485,7 @@ func TestCancelIsNotSwallowedByBareExcept(t *testing.T) {
 }
 
 func TestCancelIsPerCall(t *testing.T) {
-	p, err := Compile(context.Background(), `
+	p, err := CompileSource(context.Background(), `
 def work(n):
     total = 0
     for i in range(n):
@@ -521,5 +522,155 @@ def spin():
 		}
 	case <-time.After(30 * time.Second):
 		t.Fatal("the long call never finished")
+	}
+}
+
+func TestProgramHostFunc(t *testing.T) {
+	ctx := context.Background()
+
+	rates := map[string]float64{"EUR": 1.09, "GBP": 1.27}
+
+	var calls atomic.Int64
+	usd := func(args []any) (any, error) {
+		calls.Add(1)
+		code := args[0].(string)
+		rate, ok := rates[code]
+		if !ok {
+			return nil, Raise("KeyError", code)
+		}
+		return rate * float64(args[1].(int64)), nil
+	}
+
+	// The pool holds one idle instance, so concurrent calls have to restore
+	// fresh ones from the snapshot. That is the path the binding must survive.
+	p, err := CompileSource(ctx, `
+def convert(code, amount):
+    return round(usd(code, amount), 2)
+`,
+		WithHostFunc("usd", usd),
+		WithPoolSize(5),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer p.Close()
+
+	got, err := p.Call(ctx, "convert", "EUR", 100)
+	if err != nil {
+		t.Fatalf("convert: %v", err)
+	}
+	if got != 109.0 {
+		t.Fatalf("got %v, want 109.0", got)
+	}
+
+	const n = 16
+	var wg sync.WaitGroup
+	errs := make([]error, n)
+	for i := range n {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			v, err := p.Call(ctx, "convert", "GBP", 10)
+			if err != nil {
+				errs[i] = err
+				return
+			}
+			if v != 12.7 {
+				errs[i] = fmt.Errorf("got %v, want 12.7", v)
+			}
+		}()
+	}
+	wg.Wait()
+
+	for i, err := range errs {
+		if err != nil {
+			t.Errorf("call %d: %v", i, err)
+		}
+	}
+
+	if want := int64(n + 1); calls.Load() != want {
+		t.Errorf("host function ran %d times, want %d", calls.Load(), want)
+	}
+}
+
+func TestProgramHostFuncAtModuleLevel(t *testing.T) {
+	ctx := context.Background()
+
+	var calls atomic.Int64
+	p, err := CompileSource(ctx, `
+LIMIT = fetch_limit()
+
+def within(n):
+    return n <= LIMIT
+`,
+		WithHostFunc("fetch_limit", func([]any) (any, error) {
+			calls.Add(1)
+			return 5, nil
+		}),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer p.Close()
+
+	for _, tc := range []struct {
+		n    int
+		want bool
+	}{{3, true}, {5, true}, {6, false}} {
+		got, err := p.Call(ctx, "within", tc.n)
+		if err != nil {
+			t.Fatalf("within(%d): %v", tc.n, err)
+		}
+		if got != tc.want {
+			t.Errorf("within(%d) = %v, want %v", tc.n, got, tc.want)
+		}
+	}
+
+	if calls.Load() != 1 {
+		t.Errorf("fetch_limit ran %d times, want 1 (it should be in the snapshot)", calls.Load())
+	}
+}
+
+func TestProgramHostFuncError(t *testing.T) {
+	ctx := context.Background()
+
+	p, err := CompileSource(ctx, `
+def lookup(code):
+    try:
+        return rate(code)
+    except KeyError:
+        return None
+`,
+		WithHostFunc("rate", func(args []any) (any, error) {
+			return nil, Raise("KeyError", args[0].(string))
+		}),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer p.Close()
+
+	got, err := p.Call(ctx, "lookup", "ZAR")
+	if err != nil {
+		t.Fatalf("lookup: %v", err)
+	}
+	if got != nil {
+		t.Fatalf("got %v, want nil", got)
+	}
+
+	if _, err := p.Call(ctx, "rate", "ZAR"); err == nil {
+		t.Fatal("want an error")
+	} else {
+		var exc *PythonError
+		if !errors.As(err, &exc) {
+			t.Fatalf("want *PythonError, got %T", err)
+		}
+		if exc.Type() != "KeyError" {
+			t.Errorf("got %s, want KeyError", exc.Type())
+		}
+	}
+
+	if _, err := p.Call(ctx, "lookup", "ZAR"); err != nil {
+		t.Fatalf("after error: %v", err)
 	}
 }

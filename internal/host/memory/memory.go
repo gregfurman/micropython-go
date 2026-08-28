@@ -132,3 +132,21 @@ func (m *Memory) WriteBytes(b []byte) (int32, func(), error) {
 func (m *Memory) WriteString(s string) (int32, func(), error) {
 	return m.WriteBytes([]byte(s))
 }
+
+// Encodes two natural (i.e non-negative) numbers as a single natural number.
+// Requires that k1 > k2 (i.e monontonic). See Cantor pairing https://en.wikipedia.org/wiki/Pairing_function.
+func Encode(k1, k2 uint64) uint64 {
+	// NOTE: if it turns out this is spitting out numbers that're too big, consider using
+	// http://szudzik.com/ElegantPairing.pdf
+	return ((k1+k2)*(k1+k2+1) + k2) / 2
+}
+
+// Decode gives us the original k1 and k2 values from the encoded value z.
+// Note, that this is the inverse of the original Cantor pairing algorithm.
+func Decode(z uint64) (k1, k2 uint64) {
+	w := uint64(math.Floor((math.Sqrt(float64(8*z+1)) - 1) / 2))
+	t := ((w * w) + w) / 2
+	k2 = z - t
+	k1 = w - k2
+	return
+}

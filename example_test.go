@@ -18,7 +18,7 @@ import (
 func Example() {
 	ctx := context.Background()
 
-	p, err := micropython.Compile(ctx, `
+	p, err := micropython.CompileSource(ctx, `
 def score(row):
     total = row["a"] * 2 + row["b"]
     return {"id": row["id"], "score": total, "ok": total > 10}
@@ -45,7 +45,7 @@ def score(row):
 func ExampleValue() {
 	ctx := context.Background()
 
-	p, err := micropython.Compile(ctx, "def kind(v):\n    return type(v).__name__\n")
+	p, err := micropython.CompileSource(ctx, "def kind(v):\n    return type(v).__name__\n")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -85,7 +85,7 @@ func ExampleValue() {
 func ExampleOf() {
 	ctx := context.Background()
 
-	p, err := micropython.Compile(ctx, "def kind(v):\n    return type(v).__name__\n")
+	p, err := micropython.CompileSource(ctx, "def kind(v):\n    return type(v).__name__\n")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -125,7 +125,7 @@ func ExampleOf() {
 func ExampleWithGlobals() {
 	ctx := context.Background()
 
-	p, err := micropython.Compile(ctx, `
+	p, err := micropython.CompileSource(ctx, `
 def describe():
     return "%s allows %d retries" % (NAME, LIMITS["retries"])
 `, micropython.WithGlobals(micropython.Globals{
@@ -152,7 +152,7 @@ def describe():
 func ExampleProgram_Call_error() {
 	ctx := context.Background()
 
-	p, err := micropython.Compile(ctx, `
+	p, err := micropython.CompileSource(ctx, `
 def lookup(key):
     return {"a": 1}[key]
 `)
@@ -186,7 +186,7 @@ def lookup(key):
 func ExampleException() {
 	ctx := context.Background()
 
-	p, err := micropython.Compile(ctx, `
+	p, err := micropython.CompileSource(ctx, `
 def run():
     try:
         raise BAD
@@ -216,7 +216,7 @@ def run():
 func ExampleProgram_Call_concurrent() {
 	ctx := context.Background()
 
-	p, err := micropython.Compile(ctx, `
+	p, err := micropython.CompileSource(ctx, `
 _seen = 0
 
 def visit(n):
@@ -260,7 +260,7 @@ def visit(n):
 // A runaway guest stops when the context does. There is no scheduler inside
 // the module, so this is what bounds a call.
 func ExampleProgram_Call_cancellation() {
-	p, err := micropython.Compile(context.Background(), `
+	p, err := micropython.CompileSource(context.Background(), `
 def spin():
     while True:
         pass

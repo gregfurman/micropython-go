@@ -14,27 +14,29 @@ import (
 
 const (
 	maxHostArgs     = 8 // TODO: investigate + potentially autogen with cgo def gen
-	defaultHeapSize = 2 * 1024 * 1024
 	wasmPageSize    = 64 * 1024
 	maxMemoryPages  = 65536
+	defaultHeapSize = 2 * wasmPageSize // give 128KB to start
 )
 
-type Instance struct {
-	mod   *wasi.Module
-	mem   *memory.Memory
+type Module struct {
+	mod *wasi.Module
+	mem *memory.Memory
+
 	codec *codec.Codec
 	disp  *dispatcher
-	out   bytes.Buffer
+
+	out bytes.Buffer
 
 	scratch int32
 }
 
-func NewInstance(size uint) (*Instance, error) {
+func NewModule(size uint) (*Module, error) {
 	if size == 0 {
 		size = defaultHeapSize
 	}
 
-	i := newInstance()
+	i := newModule()
 	if i.mod.Xinit_vm(int32(size), int32(maxHostArgs)) != 0 {
 		return nil, memory.ErrGuestOOM
 	}
@@ -44,8 +46,8 @@ func NewInstance(size uint) (*Instance, error) {
 	return i, nil
 }
 
-func newInstance() *Instance {
-	i := &Instance{}
+func newModule() *Module {
+	i := &Module{}
 	d := &dispatcher{registry: make(map[int32]HostFunc), out: os.Stdout}
 
 	i.mod = wasi.New(NewEnv(d), &WasiStub{})
@@ -59,28 +61,34 @@ func newInstance() *Instance {
 	return i
 }
 
-func (i *Instance) Invoke(funcID, argsPtr, numArgs, outPtr int32) {
+func (i *Module) Invoke(funcID, argsPtr, numArgs, outPtr int32) {
 	i.disp.Invoke(funcID, argsPtr, numArgs, outPtr)
 }
-func (i *Instance) Stdout(ptr, n int32) {
+func (i *Module) Stdout(ptr, n int32) {
 	if b, err := i.mem.View(ptr, n); err == nil {
 		_, _ = i.disp.out.Write(b)
 	}
 }
 
-func (i *Instance) Poll() int32 { return i.disp.Poll() }
+func (i *Module) Poll() int32 {
+	return i.disp.Poll()
+}
 
-func (i *Instance) Begin() { i.disp.cancelled.Store(false) }
+func (i *Module) Begin() {
+	i.disp.cancelled.Store(false)
+}
 
-func (i *Instance) Cancel() { i.disp.cancelled.Store(true) }
+func (i *Module) Cancel() {
+	i.disp.cancelled.Store(true)
+}
 
 // Decode converts a raw mp_obj_t word into a native Go value.
-func (i *Instance) Decode(objPtr int32) (any, error) {
+func (i *Module) Decode(objPtr int32) (any, error) {
 	i.mod.Xobj_to_value(objPtr, i.scratch)
 	return i.codec.Consume(i.scratch)
 }
 
-func (i *Instance) Eval(code string) (any, error) {
+func (i *Module) Eval(code string) (any, error) {
 	i.out.Reset()
 	ptr, free, err := i.mem.WriteString(code)
 	if err != nil {
@@ -92,7 +100,7 @@ func (i *Instance) Eval(code string) (any, error) {
 	return i.codec.Consume(i.scratch)
 }
 
-func (i *Instance) Exec(code string) (string, error) {
+func (i *Module) Exec(code string) (string, error) {
 	i.out.Reset()
 	ptr, free, err := i.mem.WriteString(code)
 	if err != nil {
@@ -106,11 +114,11 @@ func (i *Instance) Exec(code string) (string, error) {
 	return out, err
 }
 
-func (i *Instance) Output() string {
+func (i *Module) Output() string {
 	return i.out.String()
 }
 
-func (i *Instance) Call(name string, args []any) (any, error) {
+func (i *Module) Call(name string, args []any) (any, error) {
 	i.out.Reset()
 	namePtr, freeName, err := i.mem.WriteString(name)
 	if err != nil {
@@ -148,7 +156,7 @@ func (i *Instance) Call(name string, args []any) (any, error) {
 	return i.codec.Consume(i.scratch)
 }
 
-func (i *Instance) Set(name string, value any) error {
+func (i *Module) Set(name string, value any) error {
 	namePtr, freeName, err := i.mem.WriteString(name)
 	if err != nil {
 		return err
@@ -167,18 +175,7 @@ func (i *Instance) Set(name string, value any) error {
 	return err
 }
 
-type Snapshot struct {
-	memory  []byte
-	stack   int32
-	scratch int32
-
-	// Guest memory holds host functions as ids, so the registry that resolves
-	// them is part of the state a snapshot has to capture.
-	registry map[int32]HostFunc
-	counter  int32
-}
-
-func (i *Instance) Snapshot() *Snapshot {
+func (i *Module) Snapshot() *Snapshot {
 	return &Snapshot{
 		memory:   bytes.Clone(*i.mod.Xmemory().Slice()),
 		stack:    *i.mod.X__stack_pointer(),
@@ -188,23 +185,7 @@ func (i *Instance) Snapshot() *Snapshot {
 	}
 }
 
-func (s *Snapshot) Restore() (*Instance, error) {
-	i := newInstance()
-	mem := i.mod.Xmemory()
-	if grow := len(s.memory) - len(*mem.Slice()); grow > 0 {
-		pages := int64((grow + wasmPageSize - 1) / wasmPageSize)
-		if mem.Grow(pages, maxMemoryPages) < 0 {
-			return nil, fmt.Errorf("cannot grow memory to %d bytes", len(s.memory))
-		}
-	}
-	copy(*mem.Slice(), s.memory)
-	*i.mod.X__stack_pointer() = s.stack
-	i.scratch = s.scratch
-	i.disp.restore(s.registry, s.counter)
-	return i, nil
-}
-
-func (i *Instance) Restore(s *Snapshot) error {
+func (i *Module) Restore(s *Snapshot) error {
 	mem := i.mod.Xmemory()
 	if grow := len(s.memory) - len(*mem.Slice()); grow > 0 {
 		pages := int64((grow + wasmPageSize - 1) / wasmPageSize)
@@ -223,7 +204,7 @@ func (i *Instance) Restore(s *Snapshot) error {
 
 type HostFunc func(args []any) (any, error)
 
-func (i *Instance) DefineFunction(name string, fn HostFunc) error {
+func (i *Module) DefineFunction(name string, fn HostFunc) error {
 	if fn == nil {
 		return errors.New("nil host func")
 	}

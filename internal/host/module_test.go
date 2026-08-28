@@ -12,7 +12,6 @@ import (
 	"github.com/gregfurman/micropython-go/internal/value"
 )
 
-// recordRaisedClass leaves the class name of whatever f() raises in seen.
 const recordRaisedClass = `
 try:
     f()
@@ -20,9 +19,9 @@ except Exception as e:
     seen = type(e).__name__
 `
 
-func newT(t *testing.T) *Instance {
+func newT(t *testing.T) *Module {
 	t.Helper()
-	inst, err := NewInstance(0)
+	inst, err := NewModule(0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -30,7 +29,7 @@ func newT(t *testing.T) *Instance {
 }
 
 // define registers fn and fails the test if the guest rejects it.
-func define(t *testing.T, inst *Instance, name string, fn HostFunc) {
+func define(t *testing.T, inst *Module, name string, fn HostFunc) {
 	t.Helper()
 	if err := inst.DefineFunction(name, fn); err != nil {
 		t.Fatalf("DefineFunction(%q): %v", name, err)
@@ -38,7 +37,7 @@ func define(t *testing.T, inst *Instance, name string, fn HostFunc) {
 }
 
 // eval evaluates expr and fails the test if the guest raises.
-func eval(t *testing.T, inst *Instance, expr string) any {
+func eval(t *testing.T, inst *Module, expr string) any {
 	t.Helper()
 	got, err := inst.Eval(expr)
 	if err != nil {
@@ -47,9 +46,6 @@ func eval(t *testing.T, inst *Instance, expr string) any {
 	return got
 }
 
-// TestKindsMatchGuest pins the Go-side Kind constants to the guest's enum. A
-// mismatch here means every decoded value is misinterpreted, so it is checked
-// before anything else.
 func TestKindsMatchGuest(t *testing.T) {
 	want := []codec.Kind{
 		codec.KindException, codec.KindNull, codec.KindNone, codec.KindBool,
@@ -138,10 +134,6 @@ func TestHostFunc(t *testing.T) {
 	}
 }
 
-// TestHostFuncErrors pins how a failing host function surfaces in Python. An
-// error the host cannot classify becomes HostError rather than a builtin, so
-// guest code can catch host-boundary failures without swallowing the
-// interpreter's own errors.
 func TestHostFuncErrors(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -243,9 +235,6 @@ func TestHostFuncSurvivesSnapshotRestore(t *testing.T) {
 	})
 }
 
-// TestValuesRoundTrip covers all three directions a value can travel: returned
-// from a host function, passed into one as an argument, and produced by the
-// guest on its own.
 func TestValuesRoundTrip(t *testing.T) {
 	inst := newT(t)
 

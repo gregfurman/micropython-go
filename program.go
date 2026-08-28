@@ -2,7 +2,6 @@ package micropython
 
 import (
 	"context"
-	"maps"
 	"runtime"
 	"slices"
 	"sync"
@@ -10,14 +9,16 @@ import (
 	"github.com/gregfurman/micropython-go/internal/api"
 )
 
-// Program represents a pre-compiled MicroPython script that is safe for
+// Program is a pool of pre-compiled MicroPython interpreters, safe for
 // concurrent use.
 //
-// When a Program is compiled, it executes the source code once and captures a
-// snapshot of the resulting interpreter state. This snapshot serves as a pristine
-// baseline for all future function calls.
+// Compile builds one interpreter, configures it with the given options, and
+// snapshots it. That snapshot is the baseline every later call starts from: a
+// call borrows an interpreter, runs, and the interpreter is rewound to the
+// snapshot before returning to the pool, so calls cannot see each other's
+// changes to Python state.
 //
-// To prevent memory leaks, Close must be called when the Program is no longer needed.
+// Close must be called when the Program is no longer needed.
 type Program struct {
 	snap *api.Snapshot
 
@@ -28,35 +29,24 @@ type Program struct {
 	closed bool
 }
 
-// Compile evaluates the provided Python source code and captures its initial state.
+// Compile builds an interpreter from opts and captures it as the Program's
+// starting state. Use CompileSource to run Python source as part of that state.
 //
-// The resulting Program manages an idle pool of interpreters sized by WithPoolSize
-// (which defaults to the number of logical CPUs via runtime.NumCPU).
-func Compile(ctx context.Context, src string, opts ...option) (*Program, error) {
+// WithPoolSize sets how many interpreters stay idle between calls, defaulting
+// to runtime.NumCPU; it is not a ceiling on how many exist at once.
+func Compile(ctx context.Context, opts ...ProgramOption) (*Program, error) {
 	// TODO(gregfurman): Consider catering for warm and cold starts
 	opt := newOptions(opts)
 	if opt.programPoolSize == 0 {
 		opt.programPoolSize = max(runtime.NumCPU(), 1)
 	}
 
-	in, err := api.New(opt.heapBytes)
+	in, err := newInstance(ctx, opt)
 	if err != nil {
 		return nil, err
 	}
 
-	for _, key := range slices.Sorted(maps.Keys(opt.globals)) {
-		if err := in.Set(ctx, key, opt.globals[key].val); err != nil {
-			in.Close()
-			return nil, err
-		}
-	}
-
-	if _, err := in.Exec(ctx, src); err != nil {
-		in.Close()
-		return nil, err
-	}
-
-	snap, err := in.Snapshot(ctx)
+	snap, err := in.wrapped.Snapshot(ctx)
 	if err != nil {
 		in.Close()
 		return nil, err
@@ -65,8 +55,14 @@ func Compile(ctx context.Context, src string, opts ...option) (*Program, error) 
 	return &Program{
 		snap:    snap,
 		maxIdle: opt.programPoolSize,
-		free:    []*Instance{{in: in}},
+		free:    []*Instance{in},
 	}, nil
+}
+
+// CompileSource runs src at module level and captures the result as the
+// Program's starting state. Shorthand for Compile with WithSourceScript.
+func CompileSource(ctx context.Context, src string, opts ...ProgramOption) (*Program, error) {
+	return Compile(ctx, append(slices.Clip(opts), WithSourceScript(src))...)
 }
 
 // Instance spawns a standalone Python interpreter initialized with the compiled
