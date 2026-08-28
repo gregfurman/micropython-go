@@ -99,7 +99,9 @@ The pool defaults to `runtime.NumCPU()`; set it with `WithPoolSize`.
 
 ### Heap size
 
-An interpreter costs its Python heap plus about 1.1 MiB of interpreter image, and nothing is shared between them: ten instances cost ten times one. The heap defaults to 128 KiB, so a single `Instance` is roughly 1.3 MiB. A `Program` also holds a snapshot and builds interpreters as concurrency demands them, up to `WithPoolSize`: about 2.5 MiB idle, and about 11 MiB after twelve calls have run in parallel.
+An interpreter costs its Python heap plus about `1.1 MiB` of interpreter image, and nothing is shared between them. The heap defaults to `128 KiB`, so a single `Instance` is roughly `1.3 MiB`. 
+
+A `Program` also holds a snapshot and builds interpreters as concurrency demands them, up to `WithPoolSize`: about 2.5 MiB idle, and about 11 MiB after twelve calls have run in parallel.
 
 Restoring a snapshot copies the heap, so smaller heaps also make isolated calls cheaper:
 
