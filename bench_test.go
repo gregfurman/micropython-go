@@ -61,6 +61,14 @@ func benchInstance(b *testing.B) *Instance {
 	return in
 }
 
+func BenchmarkInstanceAllocation(b *testing.B) {
+	b.ReportAllocs()
+	for b.Loop() {
+		in, _ := NewInstance(b.Context())
+		in.Close()
+	}
+}
+
 // --- startup ---------------------------------------------------------------
 
 // The three ways to get an interpreter with the source loaded, which is the

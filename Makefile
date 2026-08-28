@@ -82,7 +82,8 @@ LDFLAGS := \
 	-Wl,--import-undefined \
 	-Wl,--export-table \
 	-Wl,--export=__stack_pointer \
-	-Wl,-z,stack-size=1048576 \
+	-Wl,-z,stack-size=196608 \
+	-Wl,--initial-memory=393216 \
 	-mexec-model=reactor
 
 WASM_OPT_FEATURES := \
