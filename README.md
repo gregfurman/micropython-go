@@ -56,7 +56,9 @@ func main() {
 
 ## Instances
 
-An `Instance` is one long-running interpreter. State persists between evaluations, and calls are fast because nothing is rewound between them. It is not safe for concurrent use; for that, see `Program`.
+An `Instance` is one long-running interpreter. State persists between evaluations, and calls are fast because nothing is rewound between them.
+
+It is safe to call from several goroutines, but a single interpreter runs one call at a time, so concurrent calls queue rather than overlap. For parallelism, give each worker its own interpreter with `Clone`, or use a `Program`.
 
 ```go
 in, _ := micropython.NewInstance(ctx)
