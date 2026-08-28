@@ -54,14 +54,14 @@ func TestSupportedModules(t *testing.T) {
 		{"array", supported}, {"collections", supported}, {"gc", supported},
 		{"io", supported}, {"json", supported}, {"math", supported},
 		{"micropython", supported}, {"re", supported}, {"struct", supported},
-		{"sys", supported},
+		{"sys", supported}, {"time", supported},
 
 		{"asyncio", missingHere}, {"binascii", missingHere}, {"btree", missingHere},
 		{"cmath", missingHere}, {"deflate", missingHere}, {"errno", missingHere},
 		{"hashlib", missingHere}, {"heapq", missingHere}, {"machine", missingHere},
 		{"os", missingHere}, {"platform", missingHere}, {"random", missingHere},
 		{"select", missingHere}, {"socket", missingHere}, {"ssl", missingHere},
-		{"termios", missingHere}, {"time", missingHere}, {"uctypes", missingHere},
+		{"termios", missingHere}, {"uctypes", missingHere},
 		{"vfs", missingHere}, {"_thread", missingHere},
 
 		{"abc", missingBoth}, {"base64", missingBoth}, {"copy", missingBoth},
@@ -71,6 +71,8 @@ func TestSupportedModules(t *testing.T) {
 		{"pickle", missingBoth}, {"threading", missingBoth}, {"traceback", missingBoth},
 		{"typing", missingBoth}, {"unittest", missingBoth}, {"warnings", missingBoth},
 		{"weakref", missingBoth},
+
+		{"importlib", missingBoth}, // VERIFY THIS
 	}
 
 	for _, m := range modules {

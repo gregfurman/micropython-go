@@ -5,8 +5,10 @@ MICROPYTHON_TOP ?= ../micropython
 # their MP_QSTR_* and MP_REGISTER_ROOT_POINTER() uses make it into genhdr.
 # Must be set before embed.mk includes py.mk.
 SRC_QSTR += guest.c types.c
-SRC_QSTR += $(MICROPYTHON_TOP)/extmod/modjson.c
-SRC_QSTR += $(MICROPYTHON_TOP)/extmod/modre.c
+
+# EXTMOD_SRC_QSTR comes from the top-level Makefile's EXTMOD_SRCS so the two
+# lists cannot drift. A module missing here compiles but never registers.
+SRC_QSTR += $(EXTMOD_SRC_QSTR)
 
 include $(MICROPYTHON_TOP)/ports/embed/embed.mk
 

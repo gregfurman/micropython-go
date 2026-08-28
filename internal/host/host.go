@@ -1,6 +1,10 @@
 package host
 
-import wasi "github.com/gregfurman/micropython-go/internal/micropython"
+import (
+	"time"
+
+	wasi "github.com/gregfurman/micropython-go/internal/micropython"
+)
 
 type Host interface {
 	Invoke(funcID, argsPtr, numArgs, outPtr int32)
@@ -11,10 +15,14 @@ type Host interface {
 type Env struct {
 	mod  *wasi.Module
 	host Host
+
+	// epoch is what time.ticks_* counts from, so each interpreter measures
+	// ticks since its own boot rather than since the Unix epoch.
+	epoch time.Time
 }
 
 func NewEnv(h Host) *Env {
-	return &Env{host: h}
+	return &Env{host: h, epoch: time.Now()}
 }
 
 func (e *Env) Xhost_trampoline(funcID, argsPtr, numArgs, outPtr int32) {

@@ -118,6 +118,16 @@ func TestEval(t *testing.T) {
 	}
 }
 
+func TestEvalImport(t *testing.T) {
+	got, err := newT(t).Eval(t.Context(), "__import__('math').__dict__.get('__name__')")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "math"; got != want {
+		t.Errorf("Eval = %#v, want %#v", got, want)
+	}
+}
+
 func TestGlobals(t *testing.T) {
 	p, err := CompileSource(context.Background(), `
 def run():

@@ -35,6 +35,7 @@ outside this table is reachable.
 | `re`                 |       ✓        |      ✓      |                                                        |
 | `struct`             |       ✓        |      ✓      |                                                        |
 | `sys`                |       ✓        |      ✓      |                                                        |
+| `time`               |       ✓        |      ✓      | Only `sleep*` and `ticks*`; no `time()` or `gmtime()`  |
 | `string.templatelib` |       ✓        |      ✗      | Side effect of t-strings, not the full `string` module |
 | `asyncio`            |       ✗        |      ✓      | `async`/`await` is a SyntaxError in micropython-go     |
 | `binascii`           |       ✗        |      ✓      |                                                        |
@@ -52,7 +53,6 @@ outside this table is reachable.
 | `socket`             |       ✗        |      ✓      | host binding                                           |
 | `ssl`                |       ✗        |      ✓      | host binding                                           |
 | `termios`            |       ✗        |      ✓      | unix-port binding                                      |
-| `time`               |       ✗        |      ✓      |                                                        |
 | `uctypes`            |       ✗        |      ✓      |                                                        |
 | `vfs`                |       ✗        |      ✓      | filesystem binding                                     |
 | `_thread`            |       ✗        |      ✓      | no threads in the sandbox                              |

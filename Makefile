@@ -50,11 +50,15 @@ BUILD_SRCS := \
 	$(BUILD_DIR)/types.c \
 	$(BUILD_DIR)/wasm_sjlj.c
 
+EXTMOD_SRCS := \
+	$(MPY_DIR)/extmod/modjson.c \
+	$(MPY_DIR)/extmod/modre.c \
+	$(MPY_DIR)/extmod/modtime.c
+
 EMBED_SRCS := \
 	$(wildcard $(MPY_DIR)/py/*.c) \
 	$(wildcard $(EMBED_PORT)/port/*.c) \
-	$(MPY_DIR)/extmod/modjson.c \
-	$(MPY_DIR)/extmod/modre.c
+	$(EXTMOD_SRCS)
 
 SRCS := $(BUILD_SRCS) $(EMBED_SRCS)
 OBJS := $(SRCS:%.c=$(OUT_DIR)/%.o)
@@ -112,12 +116,13 @@ wasm2go: $(GO_OUT)
 # Prevents re-trigger this on every build.
 GENHDR_STAMP := $(EMBED_BUILD)/.genhdr.stamp
 
-$(GENHDR_STAMP): $(SRCS) $(wildcard $(BUILD_DIR)/*.h) $(BUILD_DIR)/micropython_embed.mk
+$(GENHDR_STAMP): $(SRCS) $(wildcard $(BUILD_DIR)/*.h) $(BUILD_DIR)/micropython_embed.mk Makefile
 	$(Q)$(MAKE) \
 		-C $(BUILD_DIR) \
 		-f micropython_embed.mk \
 		MICROPYTHON_TOP=../$(MPY_DIR) \
 		BUILD=../$(EMBED_BUILD) \
+		EXTMOD_SRC_QSTR="$(addprefix ../,$(EXTMOD_SRCS))" \
 		genhdr
 	$(Q)mkdir -p $(dir $@)
 	$(Q)touch $@
@@ -126,22 +131,22 @@ generate-embed: $(GENHDR_STAMP)
 
 $(OBJS): | $(GENHDR_STAMP)
 
-$(OUT_DIR)/%.o: %.c
+$(OUT_DIR)/%.o: %.c Makefile
 	$(Q)mkdir -p $(dir $@)
 	$(Q)$(CC) $(CFLAGS) -MMD -MP -c $< -o $@
 
-$(LINKED_WASM): $(OBJS)
+$(LINKED_WASM): $(OBJS) Makefile
 	$(Q)mkdir -p $(dir $@)
-	$(Q)$(CC) -target wasm32-wasip1 -o $@ $^ $(LDFLAGS)
+	$(Q)$(CC) -o $@ $(OBJS) $(LDFLAGS)
 
-$(MINIMAL_WASM): $(LINKED_WASM)
+$(MINIMAL_WASM): $(LINKED_WASM) Makefile
 	$(Q)$(WASM_OPT) \
 		--spill-pointers \
 		$(WASM_OPT_FEATURES) \
 		-o $@ \
 		$<
 
-$(GO_OUT): $(MINIMAL_WASM)
+$(GO_OUT): $(MINIMAL_WASM) Makefile
 	$(Q)go tool wasm2go -embed -unsafe -o $@ $<
 	$(Q)gofmt -w $@
 
