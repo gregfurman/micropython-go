@@ -15,6 +15,8 @@ go get github.com/gregfurman/micropython-go
 
 ## Quick Start
 
+The following shows an example of creating a MicroPython instance, and using it's builtin `len` function to ascertain the length of a string:
+
 ```go
 package main
 
@@ -29,17 +31,22 @@ import (
 func main() {
 	ctx := context.Background()
 
+	// Boots an interpreter.
 	in, err := micropython.NewInstance(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
+	// Close should be called to ensure this cleans-up
 	defer in.Close()
 
+	// Call reaches any Python global by name, builtins included. Arguments here are
+	// ordinary Go values, lowered to an equivalent Python type on the way in.
 	result, err := in.Call(ctx, "len", "abc")
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	// Results come back converted too. Every Python int arrives as an int64.
 	fmt.Printf("The length of 'abc' is %d\n", result.(int64))
 }
 
