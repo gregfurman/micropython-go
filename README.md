@@ -85,7 +85,7 @@ fmt.Println(val) // Output: 10
 
 ### 3. Passing data in
 
-Arguments are ordinary Go values. When Go's type does not preserve the desired Python distinction—for example, a slice could mean a `list` or a `tuple`—use the public value builders:
+Arguments are ordinary Go values. When Go's type does not preserve the desired Python distinction, e.g a slice could mean a `list` or a `tuple`, use the public value builders:
 
 ```go
 p.Call(ctx, "f", []any{1, 2})                              // list
