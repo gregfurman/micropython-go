@@ -4,8 +4,9 @@
 
 <p align="center">
   <img src="./logo.png" alt="If you're hovering over this it's already too late" width="200">
+  <br>
+  <sub><b>Figure 1.</b> MicroPython Go.</sub>
 </p>
-
 
 `micropython-go` is a `cgo`-free embeddable interpreter for [MicroPython](https://github.com/micropython/micropython).
 
