@@ -13,4 +13,8 @@ wasi-sdk-*/
 *.o
 _obj/
 
+.wasm
+libc
+build-embed
+
 .DS_Store

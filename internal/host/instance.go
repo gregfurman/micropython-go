@@ -4,8 +4,9 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"maps"
-	"os"
+	"sync/atomic"
 
 	"github.com/gregfurman/micropython-go/internal/host/codec"
 	"github.com/gregfurman/micropython-go/internal/host/memory"
@@ -19,19 +20,23 @@ const (
 	defaultHeapSize = 2 * wasmPageSize // give 128KB to start
 )
 
-type Module struct {
+type Instance struct {
 	mod *wasi.Module
 	mem *memory.Memory
 
 	codec *codec.Codec
-	disp  *dispatcher
 
-	out bytes.Buffer
+	registry map[int32]HostFunc
+	counter  int32
+
+	cancelled atomic.Bool
+
+	buf *bytes.Buffer
 
 	scratch int32
 }
 
-func NewModule(size uint) (*Module, error) {
+func NewModule(size uint) (*Instance, error) {
 	if size == 0 {
 		size = defaultHeapSize
 	}
@@ -46,50 +51,40 @@ func NewModule(size uint) (*Module, error) {
 	return i, nil
 }
 
-func newModule() *Module {
-	i := &Module{}
-	d := &dispatcher{registry: make(map[int32]HostFunc), out: os.Stdout}
+func newModule(stdout io.Writer) *Instance {
+	i := &Instance{
+		registry: make(map[int32]HostFunc),
+		buf:      new(bytes.Buffer),
+	}
 
-	i.mod = wasi.New(NewEnv(d), &WasiStub{})
+	i.mod = wasi.New(i)
 	i.mem = memory.New(i.mod)
 	i.codec = codec.New(i.mem)
-
-	d.mem, d.codec = i.mem, i.codec
-	d.out = &i.out
-	i.disp = d
 
 	return i
 }
 
-func (i *Module) Invoke(funcID, argsPtr, numArgs, outPtr int32) {
-	i.disp.Invoke(funcID, argsPtr, numArgs, outPtr)
-}
-func (i *Module) Stdout(ptr, n int32) {
-	if b, err := i.mem.View(ptr, n); err == nil {
-		_, _ = i.disp.out.Write(b)
-	}
+// Begin starts an operation, clearing a stale cancel and the previous call's
+// output.
+func (i *Instance) Begin() {
+	i.cancelled.Store(false)
+	i.buf.Reset()
 }
 
-func (i *Module) Poll() int32 {
-	return i.disp.Poll()
-}
+// Output returns what the current operation has printed.
+func (i *Instance) Output() string { return i.buf.String() }
 
-func (i *Module) Begin() {
-	i.disp.cancelled.Store(false)
-}
-
-func (i *Module) Cancel() {
-	i.disp.cancelled.Store(true)
+func (i *Instance) Cancel() {
+	i.cancelled.Store(true)
 }
 
 // Decode converts a raw mp_obj_t word into a native Go value.
-func (i *Module) Decode(objPtr int32) (any, error) {
+func (i *Instance) Decode(objPtr int32) (any, error) {
 	i.mod.Xobj_to_value(objPtr, i.scratch)
 	return i.codec.Consume(i.scratch)
 }
 
-func (i *Module) Eval(code string) (any, error) {
-	i.out.Reset()
+func (i *Instance) Eval(code string) (any, error) {
 	ptr, free, err := i.mem.WriteString(code)
 	if err != nil {
 		return nil, err
@@ -100,8 +95,7 @@ func (i *Module) Eval(code string) (any, error) {
 	return i.codec.Consume(i.scratch)
 }
 
-func (i *Module) Exec(code string) (string, error) {
-	i.out.Reset()
+func (i *Instance) Exec(code string) (string, error) {
 	ptr, free, err := i.mem.WriteString(code)
 	if err != nil {
 		return "", err
@@ -109,17 +103,11 @@ func (i *Module) Exec(code string) (string, error) {
 	defer free()
 
 	i.mod.Xexec(ptr, int32(len(code)), i.scratch)
-	out := i.Output()
 	_, err = i.codec.Consume(i.scratch)
-	return out, err
+	return i.buf.String(), err
 }
 
-func (i *Module) Output() string {
-	return i.out.String()
-}
-
-func (i *Module) Call(name string, args []any) (any, error) {
-	i.out.Reset()
+func (i *Instance) Call(name string, args []any) (any, error) {
 	namePtr, freeName, err := i.mem.WriteString(name)
 	if err != nil {
 		return nil, err
@@ -156,7 +144,7 @@ func (i *Module) Call(name string, args []any) (any, error) {
 	return i.codec.Consume(i.scratch)
 }
 
-func (i *Module) Set(name string, value any) error {
+func (i *Instance) Set(name string, value any) error {
 	namePtr, freeName, err := i.mem.WriteString(name)
 	if err != nil {
 		return err
@@ -175,17 +163,18 @@ func (i *Module) Set(name string, value any) error {
 	return err
 }
 
-func (i *Module) Snapshot() *Snapshot {
+func (i *Instance) Snapshot() *Snapshot {
 	return &Snapshot{
 		memory:   bytes.Clone(*i.mod.Xmemory().Slice()),
 		stack:    *i.mod.X__stack_pointer(),
 		scratch:  i.scratch,
-		registry: maps.Clone(i.disp.registry),
-		counter:  i.disp.counter,
+		registry: maps.Clone(i.registry),
+		counter:  i.counter,
+		stdout:   i.buf,
 	}
 }
 
-func (i *Module) Restore(s *Snapshot) error {
+func (i *Instance) Restore(s *Snapshot) error {
 	mem := i.mod.Xmemory()
 	if grow := len(s.memory) - len(*mem.Slice()); grow > 0 {
 		pages := int64((grow + wasmPageSize - 1) / wasmPageSize)
@@ -195,8 +184,9 @@ func (i *Module) Restore(s *Snapshot) error {
 	}
 	copy(*mem.Slice(), s.memory)
 	*i.mod.X__stack_pointer() = s.stack
-	i.disp.restore(s.registry, s.counter)
-	i.disp.cancelled.Store(false)
+	i.restore(s.registry, s.counter)
+	i.cancelled.Store(false)
+	i.buf.Reset()
 	return nil
 }
 
@@ -204,7 +194,7 @@ func (i *Module) Restore(s *Snapshot) error {
 
 type HostFunc func(args []any) (any, error)
 
-func (i *Module) DefineFunction(name string, fn HostFunc) error {
+func (i *Instance) DefineFunction(name string, fn HostFunc) error {
 	if fn == nil {
 		return errors.New("nil host func")
 	}
@@ -216,7 +206,7 @@ func (i *Module) DefineFunction(name string, fn HostFunc) error {
 	}
 	defer free()
 
-	id := i.disp.register(fn)
+	id := i.register(fn)
 	i.mod.Xdefine_function(ptr, id)
 	return nil
 }

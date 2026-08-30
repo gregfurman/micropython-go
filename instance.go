@@ -48,7 +48,7 @@ func NewInstance(ctx context.Context, opts ...Option) (*Instance, error) {
 }
 
 func newInstance(ctx context.Context, opt *options) (*Instance, error) {
-	in, err := api.New(opt.heapBytes)
+	in, err := api.New(opt.heapBytes, opt.stdout)
 	if err != nil {
 		return nil, err
 	}

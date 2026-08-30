@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"errors"
+	"io"
 	"runtime/debug"
 	"sync/atomic"
 
@@ -13,28 +14,29 @@ import (
 // Instance serialises access to one minimal MicroPython runtime.
 type Instance struct {
 	lock chan struct{}
-	rt   atomic.Pointer[host.Module]
+	rt   atomic.Pointer[host.Instance]
 
 	heapBytes int32
+	stdout    io.Writer
 	closed    atomic.Bool
 	trap      atomic.Pointer[TrapError]
 }
 
-func New(heapBytes int32) (*Instance, error) {
+func New(heapBytes int32, stdout io.Writer) (*Instance, error) {
 	if heapBytes < 0 {
 		return nil, errors.New("micropython: heap size cannot be negative")
 	}
-	rt, err := host.NewModule(uint(heapBytes))
+	rt, err := host.NewModule(uint(heapBytes), stdout)
 	if err != nil {
 		return nil, err
 	}
-	i := &Instance{lock: make(chan struct{}, 1), heapBytes: heapBytes}
+	i := &Instance{lock: make(chan struct{}, 1), heapBytes: heapBytes, stdout: stdout}
 	i.rt.Store(rt)
 	return i, nil
 }
 
 func (i *Instance) Exec(ctx context.Context, src string) (out string, err error) {
-	err = i.run(ctx, func(rt *host.Module) error {
+	err = i.run(ctx, func(rt *host.Instance) error {
 		out, err = rt.Exec(src)
 		return err
 	})
@@ -42,7 +44,7 @@ func (i *Instance) Exec(ctx context.Context, src string) (out string, err error)
 }
 
 func (i *Instance) Eval(ctx context.Context, expr string) (out any, err error) {
-	err = i.run(ctx, func(rt *host.Module) error {
+	err = i.run(ctx, func(rt *host.Instance) error {
 		out, err = rt.Eval(expr)
 		return err
 	})
@@ -50,7 +52,7 @@ func (i *Instance) Eval(ctx context.Context, expr string) (out any, err error) {
 }
 
 func (i *Instance) Call(ctx context.Context, name string, args ...any) (out any, err error) {
-	err = i.run(ctx, func(rt *host.Module) error {
+	err = i.run(ctx, func(rt *host.Instance) error {
 		out, err = rt.Call(name, args)
 		return err
 	})
@@ -58,11 +60,11 @@ func (i *Instance) Call(ctx context.Context, name string, args ...any) (out any,
 }
 
 func (i *Instance) Set(ctx context.Context, name string, v value.Value) error {
-	return i.run(ctx, func(rt *host.Module) error { return rt.Set(name, v) })
+	return i.run(ctx, func(rt *host.Instance) error { return rt.Set(name, v) })
 }
 
 func (i *Instance) DefineFunction(ctx context.Context, name string, fn host.HostFunc) error {
-	return i.run(ctx, func(rt *host.Module) error { return rt.DefineFunction(name, fn) })
+	return i.run(ctx, func(rt *host.Instance) error { return rt.DefineFunction(name, fn) })
 }
 
 func (i *Instance) Cancel() {
@@ -109,7 +111,7 @@ func (i *Instance) Reset(ctx context.Context) error {
 	if i.closed.Load() {
 		return ErrClosed
 	}
-	next, err := host.NewModule(uint(i.heapBytes))
+	next, err := host.NewModule(uint(i.heapBytes), i.stdout)
 	if err != nil {
 		return err
 	}
@@ -152,7 +154,7 @@ func (i *Instance) acquire(ctx context.Context) error {
 
 func (i *Instance) release() { <-i.lock }
 
-func (i *Instance) run(ctx context.Context, fn func(*host.Module) error) (err error) {
+func (i *Instance) run(ctx context.Context, fn func(*host.Instance) error) (err error) {
 	if err := i.acquire(ctx); err != nil {
 		return err
 	}
@@ -188,7 +190,7 @@ func FromSnapshot(s *host.Snapshot) (*Instance, error) {
 	if err != nil {
 		return nil, err
 	}
-	i := &Instance{lock: make(chan struct{}, 1)}
+	i := &Instance{lock: make(chan struct{}, 1), stdout: s.Stdout()}
 	i.rt.Store(rt)
 	return i, nil
 }

@@ -19,9 +19,9 @@ except Exception as e:
     seen = type(e).__name__
 `
 
-func newT(t *testing.T) *Module {
+func newT(t *testing.T) *Instance {
 	t.Helper()
-	inst, err := NewModule(0)
+	inst, err := NewModule(0, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -29,7 +29,7 @@ func newT(t *testing.T) *Module {
 }
 
 // define registers fn and fails the test if the guest rejects it.
-func define(t *testing.T, inst *Module, name string, fn HostFunc) {
+func define(t *testing.T, inst *Instance, name string, fn HostFunc) {
 	t.Helper()
 	if err := inst.DefineFunction(name, fn); err != nil {
 		t.Fatalf("DefineFunction(%q): %v", name, err)
@@ -37,7 +37,7 @@ func define(t *testing.T, inst *Module, name string, fn HostFunc) {
 }
 
 // eval evaluates expr and fails the test if the guest raises.
-func eval(t *testing.T, inst *Module, expr string) any {
+func eval(t *testing.T, inst *Instance, expr string) any {
 	t.Helper()
 	got, err := inst.Eval(expr)
 	if err != nil {

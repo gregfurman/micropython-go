@@ -1,5 +1,7 @@
 package micropython
 
+import "io"
+
 type options struct {
 	programPoolSize int
 	heapBytes       int32
@@ -7,6 +9,7 @@ type options struct {
 	globals      map[string]Value
 	hostFuncs    map[string]HostFunc
 	sourceScript string
+	stdout       io.Writer
 }
 
 // ProgramOption configures a Program. Every Option is also a ProgramOption.
@@ -123,4 +126,21 @@ func newOptions[T ProgramOption](opts []T) *options {
 		opt.apply(o)
 	}
 	return o
+}
+
+// WithStdout streams what the guest prints to w as it is produced, which is the
+// only way to observe a script before it returns. Exec still returns its own
+// output, and Output still reports what has accumulated.
+//
+// w is written from whichever goroutine is running the interpreter, and a
+// Program shares one w across its pool, so w must be safe for concurrent use.
+//
+//	var buf bytes.Buffer
+//	in, _ := micropython.NewInstance(ctx, micropython.WithStdout(&buf))
+//	in.Exec(ctx, "print('hi')")
+//	buf.String() // "hi\n"
+func WithStdout(w io.Writer) Option {
+	return optionFunc(func(o *options) {
+		o.stdout = w
+	})
 }

@@ -41,12 +41,11 @@ void __wasm_setjmp(void *env, uint32_t label, void *func_invocation_id) {
     jb->label = label;
 }
 
+// Returns the label to resume at, or 0 if env belongs to an outer frame and the
+// unwind has to continue.
 uint32_t __wasm_setjmp_test(void *env, void *func_invocation_id) {
     struct jmp_buf_impl *jb = env;
-    if (jb->func_invocation_id == func_invocation_id) {
-        return jb->label;
-    }
-    return 0;
+    return jb->func_invocation_id == func_invocation_id ? jb->label : 0;
 }
 
 // Set by the host after an invoke_* unwound, polled by LLVM's generated code.

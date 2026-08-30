@@ -1,5 +1,4 @@
 #include <stdint.h>
-#include <alloca.h>
 
 #define MICROPY_CONFIG_ROM_LEVEL (MICROPY_CONFIG_ROM_LEVEL_MINIMUM)
 #define MICROPY_ENABLE_GC (1)
@@ -14,6 +13,11 @@
 
 #undef MICROPY_FLOAT_IMPL
 #define MICROPY_FLOAT_IMPL (MICROPY_FLOAT_IMPL_DOUBLE)
+
+#define MP_SSIZE_MAX (0x7fffffff)
+
+// libc-gen's math.h has rint but not nearbyint.
+#define nearbyint(x) rint(x)
 
 #define MICROPY_USE_INTERNAL_ERRNO (1)
 #define MICROPY_USE_INTERNAL_PRINTF (0)
