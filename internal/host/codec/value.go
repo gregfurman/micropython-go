@@ -34,21 +34,3 @@ func (v *Value) MarshalWords(b []byte) {
 }
 
 type PythonError = value.Exception
-
-// type Ref struct {
-// 	inst *Instance
-// 	id   uint32
-// 	kind Kind // KindCallable or KindObject
-// }
-
-// func (r *Ref) Close() error {
-// 	if r.inst == nil {
-// 		return nil
-// 	}
-// 	// FIXME: Use refs_free to release the host reference, not the memory allocator
-// 	r.inst.mod.Xfree(int32(r.id))
-// 	r.inst = nil
-// 	return nil
-// }
-//
-// func (r *Ref) Callable() bool { return r.kind == KindCallable }

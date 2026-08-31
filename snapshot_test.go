@@ -1,6 +1,7 @@
 package micropython
 
 import (
+	"bytes"
 	"embed"
 	"encoding/json"
 	"errors"
@@ -67,7 +68,8 @@ func runSuite(t *testing.T, contents []byte) {
 				t.Skip(why)
 			}
 
-			in, err := NewInstance(t.Context())
+			var out bytes.Buffer
+			in, err := NewInstance(t.Context(), WithStdout(&out))
 			if err != nil {
 				t.Fatalf("could not create Instance: %v", err)
 			}
@@ -78,7 +80,7 @@ func runSuite(t *testing.T, contents []byte) {
 				t.Fatalf("could not load script at [%s]: %v", testPath, err)
 			}
 
-			got, err := in.Exec(t.Context(), string(src))
+			err = in.Exec(t.Context(), string(src))
 			if err != nil {
 				if exc, ok := errors.AsType[*PythonError](err); ok {
 					switch exc.Type() {
@@ -94,7 +96,7 @@ func runSuite(t *testing.T, contents []byte) {
 				t.Fatalf("Instance.Exec failed: %v", err)
 			}
 
-			if want := snap.Recorded.Stdout; want != got {
+			if want, got := snap.Recorded.Stdout, out.String(); want != got {
 				t.Errorf("unexpected stdout:\nwant: %q\ngot:  %q", want, got)
 			}
 		})

@@ -14,7 +14,7 @@ import (
 // Instance serialises access to one minimal MicroPython runtime.
 type Instance struct {
 	lock chan struct{}
-	rt   atomic.Pointer[host.Instance]
+	rt   atomic.Pointer[host.Module]
 
 	heapBytes int32
 	stdout    io.Writer
@@ -35,16 +35,14 @@ func New(heapBytes int32, stdout io.Writer) (*Instance, error) {
 	return i, nil
 }
 
-func (i *Instance) Exec(ctx context.Context, src string) (out string, err error) {
-	err = i.run(ctx, func(rt *host.Instance) error {
-		out, err = rt.Exec(src)
-		return err
+func (i *Instance) Exec(ctx context.Context, src string) error {
+	return i.run(ctx, func(rt *host.Module) error {
+		return rt.Exec(src)
 	})
-	return out, err
 }
 
 func (i *Instance) Eval(ctx context.Context, expr string) (out any, err error) {
-	err = i.run(ctx, func(rt *host.Instance) error {
+	err = i.run(ctx, func(rt *host.Module) error {
 		out, err = rt.Eval(expr)
 		return err
 	})
@@ -52,7 +50,7 @@ func (i *Instance) Eval(ctx context.Context, expr string) (out any, err error) {
 }
 
 func (i *Instance) Call(ctx context.Context, name string, args ...any) (out any, err error) {
-	err = i.run(ctx, func(rt *host.Instance) error {
+	err = i.run(ctx, func(rt *host.Module) error {
 		out, err = rt.Call(name, args)
 		return err
 	})
@@ -60,11 +58,11 @@ func (i *Instance) Call(ctx context.Context, name string, args ...any) (out any,
 }
 
 func (i *Instance) Set(ctx context.Context, name string, v value.Value) error {
-	return i.run(ctx, func(rt *host.Instance) error { return rt.Set(name, v) })
+	return i.run(ctx, func(rt *host.Module) error { return rt.Set(name, v) })
 }
 
 func (i *Instance) DefineFunction(ctx context.Context, name string, fn host.HostFunc) error {
-	return i.run(ctx, func(rt *host.Instance) error { return rt.DefineFunction(name, fn) })
+	return i.run(ctx, func(rt *host.Module) error { return rt.DefineFunction(name, fn) })
 }
 
 func (i *Instance) Cancel() {
@@ -154,7 +152,7 @@ func (i *Instance) acquire(ctx context.Context) error {
 
 func (i *Instance) release() { <-i.lock }
 
-func (i *Instance) run(ctx context.Context, fn func(*host.Instance) error) (err error) {
+func (i *Instance) run(ctx context.Context, fn func(*host.Module) error) (err error) {
 	if err := i.acquire(ctx); err != nil {
 		return err
 	}

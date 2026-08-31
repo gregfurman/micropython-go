@@ -19,7 +19,7 @@ except Exception as e:
     seen = type(e).__name__
 `
 
-func newT(t *testing.T) *Instance {
+func newT(t *testing.T) *Module {
 	t.Helper()
 	inst, err := NewModule(0, nil)
 	if err != nil {
@@ -29,16 +29,18 @@ func newT(t *testing.T) *Instance {
 }
 
 // define registers fn and fails the test if the guest rejects it.
-func define(t *testing.T, inst *Instance, name string, fn HostFunc) {
+func define(t *testing.T, inst *Module, name string, fn HostFunc) {
 	t.Helper()
 	if err := inst.DefineFunction(name, fn); err != nil {
 		t.Fatalf("DefineFunction(%q): %v", name, err)
 	}
 }
 
-// eval evaluates expr and fails the test if the guest raises.
-func eval(t *testing.T, inst *Instance, expr string) any {
+// eval evaluates expr and fails the test if the guest raises. Begin mirrors what
+// api.run does before every operation.
+func eval(t *testing.T, inst *Module, expr string) any {
 	t.Helper()
+	inst.Begin()
 	got, err := inst.Eval(expr)
 	if err != nil {
 		t.Fatalf("Eval(%q): %v", expr, err)
@@ -187,8 +189,7 @@ func TestHostFuncErrors(t *testing.T) {
 				t.Errorf("message = %q, want it to contain %q", pyErr.Message(), tc.wantMsg)
 			}
 
-			// The guest must see the same class the host reported.
-			if _, err := inst.Exec(recordRaisedClass); err != nil {
+			if err := inst.Exec(recordRaisedClass); err != nil {
 				t.Fatal(err)
 			}
 			if got := eval(t, inst, "seen"); got != tc.wantType {
@@ -230,7 +231,7 @@ func TestHostFuncSurvivesSnapshotRestore(t *testing.T) {
 			t.Fatal(err)
 		}
 		if got := eval(t, inst, `f()`); got != "from host" {
-			t.Errorf("f() = %#v after Instance.Restore", got)
+			t.Errorf("f() = %#v after Module.Restore", got)
 		}
 	})
 }

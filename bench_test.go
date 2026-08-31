@@ -7,14 +7,6 @@ import (
 	"testing"
 )
 
-// What the numbers are for.
-//
-// Three costs matter and they differ by orders of magnitude: building an
-// interpreter (~100µs), rewinding one to a snapshot (~50µs), and making a call
-// (~1µs). Which of those a design pays per request is the whole question --
-// it is why Program pools interpreters instead of compiling per call, and why
-// release rewinds rather than rebuilding.
-
 const benchSrc = `
 import json
 
@@ -54,7 +46,7 @@ func benchInstance(b *testing.B) *Instance {
 	if err != nil {
 		b.Fatal(err)
 	}
-	if _, err := in.Exec(context.Background(), benchSrc); err != nil {
+	if err := in.Exec(context.Background(), benchSrc); err != nil {
 		b.Fatal(err)
 	}
 	b.Cleanup(func() { in.Close() })
@@ -69,10 +61,6 @@ func BenchmarkInstanceAllocation(b *testing.B) {
 	}
 }
 
-// --- startup ---------------------------------------------------------------
-
-// The three ways to get an interpreter with the source loaded, which is the
-// comparison Program's design rests on.
 func BenchmarkStartup(b *testing.B) {
 	ctx := context.Background()
 
@@ -94,7 +82,7 @@ func BenchmarkStartup(b *testing.B) {
 			if err != nil {
 				b.Fatal(err)
 			}
-			if _, err := in.Exec(ctx, benchSrc); err != nil {
+			if err := in.Exec(ctx, benchSrc); err != nil {
 				b.Fatal(err)
 			}
 			in.Close()
@@ -113,10 +101,6 @@ func BenchmarkStartup(b *testing.B) {
 	})
 }
 
-// --- calls -----------------------------------------------------------------
-
-// Call cost by argument shape, against a single interpreter, so the numbers
-// are the crossing itself with no pooling or rewinding in them.
 func BenchmarkCall(b *testing.B) {
 	in := benchInstance(b)
 	ctx := context.Background()
@@ -174,7 +158,7 @@ func BenchmarkEvalExec(b *testing.B) {
 	b.Run("Exec statement", func(b *testing.B) {
 		b.ReportAllocs()
 		for b.Loop() {
-			if _, err := in.Exec(ctx, "x = 1 + 1"); err != nil {
+			if err := in.Exec(ctx, "x = 1 + 1"); err != nil {
 				b.Fatal(err)
 			}
 		}
@@ -183,16 +167,13 @@ func BenchmarkEvalExec(b *testing.B) {
 	b.Run("Exec with output", func(b *testing.B) {
 		b.ReportAllocs()
 		for b.Loop() {
-			if _, err := in.Exec(ctx, "print('hello')"); err != nil {
+			if err := in.Exec(ctx, "print('hello')"); err != nil {
 				b.Fatal(err)
 			}
 		}
 	})
 }
 
-// The cost of a call that fails, which is not the same as one that succeeds:
-// it unwinds through nlr, formats a traceback, and asks the module to take the
-// exception apart.
 func BenchmarkError(b *testing.B) {
 	in := newBenchInstanceWith(b, "def boom():\n    raise ValueError('boom')\n")
 	ctx := context.Background()
@@ -205,11 +186,6 @@ func BenchmarkError(b *testing.B) {
 	}
 }
 
-// --- guest work ------------------------------------------------------------
-
-// Where the crossing stops mattering. At 100k iterations the interpreter is
-// doing the work and the ~1µs of ABI is noise, which is the regime a real
-// handler runs in.
 func BenchmarkGuestWork(b *testing.B) {
 	in := benchInstance(b)
 	ctx := context.Background()
@@ -254,11 +230,6 @@ func BenchmarkCancellationOverhead(b *testing.B) {
 	})
 }
 
-// --- Program ---------------------------------------------------------------
-
-// A Program call includes the rewind that keeps the pool clean, so this is the
-// per-request cost of the isolation Program provides. Against Instance.Call,
-// the difference is what that isolation costs.
 func BenchmarkProgramVsInstance(b *testing.B) {
 	ctx := context.Background()
 
@@ -283,8 +254,6 @@ func BenchmarkProgramVsInstance(b *testing.B) {
 	})
 }
 
-// Parallel throughput. An Instance serialises -- one linear memory, one call at
-// a time -- while a Program grows its pool, so these should diverge with GOMAXPROCS.
 func BenchmarkParallel(b *testing.B) {
 	ctx := context.Background()
 	b.Logf("GOMAXPROCS=%d", runtime.GOMAXPROCS(0))
@@ -314,8 +283,6 @@ func BenchmarkParallel(b *testing.B) {
 	})
 }
 
-// End to end: the shape a host actually serves, with json parsing on both
-// sides of the boundary.
 func BenchmarkHandler(b *testing.B) {
 	p := benchProgram(b)
 	ctx := context.Background()
@@ -378,15 +345,13 @@ func BenchmarkManyPrograms(b *testing.B) {
 	}
 }
 
-// --- helpers ---------------------------------------------------------------
-
 func newBenchInstanceWith(b *testing.B, src string) *Instance {
 	b.Helper()
 	in, err := NewInstance(context.Background())
 	if err != nil {
 		b.Fatal(err)
 	}
-	if _, err := in.Exec(context.Background(), src); err != nil {
+	if err := in.Exec(context.Background(), src); err != nil {
 		b.Fatal(err)
 	}
 	b.Cleanup(func() { in.Close() })

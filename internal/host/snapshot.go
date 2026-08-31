@@ -1,18 +1,13 @@
 package host
 
 import (
-	"fmt"
 	"io"
 )
 
 type Snapshot struct {
-	memory  []byte
-	stack   int32
-	scratch int32
-
-	// A snapshot is not a pure memory image: guest memory refers to host
-	// functions by id, so the registry that resolves them has to travel with it,
-	// and the same reasoning applies to the sink those functions print to.
+	memory   []byte
+	stack    int32
+	scratch  int32
 	registry map[int32]HostFunc
 	counter  int32
 	stdout   io.Writer
@@ -21,18 +16,13 @@ type Snapshot struct {
 // Stdout reports the sink interpreters restored from this snapshot will use.
 func (s *Snapshot) Stdout() io.Writer { return s.stdout }
 
-func (s *Snapshot) Restore() (*Instance, error) {
+// Restore builds a fresh interpreter from the image. It differs from
+// Module.Restore only in allocating the module to restore into, so the rewind
+// itself lives in one place.
+func (s *Snapshot) Restore() (*Module, error) {
 	i := newModule(s.stdout)
-	mem := i.mod.Xmemory()
-	if grow := len(s.memory) - len(*mem.Slice()); grow > 0 {
-		pages := int64((grow + wasmPageSize - 1) / wasmPageSize)
-		if mem.Grow(pages, maxMemoryPages) < 0 {
-			return nil, fmt.Errorf("cannot grow memory to %d bytes", len(s.memory))
-		}
+	if err := i.Restore(s); err != nil {
+		return nil, err
 	}
-	copy(*mem.Slice(), s.memory)
-	*i.mod.X__stack_pointer() = s.stack
-	i.scratch = s.scratch
-	i.restore(s.registry, s.counter)
 	return i, nil
 }

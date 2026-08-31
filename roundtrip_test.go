@@ -14,7 +14,7 @@ import (
 
 func TestRoundTrip(t *testing.T) {
 	in := newT(t)
-	if _, err := in.Exec(t.Context(), "def echo(v):\n    return v\n"); err != nil {
+	if err := in.Exec(t.Context(), "def echo(v):\n    return v\n"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -131,7 +131,7 @@ func TestRoundTripFromPython(t *testing.T) {
 
 func TestRoundTripRejects(t *testing.T) {
 	in := newT(t)
-	if _, err := in.Exec(t.Context(), "def echo(v):\n    return v\n"); err != nil {
+	if err := in.Exec(t.Context(), "def echo(v):\n    return v\n"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -180,7 +180,7 @@ func TestRoundTripValuesWithNoGoEquivalent(t *testing.T) {
 func TestFrozenSetIsImmutable(t *testing.T) {
 	in := newT(t)
 
-	if _, err := in.Exec(t.Context(), "def mutate(v):\n    v.add(99)\n"); err != nil {
+	if err := in.Exec(t.Context(), "def mutate(v):\n    v.add(99)\n"); err != nil {
 		t.Fatal(err)
 	}
 

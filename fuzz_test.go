@@ -55,7 +55,7 @@ func FuzzExec(f *testing.F) {
 		ctx, cancel := bounded()
 		defer cancel()
 
-		if _, err := in.Exec(ctx, src); errors.Is(err, context.DeadlineExceeded) {
+		if err := in.Exec(ctx, src); errors.Is(err, context.DeadlineExceeded) {
 			t.Skip("guest did not return")
 		}
 
@@ -120,7 +120,7 @@ func FuzzCallArgs(f *testing.F) {
 			t.Fatal("Call resolved a name that does not exist")
 		}
 
-		if _, err := in.Exec(t.Context(), "def echo(v):\n    return v\n"); err != nil {
+		if err := in.Exec(t.Context(), "def echo(v):\n    return v\n"); err != nil {
 			t.Fatal(err)
 		}
 

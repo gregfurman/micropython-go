@@ -1,6 +1,8 @@
 package micropython
 
-import "io"
+import (
+	"io"
+)
 
 type options struct {
 	programPoolSize int
@@ -128,17 +130,19 @@ func newOptions[T ProgramOption](opts []T) *options {
 	return o
 }
 
-// WithStdout streams what the guest prints to w as it is produced, which is the
-// only way to observe a script before it returns. Exec still returns its own
-// output, and Output still reports what has accumulated.
+// WithStdout configures where the guest's print() output is written. Defaults
+// to io.Discard.
 //
-// w is written from whichever goroutine is running the interpreter, and a
-// Program shares one w across its pool, so w must be safe for concurrent use.
+// One writer serves the whole interpreter. For Eval and Call it is the only
+// route to their output, since both return a value rather than text.
 //
-//	var buf bytes.Buffer
-//	in, _ := micropython.NewInstance(ctx, micropython.WithStdout(&buf))
-//	in.Exec(ctx, "print('hi')")
-//	buf.String() // "hi\n"
+// Note the following:
+//
+//   - The caller is responsible to close any io.Writer they supply: it is not
+//     closed by Instance.Close or Program.Close.
+//   - w is not synchronised, so it must be safe for concurrent use if
+//     interpreters share it, as a Program's pool and any Clone do. io.Pipe is;
+//     bytes.Buffer is not.
 func WithStdout(w io.Writer) Option {
 	return optionFunc(func(o *options) {
 		o.stdout = w

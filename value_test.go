@@ -35,7 +35,7 @@ func TestSets(t *testing.T) {
 		}
 	}
 
-	if _, err := in.Exec(t.Context(), "def echo(v):\n    return v\ndef kind(v):\n    return type(v).__name__\n"); err != nil {
+	if err := in.Exec(t.Context(), "def echo(v):\n    return v\ndef kind(v):\n    return type(v).__name__\n"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -68,7 +68,7 @@ func TestFrozenSetIsImmutable(t *testing.T) {
 	}
 	defer in.Close()
 
-	if _, err := in.Exec(t.Context(), "def mutate(v):\n    v.add(99)\n"); err != nil {
+	if err := in.Exec(t.Context(), "def mutate(v):\n    v.add(99)\n"); err != nil {
 		t.Fatal(err)
 	}
 

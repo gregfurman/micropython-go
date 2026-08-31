@@ -68,7 +68,7 @@ func newInstance(ctx context.Context, opt *options) (*Instance, error) {
 	}
 
 	if src := opt.sourceScript; src != "" {
-		if _, err := in.Exec(ctx, src); err != nil {
+		if err := in.Exec(ctx, src); err != nil {
 			in.Close()
 			return nil, err
 		}
@@ -182,14 +182,14 @@ func (i *Instance) Eval(ctx context.Context, expr string) (any, error) {
 	return i.wrapped.Eval(ctx, expr)
 }
 
-// Exec runs arbitrary Python source code as a script and returns whatever the
-// script printed to stdout.
+// Exec runs arbitrary Python source code as a script. Anything the script
+// prints is captured the default writer passed to WithStdout, if there is one.
 //
 // Variables, imports, and functions defined during Exec will remain available
 // in the Instance for future calls to Eval, Exec, or Call.
-func (i *Instance) Exec(ctx context.Context, src string) (string, error) {
+func (i *Instance) Exec(ctx context.Context, src string) error {
 	if i.wrapped == nil {
-		return "", ErrInstanceNotInitialised
+		return ErrInstanceNotInitialised
 	}
 	return i.wrapped.Exec(ctx, src)
 }

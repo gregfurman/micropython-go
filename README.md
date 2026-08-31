@@ -79,6 +79,38 @@ val, _ := in.Eval(ctx, "total * 2")
 fmt.Println(val) // 10
 ```
 
+## Capturing stdout
+
+Nothing the guest prints escapes the interpreter on its own. `print()` never reaches the process's stdout; without `WithStdout` it is discarded.
+
+```go
+var out bytes.Buffer
+in, _ := micropython.NewInstance(ctx, micropython.WithStdout(&out))
+defer in.Close()
+
+in.Exec(ctx, "print('hello')")
+out.String() // "hello\n"
+```
+
+One sink serves the whole interpreter, so `Exec`, `Eval`, `Call`, and host functions all print to it. For `Call` and `Eval` that is the only route, since both return a value rather than text. It is shared across calls too, so reset between them to read one call's output on its own.
+
+Because it takes an `io.Writer`, the buffering decision stays yours: a `bytes.Buffer` to collect, a file, `os.Stdout`, or an `io.MultiWriter` of several. Streaming is a pipe away, which lets a goroutine read alongside a script rather than after it:
+
+```go
+pr, pw := io.Pipe()
+in, _ := micropython.NewInstance(ctx, micropython.WithStdout(pw))
+
+go func() {
+    sc := bufio.NewScanner(pr)
+    for sc.Scan() {
+        log.Println("guest:", sc.Text())
+    }
+}()
+
+in.Exec(ctx, script)
+pw.Close() // the reader sees io.EOF
+```
+
 ## Programs
 
 A `Program` compiles a script once and serves calls from a pool of interpreters, so `Call` is safe across goroutines.
@@ -164,7 +196,7 @@ p, err := micropython.CompileSource(ctx, src, micropython.WithGlobals(micropytho
 Note, that when using `micropython.WithHostFunc`, host functions will be prior to a source script being loaded in. This allows for scripts to reference host functions.
 
 ```go
-in, _ := micropython.NewInstance(ctx)
+in, _ := micropython.NewInstance(ctx, micropython.WithStdout(os.Stdout))
 defer in.Close()
 
 rates := map[string]float64{"EUR": 1.09, "GBP": 1.27}
@@ -178,8 +210,7 @@ in.DefineFunction(ctx, "usd", func(args []any) (any, error) {
     return rate * float64(args[1].(int64)), nil
 })
 
-out, _ := in.Exec(ctx, `print(round(usd("EUR", 100), 2))`)
-fmt.Print(out) // 109.0
+in.Exec(ctx, `print(round(usd("EUR", 100), 2))`) // prints 109.0
 ```
 
 Arguments and return values convert per the table above. A binding is part of interpreter state, so it lasts for the life of the `Instance` and any `Clone` taken afterwards inherits it. In addition, when used with a `Program`, the same host function closure will be shared across instances.
@@ -221,7 +252,7 @@ Also, see [SUPPORT_MATRIX.md](./SUPPORT_MATRIX.md) for how a `micropython-go` in
 
 Functionally, this implementation differs due to:
 
-- **No standard I/O or filesystem:** `import` cannot reach real files, `open()` raises `OSError`, `os` and `sys.stdout` are absent, and `print()` output is returned by `Exec` rather than written to stdout.
+- **No standard I/O or filesystem:** `import` cannot reach real files, `open()` raises `OSError`, `os` and `sys.stdout` are absent, and `print()` output goes to the writer given to `WithStdout` rather than to the process's stdout.
 - **Stack depth:** recursion is bounded by the host C stack to roughly 340-385 Python frames, depending on how many arguments and locals each frame carries. Overflowing raises `RuntimeError` and leaves the interpreter usable. The limit is `MICROPY_C_STACK_SIZE` in `build/mpconfigport.h`, set to 96 KiB.
 - **Structs via JSON:** scalars, maps, and slices use direct values; custom Go structs go through `encoding/json`. Prefer maps on hot paths.
 

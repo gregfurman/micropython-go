@@ -1,10 +1,12 @@
 package micropython
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"reflect"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -672,5 +674,92 @@ def lookup(code):
 
 	if _, err := p.Call(ctx, "lookup", "ZAR"); err != nil {
 		t.Fatalf("after error: %v", err)
+	}
+}
+
+func TestProgramStdout(t *testing.T) {
+	spins := 3
+	spinFn := func(args []any) (any, error) {
+		if spins == 0 {
+			return false, nil
+		}
+		spins--
+		return true, nil
+	}
+
+	out := new(bytes.Buffer)
+
+	p, err := CompileSource(t.Context(), `
+def handle():
+	while spin():
+		print("duck")
+	print("goose")
+`, WithHostFunc("spin", spinFn), WithStdout(out))
+	if err != nil {
+		t.Fatalf("compile: %v", err)
+	}
+
+	if _, err := p.Call(t.Context(), "handle"); err != nil {
+		t.Fatalf("call: %v", err)
+	}
+
+	lines := strings.Split(strings.TrimSuffix(out.String(), "\n"), "\n")
+	want := []string{"duck", "duck", "duck", "goose"}
+	if !slices.Equal(lines, want) {
+		t.Errorf("got %v, want %v", lines, want)
+	}
+}
+
+type syncBuffer struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func (s *syncBuffer) Write(p []byte) (int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.buf.Write(p)
+}
+
+func (s *syncBuffer) String() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.buf.String()
+}
+
+func TestProgramStdoutConcurrent(t *testing.T) {
+	const workers = 8
+
+	out := new(syncBuffer)
+	p, err := CompileSource(t.Context(), "def handle(n):\n    print('n', n)\n",
+		WithStdout(out), WithPoolSize(workers))
+	if err != nil {
+		t.Fatalf("compile: %v", err)
+	}
+	defer p.Close()
+
+	var wg sync.WaitGroup
+	for i := range workers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if _, err := p.Call(t.Context(), "handle", i); err != nil {
+				t.Errorf("call %d: %v", i, err)
+			}
+		}()
+	}
+	wg.Wait()
+
+	// A synchronised sink loses no output, but does not keep a line together:
+	// MicroPython emits one print() as several writes, so concurrent calls
+	// interleave within a line.
+	got := out.String()
+	if n := strings.Count(got, "\n"); n != workers {
+		t.Errorf("got %d newlines, want %d:\n%s", n, workers, got)
+	}
+	for i := range workers {
+		if want := fmt.Sprint(i); !strings.Contains(got, want) {
+			t.Errorf("output for call %d is missing entirely:\n%s", i, got)
+		}
 	}
 }

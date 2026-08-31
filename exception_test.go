@@ -13,7 +13,7 @@ var exceptionsFile string
 func TestExceptions(t *testing.T) {
 	instance := newT(t)
 
-	if _, err := instance.Exec(t.Context(), exceptionsFile); err != nil {
+	if err := instance.Exec(t.Context(), exceptionsFile); err != nil {
 		t.Fatalf("unexpected error on Exec: %s", err)
 	}
 
@@ -89,7 +89,7 @@ func TestExceptions(t *testing.T) {
 func TestTracebackText(t *testing.T) {
 	instance := newT(t)
 
-	if _, err := instance.Exec(t.Context(), "def outer():\n    inner()\n\ndef inner():\n    raise ValueError('boom')\n"); err != nil {
+	if err := instance.Exec(t.Context(), "def outer():\n    inner()\n\ndef inner():\n    raise ValueError('boom')\n"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -120,7 +120,7 @@ func TestRaiseNeedsStatementContext(t *testing.T) {
 		t.Errorf("got %q, want SyntaxError", err)
 	}
 
-	if _, err := instance.Exec(t.Context(), "raise Exception()"); err == nil {
+	if err := instance.Exec(t.Context(), "raise Exception()"); err == nil {
 		t.Error("Exec swallowed the exception")
 	} else if strings.Contains(err.Error(), "SyntaxError") {
 		t.Errorf("Exec reported a syntax error: %s", err)

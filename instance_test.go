@@ -1,6 +1,7 @@
 package micropython
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -34,7 +35,7 @@ func TestExecThenCall(t *testing.T) {
 	ctx := context.Background()
 	in := newT(t)
 
-	if _, err := in.Exec(ctx, `
+	if err := in.Exec(ctx, `
 def double(n):
     return n * 2
 
@@ -54,20 +55,25 @@ def shout(s):
 
 func TestExecOutput(t *testing.T) {
 	ctx := context.Background()
-	in := newT(t)
-	out, err := in.Exec(ctx, "print('hello')\n")
+	var out bytes.Buffer
+	in, err := NewInstance(ctx, WithStdout(&out))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if out != "hello\n" {
-		t.Errorf("out = %q", out)
+	t.Cleanup(func() { in.Close() })
+
+	if err := in.Exec(ctx, "print('hello')\n"); err != nil {
+		t.Fatal(err)
+	}
+	if got := out.String(); got != "hello\n" {
+		t.Errorf("out = %q", got)
 	}
 }
 
 func TestCallByName(t *testing.T) {
 	ctx := context.Background()
 	in := newT(t)
-	if _, err := in.Exec(ctx, "def add(a, b):\n    return a + b\n"); err != nil {
+	if err := in.Exec(ctx, "def add(a, b):\n    return a + b\n"); err != nil {
 		t.Fatal(err)
 	}
 	got, err := in.Call(ctx, "add", Of(20), Of(22))
@@ -91,7 +97,7 @@ func TestClose(t *testing.T) {
 	if _, err := in.Call(ctx, "print"); err == nil {
 		t.Error("expected an error after Close")
 	}
-	if _, err := in.Exec(ctx, "pass"); err == nil {
+	if err := in.Exec(ctx, "pass"); err == nil {
 		t.Error("expected an error after Close")
 	}
 }
@@ -99,7 +105,7 @@ func TestClose(t *testing.T) {
 func TestPythonError(t *testing.T) {
 	ctx := context.Background()
 	in := newT(t)
-	if _, err := in.Exec(ctx, "1/0\n"); err == nil {
+	if err := in.Exec(ctx, "1/0\n"); err == nil {
 		t.Fatal("expected a Python error")
 	}
 	// The instance must still work afterwards.
@@ -223,7 +229,7 @@ func TestPythonValuesPassedBack(t *testing.T) {
 		t.Fatalf("got %#v (%T), want an Object", got, got)
 	}
 
-	if _, err := in.Exec(t.Context(), "def f(v):\n    return v\n"); err != nil {
+	if err := in.Exec(t.Context(), "def f(v):\n    return v\n"); err != nil {
 		t.Fatal(err)
 	}
 	_, err = in.Call(t.Context(), "f", obj)
@@ -241,7 +247,7 @@ func TestPythonValuesPassedBack(t *testing.T) {
 	if !errors.As(callErr, &exc) {
 		t.Fatalf("got %v (%T), want *Exception", callErr, callErr)
 	}
-	if _, err := in.Exec(t.Context(), "def kind(e):\n    return type(e).__name__\n"); err != nil {
+	if err := in.Exec(t.Context(), "def kind(e):\n    return type(e).__name__\n"); err != nil {
 		t.Fatal(err)
 	}
 	if got, err := in.Call(t.Context(), "kind", exc); err != nil || got != exc.Type() {
@@ -331,7 +337,7 @@ func TestBuiltValueAsCallArgument(t *testing.T) {
 
 func TestInstanceCancel(t *testing.T) {
 	in := newT(t)
-	if _, err := in.Exec(t.Context(), spinSrc); err != nil {
+	if err := in.Exec(t.Context(), spinSrc); err != nil {
 		t.Fatal(err)
 	}
 
@@ -419,7 +425,7 @@ func TestDefineFunction(t *testing.T) {
 	if got, err := in.Eval(ctx, `shout("hi")`); err != nil || got != "HI" {
 		t.Errorf("shout(\"hi\") = %#v, %v", got, err)
 	}
-	if _, err := in.Exec(ctx, `
+	if err := in.Exec(ctx, `
 def twice(s):
     return shout(s) + shout(s)
 `); err != nil {
@@ -500,7 +506,7 @@ func TestDefineFunctionErrors(t *testing.T) {
 			}
 
 			// Guest code can catch it, and the instance survives.
-			if _, err := in.Exec(ctx, fmt.Sprintf(catchAs, tc.wantType)); err != nil {
+			if err := in.Exec(ctx, fmt.Sprintf(catchAs, tc.wantType)); err != nil {
 				t.Fatalf("guest could not catch %s: %v", tc.wantType, err)
 			}
 			if got, err := in.Eval(ctx, "ok"); err != nil || got != true {
@@ -555,7 +561,7 @@ func TestHostErrorHierarchy(t *testing.T) {
 
 	// NOTE: HostErrors are subclasses of RuntimeError
 	for _, class := range []string{"HostError", "RuntimeError", "Exception"} {
-		if _, err := in.Exec(ctx, fmt.Sprintf(catchAs, class)); err != nil {
+		if err := in.Exec(ctx, fmt.Sprintf(catchAs, class)); err != nil {
 			t.Fatalf("except %s: %v", class, err)
 		}
 		if got, err := in.Eval(ctx, "ok"); err != nil || got != true {

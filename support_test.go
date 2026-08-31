@@ -77,7 +77,7 @@ func TestSupportedModules(t *testing.T) {
 
 	for _, m := range modules {
 		check(t, "import "+m.name, m.want, func() error {
-			_, err := in.Exec(ctx, "import "+m.name)
+			err := in.Exec(ctx, "import "+m.name)
 			return err
 		})
 	}
@@ -228,7 +228,7 @@ func TestSupportedLanguageFeatures(t *testing.T) {
 	for _, f := range features {
 		in := newT(t)
 		check(t, f.name, f.want, func() error {
-			_, err := in.Exec(ctx, f.src)
+			err := in.Exec(ctx, f.src)
 			return err
 		})
 	}

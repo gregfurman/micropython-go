@@ -1,10 +1,14 @@
 package micropython_test
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log"
+	"os"
 	"sort"
 	"sync"
 	"time"
@@ -303,7 +307,7 @@ func ExampleInstance() {
 	}
 	defer in.Close()
 
-	if _, err := in.Exec(ctx, `
+	if err := in.Exec(ctx, `
 total = 0
 
 def add(n):
@@ -336,22 +340,20 @@ def add(n):
 	// 60
 }
 
-// Exec returns whatever the source printed, for code written to print rather
-// than return.
+// Without WithStdout the guest's output is discarded, so an Exec written to
+// print rather than return needs somewhere to print to.
 func ExampleInstance_Exec() {
 	ctx := context.Background()
 
-	in, err := micropython.NewInstance(ctx)
+	in, err := micropython.NewInstance(ctx, micropython.WithStdout(os.Stdout))
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer in.Close()
 
-	out, err := in.Exec(ctx, "for i in range(3):\n    print('line', i)\n")
-	if err != nil {
+	if err := in.Exec(ctx, "for i in range(3):\n    print('line', i)\n"); err != nil {
 		log.Fatal(err)
 	}
-	fmt.Print(out)
 
 	// Output:
 	// line 0
@@ -364,7 +366,7 @@ func ExampleInstance_Exec() {
 func ExampleInstance_DefineFunction() {
 	ctx := context.Background()
 
-	in, err := micropython.NewInstance(ctx)
+	in, err := micropython.NewInstance(ctx, micropython.WithStdout(os.Stdout))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -388,17 +390,15 @@ func ExampleInstance_DefineFunction() {
 		log.Fatal(err)
 	}
 
-	out, err := in.Exec(ctx, `
+	if err := in.Exec(ctx, `
 for code in ("EUR", "GBP", "JPY"):
     try:
         print(code, round(usd(code, 100), 2))
     except KeyError as e:
         print(code, "no rate for", e)
-`)
-	if err != nil {
+`); err != nil {
 		log.Fatal(err)
 	}
-	fmt.Print(out)
 
 	// Output:
 	// EUR 109.0
@@ -412,7 +412,7 @@ for code in ("EUR", "GBP", "JPY"):
 func ExampleInstance_DefineFunction_error() {
 	ctx := context.Background()
 
-	in, err := micropython.NewInstance(ctx)
+	in, err := micropython.NewInstance(ctx, micropython.WithStdout(os.Stdout))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -425,16 +425,14 @@ func ExampleInstance_DefineFunction_error() {
 	}
 
 	// In Python, as HostError.
-	out, err := in.Exec(ctx, `
+	if err := in.Exec(ctx, `
 try:
     fetch()
 except HostError as e:
     print("guest caught:", e)
-`)
-	if err != nil {
+`); err != nil {
 		log.Fatal(err)
 	}
-	fmt.Print(out)
 
 	// In Go, as an ordinary error carrying the same text.
 	var exc *micropython.PythonError
@@ -445,4 +443,85 @@ except HostError as e:
 	// Output:
 	// guest caught: connection refused
 	// host saw: HostError / connection refused
+}
+
+// Nothing the guest prints escapes the interpreter on its own. WithStdout says
+// where it goes, and takes a writer so the caller keeps the buffering decision:
+// a bytes.Buffer to collect it, a file, os.Stdout, or an io.MultiWriter of
+// several at once.
+func ExampleWithStdout() {
+	ctx := context.Background()
+
+	var out bytes.Buffer
+	in, err := micropython.NewInstance(ctx, micropython.WithStdout(&out))
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer in.Close()
+
+	// Every route into the guest prints to the same place, including calls,
+	// which have no other way to report what they printed.
+	if err := in.Exec(ctx, "def greet(who):\n    print('hello', who)\n"); err != nil {
+		log.Fatal(err)
+	}
+	if _, err := in.Call(ctx, "greet", "world"); err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Print(out.String())
+
+	// The sink is shared across calls, so reset between them to read one call's
+	// output on its own.
+	out.Reset()
+	if _, err := in.Call(ctx, "greet", "again"); err != nil {
+		log.Fatal(err)
+	}
+	fmt.Print(out.String())
+
+	// Output:
+	// hello world
+	// hello again
+}
+
+// Because WithStdout takes a writer, streaming is a pipe away: the guest writes
+// as it goes and a goroutine reads alongside it, rather than waiting for the
+// script to finish.
+func ExampleWithStdout_streaming() {
+	ctx := context.Background()
+
+	pr, pw := io.Pipe()
+	in, err := micropython.NewInstance(ctx, micropython.WithStdout(pw))
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer in.Close()
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		sc := bufio.NewScanner(pr)
+		for sc.Scan() {
+			fmt.Println("got:", sc.Text())
+		}
+	}()
+
+	err = in.Exec(ctx, `
+for i in range(3):
+    print("tick", i)
+`)
+	// Closing the writer ends the stream, so the reader sees io.EOF and stops.
+	pw.Close()
+	wg.Wait()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// A reader that goes away is not fatal: writes to a closed pipe fail, the
+	// output is dropped, and the interpreter carries on.
+
+	// Output:
+	// got: tick 0
+	// got: tick 1
+	// got: tick 2
 }

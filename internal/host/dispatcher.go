@@ -7,7 +7,7 @@ import (
 	"github.com/gregfurman/micropython-go/internal/host/codec"
 )
 
-func (i *Instance) dispatch(funcID, argsPtr, numArgs, outPtr int32) error {
+func (i *Module) dispatch(funcID, argsPtr, numArgs, outPtr int32) error {
 	fn, ok := i.registry[funcID]
 	if !ok {
 		return fmt.Errorf("unknown host func %d", funcID)
@@ -46,7 +46,7 @@ func (i *Instance) dispatch(funcID, argsPtr, numArgs, outPtr int32) error {
 	return i.codec.Encode(outPtr, out)
 }
 
-func (i *Instance) register(fn HostFunc) int32 {
+func (i *Module) register(fn HostFunc) int32 {
 	i.counter++
 	i.registry[i.counter] = fn
 	return i.counter
@@ -55,7 +55,7 @@ func (i *Instance) register(fn HostFunc) int32 {
 // restore rebinds the registry to the one a snapshot captured. Guest memory
 // refers to host functions by id, so restoring memory without also restoring
 // the registry would leave those ids dangling.
-func (i *Instance) restore(registry map[int32]HostFunc, counter int32) {
+func (i *Module) restore(registry map[int32]HostFunc, counter int32) {
 	i.registry = maps.Clone(registry)
 	if i.registry == nil {
 		i.registry = make(map[int32]HostFunc)
@@ -63,7 +63,7 @@ func (i *Instance) restore(registry map[int32]HostFunc, counter int32) {
 	i.counter = counter
 }
 
-func (i *Instance) writeErrAt(ptr int32, err error) {
+func (i *Module) writeErrAt(ptr int32, err error) {
 	if e := i.codec.EncodeError(ptr, err); e != nil {
 		// fallback to just raise a regular Exception
 		_ = i.codec.EncodeEmptyError(ptr)

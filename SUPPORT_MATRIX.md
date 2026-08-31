@@ -225,7 +225,7 @@ inside a Go process with no host access.
 | Behaviour             | Detail                                                                                            |
 | --------------------- | ------------------------------------------------------------------------------------------------- |
 | No filesystem         | `open()` raises `OSError`; `import` cannot reach a real file even in the working directory        |
-| `print()` is captured | Output is returned by `Exec`; the host's stdout receives nothing                                  |
+| `print()` is captured | Output goes to the WithStdout writer; the host's stdout receives nothing                          |
 | Host functions        | Go functions bind to Python names. Failures raise `HostError`, which subclasses `RuntimeError`    |
 | Cancellation          | A VM hook polls every 256 instructions and raises `KeyboardInterrupt`                             |
 | Recursion depth       | Roughly 340-385 frames (`MICROPY_C_STACK_SIZE` is 96 KiB); overflow is a catchable `RuntimeError` |

@@ -5,6 +5,7 @@ package micropython
 // behaviour changed.
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -16,7 +17,7 @@ import (
 
 func raises(t *testing.T, in *Instance, src string) *PythonError {
 	t.Helper()
-	_, err := in.Exec(context.Background(), src)
+	err := in.Exec(context.Background(), src)
 	var exc *PythonError
 	if !errors.As(err, &exc) {
 		t.Fatalf("%s\n\tgave %v (%T), want a *PythonError", src, err, err)
@@ -58,7 +59,7 @@ func TestLimitImportCannotReachRealFiles(t *testing.T) {
 	}
 
 	for _, mod := range []string{"json", "re", "sys"} {
-		if _, err := in.Exec(t.Context(), "import "+mod); err != nil {
+		if err := in.Exec(t.Context(), "import "+mod); err != nil {
 			t.Errorf("import %s: %v", mod, err)
 		}
 	}
@@ -72,7 +73,7 @@ func TestLimitNoOSModule(t *testing.T) {
 	}
 
 	// sys itself exists; it is the stream objects on it that do not.
-	if _, err := in.Exec(t.Context(), "import sys"); err != nil {
+	if err := in.Exec(t.Context(), "import sys"); err != nil {
 		t.Fatalf("import sys: %v", err)
 	}
 	if got, err := in.Eval(t.Context(), "sys.platform"); err != nil || got != "wasi" {
@@ -85,33 +86,40 @@ func TestLimitNoOSModule(t *testing.T) {
 	}
 }
 
-func TestLimitPrintIsReturnedNotWritten(t *testing.T) {
-	// Ensure Exec hands back what the script printed, and (most importantly...) that
-	//  nothing reaches the host's stdout.
-	in := newT(t)
+func TestLimitPrintGoesToWithStdoutNotHostStdout(t *testing.T) {
+	// print() reaches the writer given to WithStdout, and (most importantly...)
+	// nothing reaches the host's stdout.
+	var out bytes.Buffer
+	in, err := NewInstance(t.Context(), WithStdout(&out))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { in.Close() })
 
-	var out string
 	onStdout := captureStdout(t, func() {
-		var err error
-		out, err = in.Exec(t.Context(), `
+		if err := in.Exec(t.Context(), `
 print("first")
 print("second", 2)
-`)
-		if err != nil {
+`); err != nil {
 			t.Error(err)
 		}
 	})
 
-	if want := "first\nsecond 2\n"; out != want {
-		t.Errorf("Exec returned %q, want %q", out, want)
+	if want := "first\nsecond 2\n"; out.String() != want {
+		t.Errorf("WithStdout received %q, want %q", out.String(), want)
 	}
 	if onStdout != "" {
 		t.Errorf("the process's stdout received %q, want nothing", onStdout)
 	}
 
-	// Each Exec reports only its own output.
-	if got, err := in.Exec(t.Context(), `print("third")`); err != nil || got != "third\n" {
-		t.Errorf("second Exec = %q, %v; want %q", got, err, "third\n")
+	// The sink is shared across calls, so a caller wanting one Exec's output on
+	// its own resets between them.
+	out.Reset()
+	if err := in.Exec(t.Context(), `print("third")`); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := out.String(), "third\n"; got != want {
+		t.Errorf("second Exec wrote %q, want %q", got, want)
 	}
 }
 
@@ -173,7 +181,7 @@ func TestLimitStackDepth(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			in := newT(t)
-			if _, err := in.Exec(t.Context(), fmt.Sprintf(countFramesUntilOverflow, tc.def, tc.call)); err != nil {
+			if err := in.Exec(t.Context(), fmt.Sprintf(countFramesUntilOverflow, tc.def, tc.call)); err != nil {
 				t.Fatal(err)
 			}
 
@@ -206,7 +214,7 @@ func TestLimitStackDepth(t *testing.T) {
 func TestLimitStructsGoThroughJSON(t *testing.T) {
 	ctx := context.Background()
 	in := newT(t)
-	if _, err := in.Exec(ctx, `
+	if err := in.Exec(ctx, `
 def keys(v):
     return sorted(v.keys())
 
@@ -264,7 +272,7 @@ def get(v, k):
 func TestLimitUnmarshalableStructIsRejected(t *testing.T) {
 	ctx := context.Background()
 	in := newT(t)
-	if _, err := in.Exec(ctx, "def echo(v):\n    return v\n"); err != nil {
+	if err := in.Exec(ctx, "def echo(v):\n    return v\n"); err != nil {
 		t.Fatal(err)
 	}
 

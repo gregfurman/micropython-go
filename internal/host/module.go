@@ -20,7 +20,7 @@ const (
 	defaultHeapSize = 2 * wasmPageSize // give 128KB to start
 )
 
-type Instance struct {
+type Module struct {
 	mod *wasi.Module
 	mem *memory.Memory
 
@@ -31,17 +31,17 @@ type Instance struct {
 
 	cancelled atomic.Bool
 
-	buf *bytes.Buffer
+	stdout io.Writer
 
 	scratch int32
 }
 
-func NewModule(size uint) (*Instance, error) {
+func NewModule(size uint, stdout io.Writer) (*Module, error) {
 	if size == 0 {
 		size = defaultHeapSize
 	}
 
-	i := newModule()
+	i := newModule(stdout)
 	if i.mod.Xinit_vm(int32(size), int32(maxHostArgs)) != 0 {
 		return nil, memory.ErrGuestOOM
 	}
@@ -51,10 +51,13 @@ func NewModule(size uint) (*Instance, error) {
 	return i, nil
 }
 
-func newModule(stdout io.Writer) *Instance {
-	i := &Instance{
+func newModule(stdout io.Writer) *Module {
+	if stdout == nil {
+		stdout = io.Discard
+	}
+	i := &Module{
 		registry: make(map[int32]HostFunc),
-		buf:      new(bytes.Buffer),
+		stdout:   stdout,
 	}
 
 	i.mod = wasi.New(i)
@@ -64,27 +67,22 @@ func newModule(stdout io.Writer) *Instance {
 	return i
 }
 
-// Begin starts an operation, clearing a stale cancel and the previous call's
-// output.
-func (i *Instance) Begin() {
+// Begin starts an operation, clearing a cancel left over from the last one.
+func (i *Module) Begin() {
 	i.cancelled.Store(false)
-	i.buf.Reset()
 }
 
-// Output returns what the current operation has printed.
-func (i *Instance) Output() string { return i.buf.String() }
-
-func (i *Instance) Cancel() {
+func (i *Module) Cancel() {
 	i.cancelled.Store(true)
 }
 
 // Decode converts a raw mp_obj_t word into a native Go value.
-func (i *Instance) Decode(objPtr int32) (any, error) {
+func (i *Module) Decode(objPtr int32) (any, error) {
 	i.mod.Xobj_to_value(objPtr, i.scratch)
 	return i.codec.Consume(i.scratch)
 }
 
-func (i *Instance) Eval(code string) (any, error) {
+func (i *Module) Eval(code string) (any, error) {
 	ptr, free, err := i.mem.WriteString(code)
 	if err != nil {
 		return nil, err
@@ -95,19 +93,20 @@ func (i *Instance) Eval(code string) (any, error) {
 	return i.codec.Consume(i.scratch)
 }
 
-func (i *Instance) Exec(code string) (string, error) {
+func (i *Module) Exec(code string) error {
 	ptr, free, err := i.mem.WriteString(code)
 	if err != nil {
-		return "", err
+		return err
 	}
+
 	defer free()
 
 	i.mod.Xexec(ptr, int32(len(code)), i.scratch)
 	_, err = i.codec.Consume(i.scratch)
-	return i.buf.String(), err
+	return err
 }
 
-func (i *Instance) Call(name string, args []any) (any, error) {
+func (i *Module) Call(name string, args []any) (any, error) {
 	namePtr, freeName, err := i.mem.WriteString(name)
 	if err != nil {
 		return nil, err
@@ -144,7 +143,7 @@ func (i *Instance) Call(name string, args []any) (any, error) {
 	return i.codec.Consume(i.scratch)
 }
 
-func (i *Instance) Set(name string, value any) error {
+func (i *Module) Set(name string, value any) error {
 	namePtr, freeName, err := i.mem.WriteString(name)
 	if err != nil {
 		return err
@@ -163,18 +162,18 @@ func (i *Instance) Set(name string, value any) error {
 	return err
 }
 
-func (i *Instance) Snapshot() *Snapshot {
+func (i *Module) Snapshot() *Snapshot {
 	return &Snapshot{
 		memory:   bytes.Clone(*i.mod.Xmemory().Slice()),
 		stack:    *i.mod.X__stack_pointer(),
 		scratch:  i.scratch,
 		registry: maps.Clone(i.registry),
 		counter:  i.counter,
-		stdout:   i.buf,
+		stdout:   i.stdout,
 	}
 }
 
-func (i *Instance) Restore(s *Snapshot) error {
+func (i *Module) Restore(s *Snapshot) error {
 	mem := i.mod.Xmemory()
 	if grow := len(s.memory) - len(*mem.Slice()); grow > 0 {
 		pages := int64((grow + wasmPageSize - 1) / wasmPageSize)
@@ -184,9 +183,9 @@ func (i *Instance) Restore(s *Snapshot) error {
 	}
 	copy(*mem.Slice(), s.memory)
 	*i.mod.X__stack_pointer() = s.stack
+	i.scratch = s.scratch
 	i.restore(s.registry, s.counter)
 	i.cancelled.Store(false)
-	i.buf.Reset()
 	return nil
 }
 
@@ -194,7 +193,7 @@ func (i *Instance) Restore(s *Snapshot) error {
 
 type HostFunc func(args []any) (any, error)
 
-func (i *Instance) DefineFunction(name string, fn HostFunc) error {
+func (i *Module) DefineFunction(name string, fn HostFunc) error {
 	if fn == nil {
 		return errors.New("nil host func")
 	}
