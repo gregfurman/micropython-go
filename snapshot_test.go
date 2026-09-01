@@ -5,6 +5,9 @@ import (
 	"embed"
 	"encoding/json"
 	"errors"
+	"flag"
+	"fmt"
+	"maps"
 	"path"
 	"slices"
 	"strings"
@@ -67,6 +70,7 @@ func runSuite(t *testing.T, contents []byte) {
 			if why := skipReason(testPath); why != "" {
 				t.Skip(why)
 			}
+			t.Logf("running: %s", testPath)
 
 			var out bytes.Buffer
 			in, err := NewInstance(t.Context(), WithStdout(&out))
@@ -82,20 +86,16 @@ func runSuite(t *testing.T, contents []byte) {
 
 			err = in.Exec(t.Context(), string(src))
 			if err != nil {
+				var errDetails string
 				if exc, ok := errors.AsType[*PythonError](err); ok {
-					switch exc.Type() {
-					case "SystemExit":
-						t.Skip("Skipped in MicroPython test suite.")
-					case "NotImplementedError":
-						t.Skipf("Skipping unimplemented functionality: %s", exc.Raw())
-					case "ImportError":
-						t.Skipf("Skipping test needing external import: %s", exc.Raw())
-					}
+					errDetails = exc.Raw()
+				} else {
+					errDetails = err.Error()
 				}
-
-				t.Fatalf("Instance.Exec failed: %v", err)
+				t.Log(out.String())
+				t.Errorf("Instance.Exec failed with exception:\n%s", errDetails)
+				return
 			}
-
 			if want, got := snap.Recorded.Stdout, out.String(); want != got {
 				t.Errorf("unexpected stdout:\nwant: %q\ngot:  %q", want, got)
 			}
@@ -103,29 +103,287 @@ func runSuite(t *testing.T, contents []byte) {
 	}
 }
 
+// ----------------------------------------------------------------------------
+
+var skippedTests = [...]struct {
+	name   string
+	path   string
+	reason string
+}{
+	{
+		name:   "attrtuple2",
+		path:   "micropython/tests/basics/attrtuple2.py",
+		reason: "needs os, which has no meaning without a filesystem",
+	},
+	{
+		name:   "builtin_help",
+		path:   "micropython/tests/basics/builtin_help.py",
+		reason: "help() lists the modules a build has, so the text is config-specific",
+	},
+	{
+		name:   "bytearray_slice_assign",
+		path:   "micropython/tests/basics/bytearray_slice_assign.py",
+		reason: "needs bytearray slice assignment",
+	},
+	{
+		name:   "class_setname_hazard_rand",
+		path:   "micropython/tests/basics/class_setname_hazard_rand.py",
+		reason: "needs random",
+	},
+	{
+		name:   "fun_code_colines",
+		path:   "micropython/tests/basics/fun_code_colines.py",
+		reason: "needs __code__.co_lines, beyond MICROPY_PY_FUNCTION_ATTRS_CODE",
+	},
+	{
+		name:   "fun_code_full",
+		path:   "micropython/tests/basics/fun_code_full.py",
+		reason: "needs the full __code__ attribute set",
+	},
+	{
+		name:   "import_star_nonmodule",
+		path:   "micropython/tests/basics/import_star_nonmodule.py",
+		reason: "import * from a class honours __all__ differently here",
+	},
+	{
+		name:   "io_iobase",
+		path:   "micropython/tests/basics/io_iobase.py",
+		reason: "subclassing io.IOBase raises TypeError: argument num/types mismatch",
+	},
+	{
+		name:   "memoryview_slice_assign",
+		path:   "micropython/tests/basics/memoryview_slice_assign.py",
+		reason: "needs uctypes",
+	},
+	{
+		name:   "memoryview_slice_size",
+		path:   "micropython/tests/basics/memoryview_slice_size.py",
+		reason: "needs uctypes",
+	},
+	{
+		name:   "nanbox_smallint",
+		path:   "micropython/tests/basics/nanbox_smallint.py",
+		reason: "only meaningful in a nan-boxing build",
+	},
+	{
+		name:   "string_module_tstring",
+		path:   "micropython/tests/basics/string_module_tstring.py",
+		reason: "import string.templatelib fails; only the attribute resolves",
+	},
+	{
+		name:   "string_tstring_basic",
+		path:   "micropython/tests/basics/string_tstring_basic.py",
+		reason: "import string.templatelib fails; only the attribute resolves",
+	},
+	{
+		name:   "string_tstring_constructor",
+		path:   "micropython/tests/basics/string_tstring_constructor.py",
+		reason: "import string.templatelib fails; only the attribute resolves",
+	},
+	{
+		name:   "string_tstring_constructor1",
+		path:   "micropython/tests/basics/string_tstring_constructor1.py",
+		reason: "import string.templatelib fails; only the attribute resolves",
+	},
+	{
+		name:   "string_tstring_errors1",
+		path:   "micropython/tests/basics/string_tstring_errors1.py",
+		reason: "import string.templatelib fails; only the attribute resolves",
+	},
+	{
+		name:   "string_tstring_operations",
+		path:   "micropython/tests/basics/string_tstring_operations.py",
+		reason: "import string.templatelib fails; only the attribute resolves",
+	},
+	{
+		name:   "string_tstring_parser1",
+		path:   "micropython/tests/basics/string_tstring_parser1.py",
+		reason: "import string.templatelib fails; only the attribute resolves",
+	},
+	{
+		name:   "subclass_native_call",
+		path:   "micropython/tests/basics/subclass_native_call.py",
+		reason: "needs machine, a hardware binding",
+	},
+	{
+		name:   "sys_path",
+		path:   "micropython/tests/basics/sys_path.py",
+		reason: "needs sys.path and __file__, which this build deliberately omits",
+	},
+	{
+		name:   "sys_stdio",
+		path:   "micropython/tests/basics/sys_stdio.py",
+		reason: "needs print(file=...), which still raises TypeError with STDFILES on",
+	},
+	{
+		name:   "sys_stdio_buffer",
+		path:   "micropython/tests/basics/sys_stdio_buffer.py",
+		reason: "needs print(file=...), which still raises TypeError with STDFILES on",
+	},
+	{
+		name:   "sys_tracebacklimit",
+		path:   "micropython/tests/basics/sys_tracebacklimit.py",
+		reason: "the reference strips filenames from tracebacks; this build reports <string>",
+	},
+	{
+		name:   "weakref_callback_exception",
+		path:   "micropython/tests/basics/weakref_callback_exception.py",
+		reason: "an exception in a weakref callback prints a traceback here rather than being swallowed",
+	},
+	{
+		name:   "cmath_dunder",
+		path:   "micropython/tests/float/cmath_dunder.py",
+		reason: "needs cmath",
+	},
+	{
+		name:   "cmath_fun",
+		path:   "micropython/tests/float/cmath_fun.py",
+		reason: "needs cmath",
+	},
+	{
+		name:   "cmath_fun_special",
+		path:   "micropython/tests/float/cmath_fun_special.py",
+		reason: "needs cmath",
+	},
+	{
+		name:   "float_format_accuracy",
+		path:   "micropython/tests/float/float_format_accuracy.py",
+		reason: "needs random",
+	},
+	{
+		name:   "math_constants_extra",
+		path:   "micropython/tests/float/math_constants_extra.py",
+		reason: "needs MICROPY_PY_MATH_CONSTANTS",
+	},
+	{
+		name:   "math_domain_special",
+		path:   "micropython/tests/float/math_domain_special.py",
+		reason: "needs MICROPY_PY_MATH_SPECIAL_FUNCTIONS",
+	},
+	{
+		name:   "math_factorial_intbig",
+		path:   "micropython/tests/float/math_factorial_intbig.py",
+		reason: "needs MICROPY_PY_MATH_FACTORIAL",
+	},
+	{
+		name:   "math_fun_special",
+		path:   "micropython/tests/float/math_fun_special.py",
+		reason: "needs MICROPY_PY_MATH_SPECIAL_FUNCTIONS",
+	},
+	{
+		name:   "math_isclose",
+		path:   "micropython/tests/float/math_isclose.py",
+		reason: "needs MICROPY_PY_MATH_ISCLOSE",
+	},
+	{
+		name:   "bytecode_limit",
+		path:   "micropython/tests/stress/bytecode_limit.py",
+		reason: "tunes itself on sys.implementation._mpy, which needs persistent code support",
+	},
+	{
+		name:   "async_await",
+		path:   "micropython/tests/basics/async_await.py",
+		reason: "async/await is not compiled in",
+	},
+	{
+		name:   "async_await2",
+		path:   "micropython/tests/basics/async_await2.py",
+		reason: "async/await is not compiled in",
+	},
+	{
+		name:   "async_def",
+		path:   "micropython/tests/basics/async_def.py",
+		reason: "async/await is not compiled in",
+	},
+	{
+		name:   "async_for",
+		path:   "micropython/tests/basics/async_for.py",
+		reason: "async/await is not compiled in",
+	},
+	{
+		name:   "async_for2",
+		path:   "micropython/tests/basics/async_for2.py",
+		reason: "async/await is not compiled in",
+	},
+	{
+		name:   "async_with",
+		path:   "micropython/tests/basics/async_with.py",
+		reason: "async/await is not compiled in",
+	},
+	{
+		name:   "async_with2",
+		path:   "micropython/tests/basics/async_with2.py",
+		reason: "async/await is not compiled in",
+	},
+	{
+		name:   "async_with_break",
+		path:   "micropython/tests/basics/async_with_break.py",
+		reason: "async/await is not compiled in",
+	},
+	{
+		name:   "async_with_return",
+		path:   "micropython/tests/basics/async_with_return.py",
+		reason: "async/await is not compiled in",
+	},
+	{
+		name:   "string_tstring_basic1",
+		path:   "micropython/tests/basics/string_tstring_basic1.py",
+		reason: "uses t\"\\8\", an escape MicroPython rejects and CPython only warns about",
+	},
+	{
+		name:   "recursive_data",
+		path:   "micropython/tests/stress/recursive_data.py",
+		reason: "needs print(file=...), which still raises TypeError with STDFILES on",
+	},
+}
+
 func skipReason(testPath string) string {
-	name := path.Base(testPath)
-
-	if strings.HasPrefix(name, "async_") {
-		return "async/await is not compiled in"
-	}
-
-	switch name {
-	case "sys1.py":
-		return "needs sys.path and sys.argv, which this build deliberately omits"
-
-	case "string_tstring_basic1.py":
-		return `uses t"\8", an escape MicroPython rejects and CPython only warns about`
-
-	case "bytes_compare3.py":
-		return "expected output is a ######## wildcard, not a literal"
-
-	case "builtin_compile.py":
-		return "needs func.__globals__, which MICROPY_PY_FUNCTION_ATTRS would add"
-
-	case "recursive_data.py":
-		return "needs print(file=...), which would move print off the host's output hook"
+	for _, skip := range skippedTests {
+		if skip.path == testPath {
+			return skip.reason
+		}
 	}
 
 	return ""
+}
+
+// Generated section of SUPPORT_MATRIX.md, rewritten by
+// `go test -run TestSupportMatrixSkipped -update-docs`.
+const (
+	skippedBegin = "<!-- BEGIN generated: skipped upstream tests -->"
+	skippedEnd   = "<!-- END generated: skipped upstream tests -->"
+)
+
+var updateDocs = flag.Bool("update-docs", false,
+	"rewrite the generated sections of SUPPORT_MATRIX.md instead of checking them")
+
+// renderSkippedTests groups skippedTests by reason, since one cause usually
+// accounts for several files and the reason is the part worth reading.
+func renderSkippedTests() string {
+	byReason := map[string][]string{}
+	for _, skip := range skippedTests {
+		byReason[skip.reason] = append(byReason[skip.reason], path.Base(skip.path))
+	}
+
+	reasons := slices.Sorted(maps.Keys(byReason))
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "%s\n\n", skippedBegin)
+	fmt.Fprintf(&b, "%d upstream tests are skipped. Each is a feature this port does not\n", len(skippedTests))
+	b.WriteString("compile in, or a difference in how the reference reports something, rather than\n")
+	b.WriteString("a defect in the interpreter.\n\n")
+	b.WriteString("| Reason | Tests |\n|---|---|\n")
+
+	for _, reason := range reasons {
+		names := byReason[reason]
+		slices.Sort(names)
+		quoted := make([]string, len(names))
+		for i, n := range names {
+			quoted[i] = "`" + n + "`"
+		}
+		fmt.Fprintf(&b, "| %s | %s |\n", reason, strings.Join(quoted, " "))
+	}
+
+	fmt.Fprintf(&b, "\n%s", skippedEnd)
+	return b.String()
 }

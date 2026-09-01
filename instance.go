@@ -11,6 +11,15 @@ import (
 )
 
 // HostFunc is a Go function callable from Python. See Instance.DefineFunction.
+//
+// Python's argument list arrives as one slice, however many arguments the call
+// site passed. A variadic Go function receives exactly the same values, so it
+// needs an adapter rather than a second supported signature:
+//
+//	func argmax(xs ...any) (any, error) { ... }
+//	in.DefineFunction(ctx, "argmax", func(args []any) (any, error) {
+//	    return argmax(args...)
+//	})
 type HostFunc func(args []any) (any, error)
 
 var (

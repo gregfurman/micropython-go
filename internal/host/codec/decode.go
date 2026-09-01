@@ -106,7 +106,9 @@ func (c *Codec) decode(v Value) (any, error) {
 		typ, repr, _ := strings.Cut(blob, "\x04")
 		return value.Object{Type: typ, Repr: repr}, nil
 
-	case KindCallable, KindRef:
+	case KindCallable:
+		return value.Callable{}, nil
+	case KindRef:
 		return nil, fmt.Errorf("kind %d: references not supported yet", int32(v.Kind))
 	}
 

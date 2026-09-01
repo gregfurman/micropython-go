@@ -63,14 +63,6 @@ func (c *Codec) releaseGuestBlock(v Value, stride, perEntry int32) error {
 	return firstErr
 }
 
-func (c *Codec) Borrow(ptr int32) (any, error) {
-	v, err := c.valueAt(ptr)
-	if err != nil {
-		return nil, err
-	}
-	return c.decode(v)
-}
-
 func (c *Codec) Consume(ptr int32) (any, error) {
 	v, err := c.valueAt(ptr)
 	if err != nil {

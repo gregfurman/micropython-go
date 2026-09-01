@@ -79,9 +79,6 @@ func (c *Codec) encodeAt(ptr int32, value any) error {
 		}
 		return c.encodeFloat(ptr, f)
 	case *big.Int:
-		if v == nil {
-			return c.putValue(ptr, Value{Kind: KindNone})
-		}
 		return c.putBlob(ptr, KindBigint, []byte(v.String()))
 	}
 
@@ -91,6 +88,7 @@ func (c *Codec) encodeAt(ptr int32, value any) error {
 		if rv.IsNil() {
 			return c.putValue(ptr, Value{Kind: KindNone})
 		}
+		// TODO: how should we handle interfaces being passed in?
 		return c.encodeAt(ptr, rv.Elem().Interface())
 	case reflect.Slice, reflect.Array:
 		return c.encodeSequence(ptr, rv)

@@ -11,6 +11,7 @@ EXTMOD_SRCS="$ROOT/micropython/extmod/modjson.c \
 	$ROOT/micropython/extmod/modre.c \
 	$ROOT/micropython/extmod/modtime.c"
 
+
 go tool libc-gen -c-out "$ROOT/libc"
 
 trap 'rm -f micropython micropython.wasm' EXIT

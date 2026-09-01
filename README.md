@@ -270,3 +270,11 @@ export BINARYEN_PATH=/path/to/binaryen
 make       # builds out/guest.wasm, regenerates internal/micropython/micropython.go
 make test
 ```
+
+
+
+## Calling MicroPython functions from Go
+
+```go
+
+```

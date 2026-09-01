@@ -62,7 +62,9 @@ func (i *Instance) Set(ctx context.Context, name string, v value.Value) error {
 }
 
 func (i *Instance) DefineFunction(ctx context.Context, name string, fn host.HostFunc) error {
-	return i.run(ctx, func(rt *host.Module) error { return rt.DefineFunction(name, fn) })
+	return i.run(ctx, func(rt *host.Module) error {
+		return rt.DefineFunction(name, fn)
+	})
 }
 
 func (i *Instance) Cancel() {

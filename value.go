@@ -2,6 +2,7 @@ package micropython
 
 import (
 	"github.com/gregfurman/micropython-go/internal/value"
+	"golang.org/x/exp/constraints"
 )
 
 // Value is a Python value the host has built. It wraps the internal one so
@@ -102,10 +103,10 @@ func Strs(items ...string) Value {
 }
 
 // Ints is a convenience function that creates a Python list of integers.
-func Ints(items ...int64) Value {
+func Ints[T constraints.Integer](items []T) Value {
 	out := make([]Value, len(items))
 	for i, n := range items {
-		out[i] = Int(n)
+		out[i] = Int(int64(n))
 	}
 	return List(out...)
 }
