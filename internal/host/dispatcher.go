@@ -1,10 +1,12 @@
 package host
 
 import (
+	"context"
 	"fmt"
 	"maps"
 
 	"github.com/gregfurman/micropython-go/internal/host/codec"
+	"github.com/gregfurman/micropython-go/internal/value"
 )
 
 func (i *Module) dispatch(funcID, argsPtr, numArgs, outPtr int32) error {
@@ -27,7 +29,7 @@ func (i *Module) dispatch(funcID, argsPtr, numArgs, outPtr int32) error {
 		return fmt.Errorf("return slot: %w", err)
 	}
 
-	args := make([]any, numArgs)
+	args := make([]value.Value, numArgs)
 	for k := range numArgs {
 		v, err := i.codec.Consume(argsPtr + k*codec.ValueSize)
 		if err != nil {
@@ -36,10 +38,15 @@ func (i *Module) dispatch(funcID, argsPtr, numArgs, outPtr int32) error {
 			}
 			return fmt.Errorf("arg %d: %w", k, err)
 		}
-		args[k] = v
+		if v != nil {
+			args[k] = v
+		}
 	}
 
-	out, err := fn(args)
+	ctx, cancel := i.Context(context.Background())
+	defer cancel()
+
+	out, err := fn(ctx, args)
 	if err != nil {
 		return err
 	}
@@ -68,4 +75,13 @@ func (i *Module) writeErrAt(ptr int32, err error) {
 		// fallback to just raise a regular Exception
 		_ = i.codec.EncodeEmptyError(ptr)
 	}
+}
+
+func (i *Module) iterate(ref, outPtr int32) (int32, error) {
+	status := i.mod.Xiterator_next(ref, outPtr)
+	if status < 0 {
+		_, err := i.codec.Consume(outPtr)
+		return status, err
+	}
+	return status, nil
 }

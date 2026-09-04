@@ -5,9 +5,6 @@ import (
 	"embed"
 	"encoding/json"
 	"errors"
-	"flag"
-	"fmt"
-	"maps"
 	"path"
 	"slices"
 	"strings"
@@ -345,45 +342,4 @@ func skipReason(testPath string) string {
 	}
 
 	return ""
-}
-
-// Generated section of SUPPORT_MATRIX.md, rewritten by
-// `go test -run TestSupportMatrixSkipped -update-docs`.
-const (
-	skippedBegin = "<!-- BEGIN generated: skipped upstream tests -->"
-	skippedEnd   = "<!-- END generated: skipped upstream tests -->"
-)
-
-var updateDocs = flag.Bool("update-docs", false,
-	"rewrite the generated sections of SUPPORT_MATRIX.md instead of checking them")
-
-// renderSkippedTests groups skippedTests by reason, since one cause usually
-// accounts for several files and the reason is the part worth reading.
-func renderSkippedTests() string {
-	byReason := map[string][]string{}
-	for _, skip := range skippedTests {
-		byReason[skip.reason] = append(byReason[skip.reason], path.Base(skip.path))
-	}
-
-	reasons := slices.Sorted(maps.Keys(byReason))
-
-	var b strings.Builder
-	fmt.Fprintf(&b, "%s\n\n", skippedBegin)
-	fmt.Fprintf(&b, "%d upstream tests are skipped. Each is a feature this port does not\n", len(skippedTests))
-	b.WriteString("compile in, or a difference in how the reference reports something, rather than\n")
-	b.WriteString("a defect in the interpreter.\n\n")
-	b.WriteString("| Reason | Tests |\n|---|---|\n")
-
-	for _, reason := range reasons {
-		names := byReason[reason]
-		slices.Sort(names)
-		quoted := make([]string, len(names))
-		for i, n := range names {
-			quoted[i] = "`" + n + "`"
-		}
-		fmt.Fprintf(&b, "| %s | %s |\n", reason, strings.Join(quoted, " "))
-	}
-
-	fmt.Fprintf(&b, "\n%s", skippedEnd)
-	return b.String()
 }

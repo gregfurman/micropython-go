@@ -1,14 +1,16 @@
 package host
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"math/big"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
+	"time"
 
-	"github.com/gregfurman/micropython-go/internal/host/codec"
 	"github.com/gregfurman/micropython-go/internal/value"
 )
 
@@ -37,29 +39,19 @@ func define(t *testing.T, inst *Module, name string, fn HostFunc) {
 }
 
 // eval evaluates expr and fails the test if the guest raises. Begin mirrors what
-// api.run does before every operation.
+// api.run does before every operation. The result is lifted to the Go value it
+// stands for, which is what these tests assert on.
 func eval(t *testing.T, inst *Module, expr string) any {
 	t.Helper()
-	inst.Begin()
+	step(t, inst)
 	got, err := inst.Eval(expr)
 	if err != nil {
 		t.Fatalf("Eval(%q): %v", expr, err)
 	}
-	return got
-}
-
-func TestKindsMatchGuest(t *testing.T) {
-	want := []codec.Kind{
-		codec.KindException, codec.KindNull, codec.KindNone, codec.KindBool,
-		codec.KindInt, codec.KindBigint, codec.KindFloat, codec.KindStr,
-		codec.KindBytes, codec.KindCallable, codec.KindObject, codec.KindRef,
+	if got == nil {
+		return nil
 	}
-	inst := newT(t)
-	for i, w := range want {
-		if got := codec.Kind(inst.mod.Xkind_of(int32(i))); got != w {
-			t.Errorf("slot %d: guest=%d go=%d", i, got, w)
-		}
-	}
+	return value.Lift(got)
 }
 
 func TestHostFunc(t *testing.T) {
@@ -71,54 +63,56 @@ func TestHostFunc(t *testing.T) {
 	}{
 		{
 			name: "string in and out",
-			fn: func(args []any) (any, error) {
-				s, ok := args[0].(string)
+			fn: func(_ context.Context, args []value.Value) (value.Value, error) {
+				s, ok := value.Lift(args[0]).(string)
 				if !ok {
-					return nil, fmt.Errorf("want str, got %T", args[0])
+					return nil, fmt.Errorf("want str, got %T", value.Lift(args[0]))
 				}
-				return strings.ToUpper(s), nil
+				return value.Str(strings.ToUpper(s)), nil
 			},
 			expr: `f("hello world")`,
 			want: "HELLO WORLD",
 		},
 		{
 			name: "ints add",
-			fn: func(args []any) (any, error) {
-				a, ok := args[0].(int64)
+			fn: func(_ context.Context, args []value.Value) (value.Value, error) {
+				a, ok := value.Lift(args[0]).(int64)
 				if !ok {
-					return nil, fmt.Errorf("arg 0: want int64, got %T", args[0])
+					return nil, fmt.Errorf("arg 0: want int64, got %T", value.Lift(args[0]))
 				}
-				b, ok := args[1].(int64)
+				b, ok := value.Lift(args[1]).(int64)
 				if !ok {
-					return nil, fmt.Errorf("arg 1: want int64, got %T", args[1])
+					return nil, fmt.Errorf("arg 1: want int64, got %T", value.Lift(args[1]))
 				}
-				return a + b, nil
+				return value.Int(a + b), nil
 			},
 			expr: `f(1, 2)`,
 			want: int64(3),
 		},
 		{
 			name: "no arguments",
-			fn:   func([]any) (any, error) { return "constant", nil },
+			fn:   func(context.Context, []value.Value) (value.Value, error) { return value.Str("constant"), nil },
 			expr: `f()`,
 			want: "constant",
 		},
 		{
 			name: "returns a dict the guest can index",
-			fn:   func([]any) (any, error) { return map[string]any{"key_1": "val_1"}, nil },
+			fn: func(context.Context, []value.Value) (value.Value, error) {
+				return value.NewDict(value.Item{Key: value.Str("key_1"), Val: value.Str("val_1")}), nil
+			},
 			expr: `f()["key_1"]`,
 			want: "val_1",
 		},
 		{
 			name: "returns None",
-			fn:   func([]any) (any, error) { return nil, nil },
+			fn:   func(context.Context, []value.Value) (value.Value, error) { return value.None{}, nil },
 			expr: `f() is None`,
 			want: true,
 		},
 		{
 			name: "arguments arrive already decoded",
-			fn: func(args []any) (any, error) {
-				return fmt.Sprintf("%T/%T/%T", args[0], args[1], args[2]), nil
+			fn: func(_ context.Context, args []value.Value) (value.Value, error) {
+				return value.Str(fmt.Sprintf("%T/%T/%T", value.Lift(args[0]), value.Lift(args[1]), value.Lift(args[2]))), nil
 			},
 			expr: `f("s", 1, b"xy")`,
 			want: "string/int64/[]uint8",
@@ -145,25 +139,29 @@ func TestHostFuncErrors(t *testing.T) {
 	}{
 		{
 			name:     "plain error falls back to HostError",
-			fn:       func([]any) (any, error) { return nil, errors.New("boom") },
+			fn:       func(context.Context, []value.Value) (value.Value, error) { return nil, errors.New("boom") },
 			wantType: "HostError",
 			wantMsg:  "boom",
 		},
 		{
-			name:     "typed error raises that builtin",
-			fn:       func([]any) (any, error) { return nil, value.NewException("ValueError", "bad input") },
+			name: "typed error raises that builtin",
+			fn: func(context.Context, []value.Value) (value.Value, error) {
+				return nil, value.NewException("ValueError", "bad input")
+			},
 			wantType: "ValueError",
 			wantMsg:  "bad input",
 		},
 		{
-			name:     "unknown class falls back to HostError",
-			fn:       func([]any) (any, error) { return nil, value.NewException("NoSuchError", "hm") },
+			name: "unknown class falls back to HostError",
+			fn: func(context.Context, []value.Value) (value.Value, error) {
+				return nil, value.NewException("NoSuchError", "hm")
+			},
 			wantType: "HostError",
 			wantMsg:  "hm",
 		},
 		{
 			name:     "panic is recovered, not propagated",
-			fn:       func([]any) (any, error) { panic("kaboom") },
+			fn:       func(context.Context, []value.Value) (value.Value, error) { panic("kaboom") },
 			wantType: "HostError",
 			wantMsg:  "host function panicked: kaboom",
 		},
@@ -178,7 +176,7 @@ func TestHostFuncErrors(t *testing.T) {
 			if got != nil {
 				t.Errorf("value = %#v, want nil on error", got)
 			}
-			pyErr, ok := errors.AsType[*codec.PythonError](err)
+			pyErr, ok := errors.AsType[*value.Exception](err)
 			if !ok {
 				t.Fatalf("err = %v (%T), want *codec.PythonError", err, err)
 			}
@@ -212,7 +210,7 @@ func TestDefineFunctionRejectsNil(t *testing.T) {
 
 func TestHostFuncSurvivesSnapshotRestore(t *testing.T) {
 	inst := newT(t)
-	define(t, inst, "f", func([]any) (any, error) { return "from host", nil })
+	define(t, inst, "f", func(context.Context, []value.Value) (value.Value, error) { return value.Str("from host"), nil })
 
 	snap := inst.Snapshot()
 
@@ -239,15 +237,15 @@ func TestHostFuncSurvivesSnapshotRestore(t *testing.T) {
 func TestValuesRoundTrip(t *testing.T) {
 	inst := newT(t)
 
-	define(t, inst, "payload", func([]any) (any, error) {
-		return map[string]any{
-			"empty_string": "",
-			"empty_bytes":  []byte{},
-			"nested":       []any{"x", []byte{1, 2}},
-			"big":          new(big.Int).Lsh(big.NewInt(1), 63),
-		}, nil
+	define(t, inst, "payload", func(context.Context, []value.Value) (value.Value, error) {
+		return value.NewDict(
+			value.Item{Key: value.Str("empty_string"), Val: value.Str("")},
+			value.Item{Key: value.Str("empty_bytes"), Val: value.Bytes{}},
+			value.Item{Key: value.Str("nested"), Val: value.NewList(value.Str("x"), value.Bytes{1, 2})},
+			value.Item{Key: value.Str("big"), Val: value.NewBigInt(new(big.Int).Lsh(big.NewInt(1), 63))},
+		), nil
 	})
-	define(t, inst, "identity", func(args []any) (any, error) { return args[0], nil })
+	define(t, inst, "identity", func(_ context.Context, args []value.Value) (value.Value, error) { return args[0], nil })
 
 	t.Run("host to guest", func(t *testing.T) {
 		expr := `payload() == {"empty_string": "", "empty_bytes": b"", "nested": ["x", b"\x01\x02"], "big": 9223372036854775808}`
@@ -270,4 +268,128 @@ func TestValuesRoundTrip(t *testing.T) {
 			t.Errorf("guest payload mismatch:\n got: %#v\nwant: %#v", got, want)
 		}
 	})
+}
+
+func TestGarbageCollection(t *testing.T) {
+	inst := newT(t)
+
+	fn := func(_ context.Context, _ []value.Value) (value.Value, error) {
+		return value.Str("pong"), nil
+	}
+
+	err := inst.DefineFunction("ping", fn)
+	if err != nil {
+		t.Fatalf("unexpected error when defining function: %v", err)
+	}
+
+	val, err := inst.Call("ping", []any{})
+	if err != nil {
+		t.Fatalf("unexpected error when calling 'ping' function: %v", err)
+	}
+
+	sval := value.Lift(val).(string)
+	if sval != "pong" {
+		t.Fatalf("unexpected response from 'ping'. Wanted %q, got %q", "pong", sval)
+	}
+
+	inst.registry[0] = nil
+
+	runtime.GC()
+
+	val, err = inst.Call("ping", []any{})
+	if err != nil {
+		t.Fatalf("unexpected error when calling 'ping' function: %v", err)
+	}
+
+}
+
+// ---------------------------------------------------------------------
+// Reference lifetime
+//
+// Ids handed to the host are released from whichever goroutine holds the
+// interpreter; internal/api/instance_test.go covers that lifecycle end to end.
+// What is left here needs to reach inside the Module to forge a ref.
+// ---------------------------------------------------------------------
+
+// step mirrors what api.run does before every operation: it clears a cancel
+// left over from the last one and frees the refs the host has dropped since.
+func step(t *testing.T, inst *Module) {
+	t.Helper()
+	inst.Begin()
+	inst.GC()
+}
+
+func exec(t *testing.T, inst *Module, src string) {
+	t.Helper()
+	step(t, inst)
+	if err := inst.Exec(src); err != nil {
+		t.Fatalf("Exec(%q): %v", src, err)
+	}
+}
+
+func objOf(t *testing.T, v value.Value) value.Object {
+	t.Helper()
+	o, ok := v.(value.Object)
+	if !ok {
+		t.Fatalf("value %#v (%T) is not an object", v, v)
+	}
+	if o.Ref() == 0 {
+		t.Fatal("object carries ref 0, so it is not bound to the guest")
+	}
+	return o
+}
+
+// gcWait forces collection and waits for the runtime to drain the cleanup
+// queue, using a sentinel cleanup as the barrier. Cleanup ordering is not
+// specified, so it runs a few rounds.
+func gcWait(t *testing.T) {
+	t.Helper()
+	for range 3 {
+		done := make(chan struct{})
+		func() {
+			// Not new(int): objects the tiny allocator batches can hold each
+			// other's cleanups back.
+			sentinel := new([64]byte)
+			runtime.AddCleanup(sentinel, func(ch chan struct{}) { close(ch) }, done)
+		}()
+		runtime.GC()
+		select {
+		case <-done:
+		case <-time.After(5 * time.Second):
+			t.Fatal("cleanup queue did not drain")
+		}
+	}
+}
+
+// A released id can be handed out again for a different object, so an id that
+// outlives its handle must be rejected rather than resolve to the new one.
+func TestReleasedRefIDIsNotReused(t *testing.T) {
+	inst := newT(t)
+	exec(t, inst, `first = lambda: "first"`)
+
+	step(t, inst)
+	handle, err := inst.Eval("first")
+	if err != nil {
+		t.Fatal(err)
+	}
+	staleID := objOf(t, handle).Ref()
+	handle = nil
+
+	gcWait(t)
+
+	exec(t, inst, `second = lambda: "second"`)
+	step(t, inst)
+	fresh, err := inst.Eval("second")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if objOf(t, fresh).Ref() == staleID {
+		t.Errorf("id %d was handed straight back out", staleID)
+	}
+
+	stale := value.NewObject("function", "<stale>", inst.refs.Track(staleID), false, true)
+	step(t, inst)
+	if out, err := inst.CallRef(stale, nil); err == nil {
+		t.Fatalf("stale ref %d resolved to %#v, want an error", staleID, value.Lift(out))
+	}
 }

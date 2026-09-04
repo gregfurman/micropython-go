@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/gregfurman/micropython-go/internal/value"
 	val "github.com/gregfurman/micropython-go/internal/value"
 )
 
@@ -21,6 +22,14 @@ func (c *Codec) encodeAt(ptr int32, value any) error {
 	switch v := value.(type) {
 	case *val.Exception:
 		return c.putBlob(ptr, KindException, []byte(v.Type()+"\x04"+v.Message()))
+	case val.ListValue:
+		return c.encodeSequenceKind(ptr, reflect.ValueOf([]val.Value(v)), KindList)
+	case val.TupleValue:
+		return c.encodeSequenceKind(ptr, reflect.ValueOf([]val.Value(v)), KindTuple)
+	case val.SetValue:
+		return c.encodeSequenceKind(ptr, reflect.ValueOf([]val.Value(v)), KindSet)
+	case val.FrozenSetValue:
+		return c.encodeSequenceKind(ptr, reflect.ValueOf([]val.Value(v)), KindFrozenSet)
 	case val.Tuple:
 		return c.encodeSequenceKind(ptr, reflect.ValueOf([]any(v)), KindTuple)
 	case val.Set:
@@ -28,7 +37,14 @@ func (c *Codec) encodeAt(ptr int32, value any) error {
 	case val.FrozenSet:
 		return c.encodeSequenceKind(ptr, reflect.ValueOf([]any(v)), KindFrozenSet)
 	case val.Object:
-		return fmt.Errorf("micropython: %s came from Python and cannot be passed back", v.Type)
+		if v.Handle() == nil {
+			return fmt.Errorf("micropython: %s is not bound to an interpreter", v.Type())
+		}
+		id, err := c.refs.Lookup(v.Handle())
+		if err != nil {
+			return err
+		}
+		return c.putValue(ptr, Value{Kind: KindObject, W1: id})
 	case val.Value:
 		lifted := val.Lift(v)
 		if err, ok := lifted.(error); ok {
@@ -240,7 +256,7 @@ func (c *Codec) releaseHostAt(ptr int32) {
 		return
 	}
 	switch v.Kind {
-	case KindStr, KindBytes, KindBigint, KindException, KindObject:
+	case KindStr, KindBytes, KindBigint, KindException:
 		c.mem.Free(int32(v.W2))
 	case KindList, KindTuple, KindSet, KindFrozenSet:
 		for i := int32(0); i < int32(v.W1); i++ {
@@ -270,7 +286,7 @@ func (c *Codec) EncodeError(ptr int32, target error) error {
 	// An unnamed type lets the guest apply its own default, HostError, which
 	// keeps a failed host callback distinguishable from an interpreter error.
 	typ, msg := "", target.Error()
-	if pyErr, ok := errors.AsType[*PythonError](target); ok {
+	if pyErr, ok := errors.AsType[*value.Exception](target); ok {
 		typ, msg = pyErr.Type(), pyErr.Message()
 	}
 	if strings.ContainsRune(typ, '\x04') {

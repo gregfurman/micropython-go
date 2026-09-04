@@ -3,8 +3,6 @@ package codec
 import (
 	"encoding/binary"
 	"math"
-
-	"github.com/gregfurman/micropython-go/internal/value"
 )
 
 const ValueSize = 12
@@ -32,5 +30,3 @@ func (v *Value) MarshalWords(b []byte) {
 	binary.LittleEndian.PutUint32(b[4:], v.W1)
 	binary.LittleEndian.PutUint32(b[8:], v.W2)
 }
-
-type PythonError = value.Exception

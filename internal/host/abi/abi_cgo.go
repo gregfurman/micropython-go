@@ -4,7 +4,8 @@ package abi
 
 /*
 #cgo CFLAGS: -m32
-#cgo CFLAGS: -I${SRCDIR}/../../../build -I${SRCDIR}/../../../build/micropython_embed
+#cgo CFLAGS: -I${SRCDIR}/../../../build -I${SRCDIR}/../../../build/build-embed
+#cgo CFLAGS: -I${SRCDIR}/../../../micropython -I${SRCDIR}/../../../micropython/ports/embed
 #include "types.h"
 */
 import "C"
@@ -22,10 +23,12 @@ const (
 	KindTuple     = C.KIND_TUPLE
 	KindList      = C.KIND_LIST
 	KindDict      = C.KIND_DICT
-	KindCallable  = C.KIND_CALLABLE
 	KindObject    = C.KIND_OBJECT
 	KindRef       = C.KIND_REF
 	KindException = C.KIND_EXCEPTION
 	KindSet       = C.KIND_SET
 	KindFrozenSet = C.KIND_FROZENSET
+
+	KindObjectIterable = C.KIND_OBJECT_ATTR_ITERABLE
+	KindObjectCallable = C.KIND_OBJECT_ATTR_CALLABLE
 )

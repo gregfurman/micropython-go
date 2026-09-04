@@ -3,6 +3,7 @@ package value
 import (
 	"errors"
 	"fmt"
+	"math/big"
 )
 
 const MaxDepth = 32
@@ -15,7 +16,7 @@ type Value interface {
 func Lift(v Value) any { return v.lift() }
 
 // Map builds the Go map a Python dict becomes, from alternating lifted keys
-// and values. String keys give a map[string]any, anything else a map[any]any.
+// and values. String keys give a `map[string]any`, anything else a `map[any]any`.
 func Map(kv []any) any {
 	strings := true
 	for i := 0; i+1 < len(kv); i += 2 {
@@ -89,10 +90,31 @@ type Bytes []byte
 func (Bytes) Type() string { return "bytes" }
 func (b Bytes) lift() any  { return []byte(b) }
 
-// --- containers -------------------------------------------------------------
-//
-// Each kind appears once: the type the guest sends back, the constructor that
-// builds one, and what it lowers to.
+type BigInt struct {
+	n *big.Int
+}
+
+func NewBigInt(n *big.Int) Value {
+	if n == nil {
+		return BigInt{n: new(big.Int)}
+	}
+	return BigInt{n: new(big.Int).Set(n)}
+}
+
+func (b *BigInt) Unwrap() *big.Int {
+	return b.n
+}
+
+func (BigInt) Type() string { return "int" }
+
+func (n BigInt) lift() any {
+	if n.n == nil {
+		return new(big.Int)
+	}
+	return new(big.Int).Set(n.n)
+}
+
+// ---------------------------------------------------------------------
 
 type (
 	Tuple     []any
@@ -101,56 +123,56 @@ type (
 )
 
 func NewSet(items ...Value) Value {
-	return setValue(items)
+	return SetValue(items)
 }
 
 func NewList(items ...Value) Value {
-	return listValue(items)
+	return ListValue(items)
 }
 
 func NewTuple(items ...Value) Value {
-	return tupleValue(items)
+	return TupleValue(items)
 }
 
 func NewFrozenSet(items ...Value) Value {
-	return frozenSetValue(items)
+	return FrozenSetValue(items)
 }
 
 func NewDict(entries ...Item) Value {
-	out := make(dictValue, len(entries))
+	out := make(DictValue, len(entries))
 	copy(out, entries)
 	return out
 }
 
-type listValue []Value
+type ListValue []Value
 
-func (listValue) Type() string { return "list" }
-func (l listValue) lift() any  { return lift(l) }
+func (ListValue) Type() string { return "list" }
+func (l ListValue) lift() any  { return lift(l) }
 
-type tupleValue []Value
+type TupleValue []Value
 
-func (tupleValue) Type() string { return "tuple" }
-func (t tupleValue) lift() any  { return Tuple(lift(t)) }
+func (TupleValue) Type() string { return "tuple" }
+func (t TupleValue) lift() any  { return lift(t) }
 
-type setValue []Value
+type SetValue []Value
 
-func (setValue) Type() string { return "set" }
-func (s setValue) lift() any  { return Set(lift(s)) }
+func (SetValue) Type() string { return "set" }
+func (s SetValue) lift() any  { return lift(s) }
 
-type frozenSetValue []Value
+type FrozenSetValue []Value
 
-func (frozenSetValue) Type() string { return "frozenset" }
-func (f frozenSetValue) lift() any  { return FrozenSet(lift(f)) }
+func (FrozenSetValue) Type() string { return "frozenset" }
+func (f FrozenSetValue) lift() any  { return lift(f) }
 
-type dictValue []Item
+type DictValue []Item
 
 type Item struct {
 	Key Value
 	Val Value
 }
 
-func (dictValue) Type() string { return "dict" }
-func (d dictValue) lift() any {
+func (DictValue) Type() string { return "dict" }
+func (d DictValue) lift() any {
 	kv := make([]any, 0, 2*len(d))
 	for _, entry := range d {
 		kv = append(kv, entry.Key.lift(), entry.Val.lift())
@@ -158,29 +180,96 @@ func (d dictValue) lift() any {
 	return Map(kv)
 }
 
-// --- values with no Go equivalent --------------------------------------------
+// ---------------------------------------------------------------------
 
-// Object is a Python value with no Go equivalent (e.g a class, an
-// arbitrary instance) where only the type and repr survive the crossing.
-//
-// Object is declared but not currently supported.
+// Ref owns one guest reference. Object is copied freely, so the ref it names
+// is released when the last copy sharing this pointer becomes unreachable.
+// Owner and epoch identify the interpreter and the timeline that minted it.
+type Ref struct {
+	id    uint32
+	owner any
+	epoch uint64
+}
+
+func NewRef(id uint32, owner any, epoch uint64) *Ref {
+	return &Ref{id: id, owner: owner, epoch: epoch}
+}
+
+func (r *Ref) ID() uint32 {
+	if r == nil {
+		return 0
+	}
+	return r.id
+}
+
+func (r *Ref) Owner() any {
+	if r == nil {
+		return nil
+	}
+	return r.owner
+}
+
+func (r *Ref) Epoch() uint64 {
+	if r == nil {
+		return 0
+	}
+	return r.epoch
+}
+
 type Object struct {
-	Type string
-	Repr string
+	typeName string
+	repr     string
+	ref      *Ref
+
+	isCallable bool
+	isIterable bool
 }
 
-func (o Object) String() string { return o.Repr }
-
-var ErrNoCallable = errors.New("micropython: a Callable cannot be passed to the guest: host functions are not supported in this build")
-
-// Callable is declared but not supported
-type Callable struct {
-	Name string
-	Fn   func(args []Value, kwargs map[string]Value) (Value, error)
+func NewObject(typ, repr string, ref *Ref, iterable, callable bool) Object {
+	return Object{
+		typeName:   typ,
+		repr:       repr,
+		ref:        ref,
+		isCallable: callable,
+		isIterable: iterable,
+	}
 }
 
-func (Callable) Type() string { return "callable" }
-func (c Callable) lift() any  { return c }
+func (o Object) Type() string {
+	return o.typeName
+}
+
+func (o Object) Repr() string {
+	return o.repr
+}
+
+func (o Object) String() string {
+	return o.repr
+}
+
+func (o Object) Ref() uint32 {
+	return o.ref.ID()
+}
+
+func (o Object) Handle() *Ref {
+	return o.ref
+}
+
+func (o Object) IsCallable() bool {
+	return o.isCallable
+}
+
+func (o Object) IsIterable() bool {
+	return o.isIterable
+}
+
+func (o Object) lift() any {
+	return o
+}
+
+var ErrNoCallable = errors.New("micropython: this Callable is not bound to an interpreter")
+
+var ErrNoIterator = errors.New("micropython: this Iterator is not bound to an interpreter")
 
 // ------------------------------------------------------------------
 

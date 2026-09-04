@@ -39,7 +39,7 @@ func TestLimitOpenRaisesOSError(t *testing.T) {
 	}
 
 	// And sanity check that interpreter is unharmed by the refusal
-	if got, err := in.Eval(t.Context(), "1 + 1"); err != nil || got != int64(2) {
+	if got, err := in.Eval(t.Context(), "1 + 1"); err != nil || got.Export() != int64(2) {
 		// this would be embarassing lol
 		t.Errorf("after OSError: %#v, %v", got, err)
 	}
@@ -76,7 +76,7 @@ func TestLimitNoOSModule(t *testing.T) {
 	if err := in.Exec(t.Context(), "import sys"); err != nil {
 		t.Fatalf("import sys: %v", err)
 	}
-	if got, err := in.Eval(t.Context(), "sys.platform"); err != nil || got != "wasi" {
+	if got, err := in.Eval(t.Context(), "sys.platform"); err != nil || got.Export() != "wasi" {
 		t.Errorf("sys.platform = %#v, %v; want \"wasi\"", got, err)
 	}
 	for _, stream := range []string{"sys.stdout", "sys.stderr", "sys.stdin"} {
@@ -186,7 +186,7 @@ func TestLimitStackDepth(t *testing.T) {
 			}
 
 			// It must be a catchable Python error, not a WASM trap.
-			if got, err := in.Eval(t.Context(), "raised"); err != nil || got != "RuntimeError" {
+			if got, err := in.Eval(t.Context(), "raised"); err != nil || got.Export() != "RuntimeError" {
 				t.Errorf("overflow raised %#v, %v; want RuntimeError", got, err)
 			}
 
@@ -194,7 +194,7 @@ func TestLimitStackDepth(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			depth, ok := got.(int64)
+			depth, ok := got.Export().(int64)
 			if !ok {
 				t.Fatalf("depth = %#v (%T), want int64", got, got)
 			}
@@ -204,7 +204,7 @@ func TestLimitStackDepth(t *testing.T) {
 			}
 
 			// Overflowing must leave the interpreter usable.
-			if got, err := in.Eval(t.Context(), "1 + 1"); err != nil || got != int64(2) {
+			if got, err := in.Eval(t.Context(), "1 + 1"); err != nil || got.Export() != int64(2) {
 				t.Errorf("after stack overflow: %#v, %v", got, err)
 			}
 		})
@@ -254,7 +254,7 @@ def get(v, k):
 		{"count", int64(2)},
 		{"ratio", 0.5},
 	} {
-		if v, err := in.Call(ctx, "get", arg, tc.key); err != nil || v != tc.want {
+		if v, err := in.Call(ctx, "get", arg, tc.key); err != nil || v.Export() != tc.want {
 			t.Errorf("get(row, %q) = %#v (%T), %v; want %#v", tc.key, v, v, err, tc.want)
 		}
 	}
@@ -264,7 +264,7 @@ def get(v, k):
 	if v, err := in.Call(ctx, "keys", direct); err != nil || fmt.Sprint(v) != "[Count ID]" {
 		t.Errorf("map keys = %#v, %v; want [Count ID]", v, err)
 	}
-	if v, err := in.Call(ctx, "get", direct, "Count"); err != nil || v != int64(2) {
+	if v, err := in.Call(ctx, "get", direct, "Count"); err != nil || v.Export() != int64(2) {
 		t.Errorf(`get(map, "Count") = %#v (%T), %v; want int64(2)`, v, v, err)
 	}
 }
@@ -285,7 +285,79 @@ func TestLimitUnmarshalableStructIsRejected(t *testing.T) {
 	}
 
 	// And (once again) ensure the instance still works.
-	if got, err := in.Call(ctx, "echo", "fine"); err != nil || got != "fine" {
+	if got, err := in.Call(ctx, "echo", "fine"); err != nil || got.Export() != "fine" {
+		t.Errorf("after the refusal: %#v, %v", got, err)
+	}
+}
+
+// A container reachable from itself cannot be copied out whole. It crosses as
+// a reference to the same guest object instead, the way any other object does.
+func TestRefCycleGuest(t *testing.T) {
+	ctx := context.Background()
+	in := newT(t)
+	if err := in.Exec(ctx, "a = [1]\na.append(a)\ndef same(x):\n    return x is a\n"); err != nil {
+		t.Fatal(err)
+	}
+
+	val, err := in.Eval(ctx, "a")
+	if err != nil {
+		t.Fatal(err)
+	}
+	items, err := val.AsList()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 2 || items[0].Export() != int64(1) {
+		t.Fatalf("a = %#v, want [1, a]", items)
+	}
+
+	obj, err := items[1].AsObject()
+	if err != nil {
+		t.Fatalf("cyclic element: %v", err)
+	}
+	if obj.String() != "[...]" {
+		t.Errorf("repr of the cycle is %q, want %q", obj.String(), "[...]")
+	}
+	if got, err := in.Call(ctx, "same", obj); err != nil || got.Export() != true {
+		t.Errorf("the reference does not name a: %#v, %v", got, err)
+	}
+
+	// Resolve reads it back as the list it is, one level deep.
+	again, err := in.Resolve(ctx, items[1])
+	if err != nil {
+		t.Fatal(err)
+	}
+	inner, err := again.AsList()
+	if err != nil {
+		t.Fatalf("resolved cycle: %v", err)
+	}
+	if len(inner) != 2 || inner[0].Export() != int64(1) || inner[1].Type() != "list" {
+		t.Fatalf("resolved a = %#v, want [1, a]", inner)
+	}
+
+	// A dict does the same, and so does a cycle that closes through several
+	// containers.
+	if err := in.Exec(ctx, "d = {}\nd['self'] = d\nb = []\nb.append([b])\n"); err != nil {
+		t.Fatal(err)
+	}
+	for _, expr := range []string{"d", "b"} {
+		if _, err := in.Eval(ctx, expr); err != nil {
+			t.Errorf("%s: %v", expr, err)
+		}
+	}
+
+	// Nesting deeper than the guest C stack allows is still refused, but as a
+	// catchable Python error rather than a WASM trap.
+	deep := "z = []\nc = z\nfor _ in range(2000):\n    n = []\n    c.append(n)\n    c = n\n"
+	if err := in.Exec(ctx, deep); err != nil {
+		t.Fatal(err)
+	}
+	var exc *PythonError
+	if _, err := in.Eval(ctx, "z"); !errors.As(err, &exc) {
+		t.Fatalf("deeply nested list gave %v (%T), want a *PythonError", err, err)
+	}
+
+	if got, err := in.Eval(ctx, "1 + 1"); err != nil || got.Export() != int64(2) {
 		t.Errorf("after the refusal: %#v, %v", got, err)
 	}
 }

@@ -1,5 +1,4 @@
 #include <stdint.h>
-#include <string.h>
 #include <stdlib.h>
 
 #include "py/mpconfig.h"
@@ -22,11 +21,8 @@
 // NOTE: HostError is a subclass of RuntimeError
 MP_DEFINE_EXCEPTION(HostError, RuntimeError)
 
-extern void refs_init(void);
-
 __attribute__((import_module("env"), import_name("host_trampoline"))) extern void host_trampoline(uint32_t func_id, uint32_t args_ptr, uint32_t num_args, uint32_t out_ptr);
 
-// TODO: hack to get stdout
 __attribute__((import_module("env"), import_name("host_stdout"))) extern void host_stdout(uint32_t ptr, uint32_t len);
 
 __attribute__((import_module("env"), import_name("host_poll"))) extern int32_t host_poll(void);
@@ -41,11 +37,6 @@ void minimal_vm_poll(void)
 
 static char *minimal_stack_top;
 
-#define PREPARE_CALL()                                \
-    int minimal_stack_dummy;                          \
-    minimal_stack_top = (char *)&minimal_stack_dummy; \
-    mp_cstack_init_with_top(minimal_stack_top, MICROPY_C_STACK_SIZE)
-
 void gc_helper_collect_regs_and_stack(void)
 {
     void *dummy;
@@ -59,15 +50,14 @@ mp_uint_t mp_hal_stdout_tx_strn(const char *str, size_t len)
     return len;
 }
 
-char *heap;
-int max_host_args;
+static int max_host_args;
 
 __attribute__((export_name("init_vm")))
 int32_t
 init_vm(size_t heap_size, int max_args)
 {
     max_host_args = max_args;
-    heap = (char *)malloc(heap_size);
+    char *heap = (char *)malloc(heap_size);
 
     if (heap == NULL)
     {
@@ -76,8 +66,10 @@ init_vm(size_t heap_size, int max_args)
 
     int stack_top;
     mp_embed_init(heap, heap_size, &stack_top);
+    minimal_stack_top = (char *)&stack_top;
+    mp_cstack_init_with_top(minimal_stack_top, MICROPY_C_STACK_SIZE);
 
-    refs_init();
+    refs_reset();
     mp_obj_dict_store(MP_OBJ_FROM_PTR(mp_globals_get()),
                       MP_OBJ_NEW_QSTR(MP_QSTR_HostError),
                       MP_OBJ_FROM_PTR(&mp_type_HostError));
@@ -88,7 +80,7 @@ static mp_obj_t generic_host_invoke(size_t n_args, const mp_obj_t *args)
 {
     uint32_t func_id = (uint32_t)mp_obj_get_int(args[0]);
     size_t n = n_args - 1;
-    if (n > max_host_args)
+    if (n > (size_t)max_host_args)
     {
         mp_raise_ValueError(MP_ERROR_TEXT("too many args"));
     }
@@ -114,16 +106,75 @@ static mp_obj_t generic_host_invoke(size_t n_args, const mp_obj_t *args)
         nlr_raise(obj_from_value(&ret));
     }
 
-    mp_obj_t res = obj_from_value(&ret);
-    return res;
+    return obj_from_value(&ret);
 }
 
 MP_DEFINE_CONST_FUN_OBJ_VAR(generic_host_invoke_obj, 1, generic_host_invoke);
 
-__attribute__((export_name("define_function"))) void define_function(const char *name, uint32_t func_id)
+static mp_obj_t new_host_function(uint32_t func_id)
 {
     mp_obj_t bound_id = mp_obj_new_int(func_id);
-    mp_obj_t bound_func = mp_obj_new_bound_meth((mp_obj_t)&generic_host_invoke_obj, bound_id);
+    return mp_obj_new_bound_meth((mp_obj_t)&generic_host_invoke_obj, bound_id);
+}
+
+// Return the module at path, creating every prefix and linking each child into
+// its parent. mp_obj_new_module also registers the fully-qualified module in
+// sys.modules, so ordinary imports find the same objects.
+static mp_obj_t get_or_create_module(const char *path, size_t path_len)
+{
+    if (path_len == 0)
+    {
+        mp_raise_ValueError(MP_ERROR_TEXT("empty module name"));
+    }
+
+    mp_obj_t parent = MP_OBJ_NULL;
+    size_t part_start = 0;
+    for (size_t end = 0; end <= path_len; ++end)
+    {
+        if (end != path_len && path[end] != '.')
+        {
+            continue;
+        }
+        if (end == part_start)
+        {
+            mp_raise_ValueError(MP_ERROR_TEXT("invalid module name"));
+        }
+
+        mp_obj_t module = mp_obj_new_module(qstr_from_strn(path, end));
+        if (!mp_obj_is_type(module, &mp_type_module))
+        {
+            mp_raise_TypeError(MP_ERROR_TEXT("module name is already occupied"));
+        }
+
+        if (parent != MP_OBJ_NULL)
+        {
+            mp_obj_module_t *parent_module = MP_OBJ_TO_PTR(parent);
+            qstr part_name = qstr_from_strn(path + part_start, end - part_start);
+            mp_obj_dict_store(MP_OBJ_FROM_PTR(parent_module->globals), MP_OBJ_NEW_QSTR(part_name), module);
+
+            // A parent containing a child is a package. This matters for
+            // `from parent import child` and for ports with external imports.
+            qstr path_name = qstr_from_strn("__path__", 8);
+            if (mp_map_lookup(&parent_module->globals->map, MP_OBJ_NEW_QSTR(path_name), MP_MAP_LOOKUP) == NULL)
+            {
+                mp_obj_dict_store(MP_OBJ_FROM_PTR(parent_module->globals), MP_OBJ_NEW_QSTR(path_name), mp_obj_new_list(0, NULL));
+            }
+        }
+        parent = module;
+        part_start = end + 1;
+    }
+    return parent;
+}
+
+static void module_store_attr(mp_obj_t module, const char *name, size_t name_len, mp_obj_t value)
+{
+    mp_obj_module_t *mod = MP_OBJ_TO_PTR(module);
+    mp_obj_dict_store(MP_OBJ_FROM_PTR(mod->globals), MP_OBJ_NEW_QSTR(qstr_from_strn(name, name_len)), value);
+}
+
+__attribute__((export_name("define_function"))) void define_function(const char *name, uint32_t func_id)
+{
+    mp_obj_t bound_func = new_host_function(func_id);
     qstr q_name = qstr_from_str(name);
 
     // Fetch the __main__ global dictionary and store the bound function
@@ -133,14 +184,70 @@ __attribute__((export_name("define_function"))) void define_function(const char 
         bound_func);
 }
 
-__attribute__((export_name("obj_to_value"))) void obj_to_value(uint32_t obj_in, uint32_t out_ptr)
+__attribute__((export_name("define_module"))) void define_module_ext(const char *path, uint32_t path_len, uint32_t out_ptr)
 {
-    PREPARE_CALL();
-    mp_obj_t obj = (mp_obj_t)(uintptr_t)obj_in;
     mp_value_t *out = (mp_value_t *)(uintptr_t)out_ptr;
     nlr_buf_t nlr;
     if (nlr_push(&nlr) == 0)
     {
+        get_or_create_module(path, path_len);
+        nlr_pop();
+        value_from_obj(mp_const_none, out);
+    }
+    else
+    {
+        value_from_exception((mp_obj_t)nlr.ret_val, out);
+    }
+}
+
+__attribute__((export_name("define_module_function"))) void define_module_function_ext(
+    const char *path, uint32_t path_len, const char *name, uint32_t name_len, uint32_t func_id, uint32_t out_ptr)
+{
+    mp_value_t *out = (mp_value_t *)(uintptr_t)out_ptr;
+    nlr_buf_t nlr;
+    if (nlr_push(&nlr) == 0)
+    {
+        module_store_attr(get_or_create_module(path, path_len), name, name_len, new_host_function(func_id));
+        nlr_pop();
+        value_from_obj(mp_const_none, out);
+    }
+    else
+    {
+        value_from_exception((mp_obj_t)nlr.ret_val, out);
+    }
+}
+
+__attribute__((export_name("set_module_attr"))) void set_module_attr_ext(
+    const char *path, uint32_t path_len, const char *name, uint32_t name_len, uint32_t value_ptr, uint32_t out_ptr)
+{
+    mp_value_t *out = (mp_value_t *)(uintptr_t)out_ptr;
+    nlr_buf_t nlr;
+    if (nlr_push(&nlr) == 0)
+    {
+        module_store_attr(get_or_create_module(path, path_len), name, name_len,
+                          obj_from_value((mp_value_t *)(uintptr_t)value_ptr));
+        nlr_pop();
+        value_from_obj(mp_const_none, out);
+    }
+    else
+    {
+        value_from_exception((mp_obj_t)nlr.ret_val, out);
+    }
+}
+
+// Re-read an object the host holds a ref to. A container comes back by value,
+// one level deep: anything cyclic inside it is a ref again.
+__attribute__((export_name("ref_to_value"))) void ref_to_value(uint32_t ref, uint32_t out_ptr)
+{
+    mp_value_t *out = (mp_value_t *)(uintptr_t)out_ptr;
+    nlr_buf_t nlr;
+    if (nlr_push(&nlr) == 0)
+    {
+        mp_obj_t obj = ref_get(ref);
+        if (obj == MP_OBJ_NULL)
+        {
+            mp_raise_ValueError(MP_ERROR_TEXT("stale ref"));
+        }
         value_from_obj(obj, out);
         nlr_pop();
     }
@@ -150,32 +257,10 @@ __attribute__((export_name("obj_to_value"))) void obj_to_value(uint32_t obj_in, 
     }
 }
 
-__attribute__((export_name("kind_of")))
-int32_t
-kind_of(uint32_t i)
-{
-    static const int32_t k[] = {
-        KIND_EXCEPTION,
-        KIND_NULL,
-        KIND_NONE,
-        KIND_BOOL,
-        KIND_INT,
-        KIND_BIGINT,
-        KIND_FLOAT,
-        KIND_STR,
-        KIND_BYTES,
-        KIND_CALLABLE,
-        KIND_OBJECT,
-        KIND_REF,
-    };
-    return i < sizeof(k) / sizeof(k[0]) ? k[i] : INT32_MIN;
-}
-
 // ----
 
 static void execute_python(const char *src, size_t len, mp_parse_input_kind_t input_kind, mp_value_t *out)
 {
-    PREPARE_CALL();
     nlr_buf_t nlr;
     if (nlr_push(&nlr) == 0)
     {
@@ -184,8 +269,8 @@ static void execute_python(const char *src, size_t len, mp_parse_input_kind_t in
         mp_parse_tree_t parse_tree = mp_parse(lex, input_kind);
         mp_obj_t module_fun = mp_compile(&parse_tree, source_name, false);
         mp_obj_t result = mp_call_function_0(module_fun);
-        nlr_pop();
         value_from_obj(result, out);
+        nlr_pop();
     }
     else
     {
@@ -208,24 +293,9 @@ __attribute__((export_name("exec"))) void exec_ext(const char *code, uint32_t le
     execute_python(code, len, MP_PARSE_FILE_INPUT, (mp_value_t *)(uintptr_t)out_ptr);
 }
 
-__attribute__((export_name("output_ptr")))
-uint32_t
-output_ptr(void)
-{
-    return 0;
-}
-
-__attribute__((export_name("output_len")))
-uint32_t
-output_len(void)
-{
-    return 0;
-}
-
 __attribute__((export_name("call"))) void call_ext(const char *name, uint32_t name_len, uint32_t args_ptr,
                                                    uint32_t num_args, uint32_t out_ptr)
 {
-    PREPARE_CALL();
     mp_value_t *out = (mp_value_t *)(uintptr_t)out_ptr;
     mp_value_t *args = (mp_value_t *)(uintptr_t)args_ptr;
 
@@ -243,8 +313,103 @@ __attribute__((export_name("call"))) void call_ext(const char *name, uint32_t na
             argv[i] = obj_from_value(&args[i]);
         }
         mp_obj_t result = mp_call_function_n_kw(fn, num_args, 0, argv);
-        nlr_pop();
         value_from_obj(result, out);
+        nlr_pop();
+    }
+    else
+    {
+        value_from_exception((mp_obj_t)nlr.ret_val, out);
+    }
+}
+
+__attribute__((export_name("call_ref"))) void call_ref_ext(uint32_t ref, uint32_t args_ptr,
+                                                           uint32_t num_args, uint32_t out_ptr)
+{
+    mp_value_t *out = (mp_value_t *)(uintptr_t)out_ptr;
+    mp_value_t *args = (mp_value_t *)(uintptr_t)args_ptr;
+
+    nlr_buf_t nlr;
+    if (nlr_push(&nlr) == 0)
+    {
+        mp_obj_t fn = ref_get(ref);
+        if (fn == MP_OBJ_NULL)
+        {
+            mp_raise_ValueError(MP_ERROR_TEXT("stale ref"));
+        }
+        if (!mp_obj_is_callable(fn))
+        {
+            mp_raise_TypeError(MP_ERROR_TEXT("not callable"));
+        }
+        mp_obj_t argv[num_args];
+        for (uint32_t i = 0; i < num_args; i++)
+        {
+            argv[i] = obj_from_value(&args[i]);
+        }
+        mp_obj_t result = mp_call_function_n_kw(fn, num_args, 0, argv);
+        value_from_obj(result, out);
+        nlr_pop();
+    }
+    else
+    {
+        value_from_exception((mp_obj_t)nlr.ret_val, out);
+    }
+}
+
+__attribute__((export_name("release_ref"))) void release_ref_ext(uint32_t ref)
+{
+    refs_free(ref);
+}
+
+// A restored memory snapshot contains the old host root lists, but Go handles
+// from that timeline are intentionally invalid.  Drop those roots so the
+// restored guest can collect the no-longer-host-owned objects.
+__attribute__((export_name("reset_refs"))) void reset_refs_ext(void)
+{
+    refs_reset();
+}
+
+// Advance a host-held generator.  mp_iternext converts StopIteration to the
+// MP_OBJ_STOP_ITERATION sentinel; other Python exceptions cross the ABI as an
+// exception value.  A separate status return keeps a yielded None distinct
+// from normal exhaustion.
+__attribute__((export_name("iterator_next")))
+int32_t
+iterator_next(uint32_t ref, mp_value_t *out)
+{
+    nlr_buf_t nlr;
+    if (nlr_push(&nlr) == 0)
+    {
+        mp_obj_t iter = ref_get(ref);
+        if (iter == MP_OBJ_NULL)
+        {
+            mp_raise_ValueError(MP_ERROR_TEXT("stale ref"));
+        }
+
+        mp_obj_t item = mp_iternext(iter);
+        if (item == MP_OBJ_STOP_ITERATION)
+        {
+            nlr_pop();
+            return 0;
+        }
+
+        value_from_obj(item, out);
+        nlr_pop();
+        return 1;
+    }
+
+    value_from_exception((mp_obj_t)nlr.ret_val, out);
+    return -1;
+}
+
+__attribute__((export_name("get_global"))) void get_global_ext(const char *name, uint32_t name_len, uint32_t out_ptr)
+{
+    mp_value_t *out = (mp_value_t *)(uintptr_t)out_ptr;
+    nlr_buf_t nlr;
+    if (nlr_push(&nlr) == 0)
+    {
+        mp_obj_t value = mp_load_global(qstr_from_strn(name, name_len));
+        value_from_obj(value, out);
+        nlr_pop();
     }
     else
     {
@@ -255,7 +420,6 @@ __attribute__((export_name("call"))) void call_ext(const char *name, uint32_t na
 __attribute__((export_name("set_global"))) void set_global_ext(const char *name, uint32_t name_len, uint32_t value_ptr,
                                                                uint32_t out_ptr)
 {
-    PREPARE_CALL();
     mp_value_t *out = (mp_value_t *)(uintptr_t)out_ptr;
     nlr_buf_t nlr;
     if (nlr_push(&nlr) == 0)

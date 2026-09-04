@@ -80,10 +80,10 @@ func (p *Program) Instance(ctx context.Context) (*Instance, error) {
 // The function executes in total isolation. Any changes made to Python's global
 // state during the execution are discarded before the underlying interpreter is
 // returned to the internal pool.
-func (p *Program) Call(ctx context.Context, name string, args ...any) (any, error) {
+func (p *Program) Call(ctx context.Context, name string, args ...any) (Value, error) {
 	in, err := p.acquire()
 	if err != nil {
-		return nil, err
+		return Value{}, err
 	}
 
 	defer p.release(in)

@@ -10,6 +10,7 @@ type options struct {
 
 	globals      map[string]Value
 	hostFuncs    map[string]HostFunc
+	packages     []PackageSpec
 	sourceScript string
 	stdout       io.Writer
 }
@@ -88,6 +89,15 @@ func WithHostFunc(name string, fn HostFunc) Option {
 			o.hostFuncs = make(map[string]HostFunc, 1)
 		}
 		o.hostFuncs[name] = fn
+	})
+}
+
+// WithPackage installs a Python package before the source script runs. It is
+// available to both Instance and Program construction; a Program snapshots the
+// installed package and its host callbacks along with the rest of its baseline.
+func WithPackage(pkg PackageSpec) Option {
+	return optionFunc(func(o *options) {
+		o.packages = append(o.packages, pkg)
 	})
 }
 

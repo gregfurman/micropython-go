@@ -70,7 +70,7 @@ func TestExceptions(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if want := "Exception: Exception: this is an exception"; got != want {
+		if want := "Exception: Exception: this is an exception"; got.Export() != want {
 			t.Errorf("got %q, want %q", got, want)
 		}
 	})
@@ -80,7 +80,7 @@ func TestExceptions(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if got != int64(2) {
+		if got.Export() != int64(2) {
 			t.Errorf("1 + 1 = %#v", got)
 		}
 	})

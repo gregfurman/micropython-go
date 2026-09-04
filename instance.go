@@ -8,6 +8,7 @@ import (
 
 	"github.com/gregfurman/micropython-go/internal/api"
 	"github.com/gregfurman/micropython-go/internal/host"
+	"github.com/gregfurman/micropython-go/internal/value"
 )
 
 // HostFunc is a Go function callable from Python. See Instance.DefineFunction.
@@ -20,7 +21,7 @@ import (
 //	in.DefineFunction(ctx, "argmax", func(args []any) (any, error) {
 //	    return argmax(args...)
 //	})
-type HostFunc func(args []any) (any, error)
+type HostFunc func(ctx context.Context, args []Value) (Value, error)
 
 var (
 	// ErrClosed indicates the interpreter or pool has been shut down and can no longer be used.
@@ -70,7 +71,14 @@ func newInstance(ctx context.Context, opt *options) (*Instance, error) {
 	}
 
 	for _, name := range slices.Sorted(maps.Keys(opt.hostFuncs)) {
-		if err := in.DefineFunction(ctx, name, host.HostFunc(opt.hostFuncs[name])); err != nil {
+		if err := in.DefineFunction(ctx, name, hostFunc(opt.hostFuncs[name])); err != nil {
+			in.Close()
+			return nil, err
+		}
+	}
+
+	for _, pkg := range opt.packages {
+		if err := (&Instance{wrapped: in}).RegisterPackage(ctx, pkg); err != nil {
 			in.Close()
 			return nil, err
 		}
@@ -93,6 +101,51 @@ func (i *Instance) Set(ctx context.Context, name string, v Value) error {
 		return ErrInstanceNotInitialised
 	}
 	return i.wrapped.Set(ctx, name, v.val)
+}
+
+// Get reads a global Python variable by name, converting it with the same rules
+// as Eval. It resolves the name directly rather than compiling it as an
+// expression, and raises NameError if the name is unbound.
+func (i *Instance) Get(ctx context.Context, name string) (Value, error) {
+	if i.wrapped == nil {
+		return Value{}, ErrInstanceNotInitialised
+	}
+
+	out, err := i.wrapped.Get(ctx, name)
+	if err != nil {
+		return Value{}, err
+	}
+
+	return wrapValue(out), nil
+}
+
+// Resolve reads the value behind an object handle, the form anything with no Go
+// equivalent takes. Most objects resolve to themselves, but a container that is
+// reachable from itself crosses as a handle rather than a copy, and this is what
+// reads it:
+//
+//	in.Exec(ctx, "a = [1]\na.append(a)\n")
+//	got, _ := in.Eval(ctx, "a")       // [1, [...]]
+//	items, _ := got.AsList()
+//	same, _ := in.Resolve(ctx, items[1]) // [1, [...]] again, the same list
+//
+// The value comes back one level deep, so a cycle inside it is a handle again.
+func (i *Instance) Resolve(ctx context.Context, v Value) (Value, error) {
+	if i.wrapped == nil {
+		return Value{}, ErrInstanceNotInitialised
+	}
+
+	obj, ok := v.val.(value.Object)
+	if !ok {
+		return Value{}, conversionError(v, "object")
+	}
+
+	out, err := i.wrapped.Resolve(ctx, obj)
+	if err != nil {
+		return Value{}, err
+	}
+
+	return wrapValue(out), nil
 }
 
 // DefineFunction binds a Go function to a global Python name, letting the guest
@@ -118,7 +171,22 @@ func (i *Instance) DefineFunction(ctx context.Context, name string, fn HostFunc)
 	if i.wrapped == nil {
 		return ErrInstanceNotInitialised
 	}
-	return i.wrapped.DefineFunction(ctx, name, host.HostFunc(fn))
+
+	return i.wrapped.DefineFunction(ctx, name, hostFunc(fn))
+}
+
+// hostFunc adapts a public HostFunc to the value model the guest speaks. The
+// result is unwrapped here rather than encoded as the Value wrapper, which the
+// codec would otherwise take for an ordinary Go struct.
+func hostFunc(fn HostFunc) host.HostFunc {
+	return func(ctx context.Context, args []value.Value) (value.Value, error) {
+		result, err := fn(ctx, wrapValues(args))
+		if err != nil {
+			return nil, err
+		}
+
+		return result.val, nil
+	}
 }
 
 // Cancel interrupts any Python execution currently in flight on this instance.
@@ -139,16 +207,27 @@ func (i *Instance) Cancel() error {
 	return nil
 }
 
+// func (i *Instance) Context() context.Context {
+// 	// context.WithC
+// 	i.wrapped
+// }
+
 // Call invokes a Python global function by name, passing the provided arguments,
 // and returns its result translated into a native Go value.
 //
 // Because the Instance is stateful, the Python function may interact with or mutate
 // globals that persist after the Call returns.
-func (i *Instance) Call(ctx context.Context, name string, args ...any) (any, error) {
+func (i *Instance) Call(ctx context.Context, name string, args ...any) (Value, error) {
 	if i.wrapped == nil {
-		return nil, ErrInstanceNotInitialised
+		return Value{}, ErrInstanceNotInitialised
 	}
-	return i.wrapped.Call(ctx, name, unwrapArgs(args)...)
+
+	out, err := i.wrapped.Call(ctx, name, unwrapArgs(args)...)
+	if err != nil {
+		return Value{}, err
+	}
+
+	return wrapValue(out), nil
 }
 
 // Clone captures a snapshot of the interpreter's current memory and returns a completely
@@ -184,11 +263,17 @@ func (i *Instance) Close() error {
 // and returns the resulting native Go value.
 //
 // Unlike Exec, Eval cannot execute multi-line statements or variable assignments.
-func (i *Instance) Eval(ctx context.Context, expr string) (any, error) {
+func (i *Instance) Eval(ctx context.Context, expr string) (Value, error) {
 	if i.wrapped == nil {
-		return nil, ErrInstanceNotInitialised
+		return Value{}, ErrInstanceNotInitialised
 	}
-	return i.wrapped.Eval(ctx, expr)
+
+	out, err := i.wrapped.Eval(ctx, expr)
+	if err != nil {
+		return Value{}, err
+	}
+
+	return wrapValue(out), nil
 }
 
 // Exec runs arbitrary Python source code as a script. Anything the script
@@ -228,4 +313,8 @@ func (i *Instance) restore(s *api.Snapshot) error {
 		return ErrInstanceNotInitialised
 	}
 	return i.wrapped.Restore(context.Background(), s)
+}
+
+func (i *Instance) Int(n int64) value.Int {
+	return value.Int(n)
 }

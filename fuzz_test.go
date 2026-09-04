@@ -67,7 +67,7 @@ func FuzzExec(f *testing.F) {
 		if err != nil {
 			t.Fatalf("interpreter unusable after Exec(%q): %v", src, err)
 		}
-		if got != int64(3) {
+		if got.Export() != int64(3) {
 			t.Fatalf("interpreter wrong after Exec(%q): len('abc') = %#v", src, got)
 		}
 	})
@@ -97,7 +97,7 @@ func FuzzEval(f *testing.F) {
 		if err != nil {
 			t.Fatalf("interpreter unusable after Eval(%q): %v", expr, err)
 		}
-		if got != int64(3) {
+		if got.Export() != int64(3) {
 			t.Fatalf("interpreter wrong after Eval(%q): len('abc') = %#v", expr, got)
 		}
 	})
@@ -136,7 +136,7 @@ func FuzzCallArgs(f *testing.F) {
 		}
 		// equalValue rather than DeepEqual: a Python set has no order, so its
 		// members come back in whatever order the hash table held them.
-		if !equalValue(got, want) {
+		if !equalValue(got.Export(), want) {
 			t.Fatalf("round trip: got %#v, want %#v", got, want)
 		}
 	})
@@ -184,7 +184,7 @@ func FuzzProgram(f *testing.F) {
 		if err != nil {
 			t.Fatalf("Program unusable after CompileSource(%q)+Call(%q): %v", src, name, err)
 		}
-		if got != int64(4) {
+		if got.Export() != int64(4) {
 			t.Fatalf("Program wrong after CompileSource(%q)+Call(%q): len('abcd') = %#v", src, name, got)
 		}
 	})

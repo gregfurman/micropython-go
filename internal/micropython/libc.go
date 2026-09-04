@@ -22,13 +22,13 @@ func (m *Module) _fmod(x, y float64) float64 { return math.Mod(x, y) }
 
 func (m *Module) _frexp(x float64, eptr int32) float64 {
 	x, exp := math.Frexp(x)
-	store32(m.memory[uint32(eptr):], uint32(exp))
+	store32((*m.memory)[uint32(eptr):], uint32(exp))
 	return x
 }
 func (m *Module) _ldexp(x float64, n int32) float64 { return math.Ldexp(x, int(n)) }
 func (m *Module) _log(x float64) float64            { return math.Log(x) }
 func (m *Module) _memchr(s, c, n int32) int32 {
-	b := m.memory[uint32(s):]
+	b := (*m.memory)[uint32(s):]
 	if uint(len(b)) > uint(uint32(n)) {
 		b = b[:uint32(n)]
 	}
@@ -40,8 +40,8 @@ func (m *Module) _memchr(s, c, n int32) int32 {
 
 func (m *Module) _memcmp(s1, s2, n int32) int32 {
 	e1, e2 := s1+n, s2+n
-	b1 := m.memory[uint32(s1):uint32(e1)]
-	b2 := m.memory[uint32(s2):uint32(e2)]
+	b1 := (*m.memory)[uint32(s1):uint32(e1)]
+	b2 := (*m.memory)[uint32(s2):uint32(e2)]
 	return int32(bytes.Compare(b1, b2))
 }
 
@@ -51,7 +51,7 @@ func (m *Module) _modf(x float64, iptr int32) (f float64) {
 	} else {
 		x, f = math.Modf(x)
 	}
-	store64(m.memory[uint32(iptr):], math.Float64bits(x))
+	store64((*m.memory)[uint32(iptr):], math.Float64bits(x))
 	return f
 }
 func (m *Module) _pow(x, y float64) float64 { return math.Pow(x, y) }
@@ -60,15 +60,15 @@ func (m *Module) _sin(x float64) float64 { return math.Sin(x) }
 
 func (m *Module) _strchr(s, c int32) int32 {
 	s = m._strchrnul(s, c)
-	if m.memory[uint32(s)] == byte(c) {
+	if (*m.memory)[uint32(s)] == byte(c) {
 		return s
 	}
 	return 0
 }
 
 func (m *Module) _strcmp(s1, s2 int32) int32 {
-	b1 := m.memory[uint32(s1):]
-	b2 := m.memory[uint32(s2):]
+	b1 := (*m.memory)[uint32(s1):]
+	b2 := (*m.memory)[uint32(s2):]
 	sz := min(len(b1), len(b2))
 	if i := bytes.IndexByte(b1[:sz], 0); i >= 0 {
 		sz = i + 1
@@ -76,12 +76,12 @@ func (m *Module) _strcmp(s1, s2 int32) int32 {
 	return int32(bytes.Compare(b1[:sz], b2[:sz]))
 }
 func (m *Module) _strlen(s int32) int32 {
-	return int32(bytes.IndexByte(m.memory[uint32(s):], 0))
+	return int32(bytes.IndexByte((*m.memory)[uint32(s):], 0))
 }
 
 func (m *Module) _strncmp(s1, s2, n int32) int32 {
-	b1 := m.memory[uint32(s1):]
-	b2 := m.memory[uint32(s2):]
+	b1 := (*m.memory)[uint32(s1):]
+	b2 := (*m.memory)[uint32(s2):]
 	sz := int(min(uint(len(b1)), uint(len(b2)), uint(uint32(n))))
 	if i := bytes.IndexByte(b1[:sz], 0); i >= 0 {
 		sz = i + 1
@@ -91,7 +91,7 @@ func (m *Module) _strncmp(s1, s2, n int32) int32 {
 func (m *Module) _tan(x float64) float64 { return math.Tan(x) }
 
 func (m *Module) _strchrnul(s, c int32) int32 {
-	b := m.memory[uint32(s):]
+	b := (*m.memory)[uint32(s):]
 	b = b[:bytes.IndexByte(b, 0)]
 	sz := len(b)
 	if c := byte(c); c != 0 {

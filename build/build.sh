@@ -51,6 +51,7 @@ BUILTINS="$("$WASI_SDK/clang" -print-resource-dir)/lib/wasm32-unknown-wasi/libcl
 	-Wl,--export-table \
 	-Wl,--export=malloc \
 	-Wl,--export=free \
+ 	-Wl,--import-memory \
 	-Wl,--export=__stack_pointer \
 	-Wl,-z,stack-size=196608 \
 	-Wl,--initial-memory=393216 \

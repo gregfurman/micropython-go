@@ -30,7 +30,11 @@ func New(heapBytes int32, stdout io.Writer) (*Instance, error) {
 	if err != nil {
 		return nil, err
 	}
-	i := &Instance{lock: make(chan struct{}, 1), heapBytes: heapBytes, stdout: stdout}
+	i := &Instance{
+		lock:      make(chan struct{}, 1),
+		heapBytes: heapBytes,
+		stdout:    stdout,
+	}
 	i.rt.Store(rt)
 	return i, nil
 }
@@ -41,7 +45,7 @@ func (i *Instance) Exec(ctx context.Context, src string) error {
 	})
 }
 
-func (i *Instance) Eval(ctx context.Context, expr string) (out any, err error) {
+func (i *Instance) Eval(ctx context.Context, expr string) (out value.Value, err error) {
 	err = i.run(ctx, func(rt *host.Module) error {
 		out, err = rt.Eval(expr)
 		return err
@@ -49,7 +53,7 @@ func (i *Instance) Eval(ctx context.Context, expr string) (out any, err error) {
 	return out, err
 }
 
-func (i *Instance) Call(ctx context.Context, name string, args ...any) (out any, err error) {
+func (i *Instance) Call(ctx context.Context, name string, args ...any) (out value.Value, err error) {
 	err = i.run(ctx, func(rt *host.Module) error {
 		out, err = rt.Call(name, args)
 		return err
@@ -61,9 +65,48 @@ func (i *Instance) Set(ctx context.Context, name string, v value.Value) error {
 	return i.run(ctx, func(rt *host.Module) error { return rt.Set(name, v) })
 }
 
+func (i *Instance) CallRef(ctx context.Context, obj value.Object, args []any) (out value.Value, err error) {
+	err = i.run(ctx, func(rt *host.Module) error {
+		out, err = rt.CallRef(obj, args)
+		return err
+	})
+	return out, err
+}
+
+func (i *Instance) Resolve(ctx context.Context, obj value.Object) (out value.Value, err error) {
+	err = i.run(ctx, func(rt *host.Module) error {
+		out, err = rt.Resolve(obj)
+		return err
+	})
+	return out, err
+}
+
+// NextGenerator advances a guest generator while holding the instance lock.
+func (i *Instance) NextGenerator(ctx context.Context, obj value.Object) (out value.Value, more bool, err error) {
+	err = i.run(ctx, func(rt *host.Module) error {
+		out, more, err = rt.NextGenerator(obj)
+		return err
+	})
+	return out, more, err
+}
+
+func (i *Instance) Get(ctx context.Context, name string) (out value.Value, err error) {
+	err = i.run(ctx, func(rt *host.Module) error {
+		out, err = rt.Get(name)
+		return err
+	})
+	return out, err
+}
+
 func (i *Instance) DefineFunction(ctx context.Context, name string, fn host.HostFunc) error {
 	return i.run(ctx, func(rt *host.Module) error {
 		return rt.DefineFunction(name, fn)
+	})
+}
+
+func (i *Instance) InstallPackage(ctx context.Context, pkg host.Package) error {
+	return i.run(ctx, func(rt *host.Module) error {
+		return rt.RegisterPackage(pkg)
 	})
 }
 
@@ -100,7 +143,9 @@ func (i *Instance) Snapshot(ctx context.Context) (*host.Snapshot, error) {
 	if err := i.Err(); err != nil {
 		return nil, err
 	}
-	return i.rt.Load().Snapshot(), nil
+	rt := i.rt.Load()
+	rt.GC() // so the image does not root objects the host has already dropped
+	return rt.Snapshot(), nil
 }
 
 func (i *Instance) Reset(ctx context.Context) error {
@@ -176,6 +221,10 @@ func (i *Instance) run(ctx context.Context, fn func(*host.Module) error) (err er
 			err = t
 		}
 	}()
+
+	// clears up old references manually since the Go GC
+	// could have booted something.
+	rt.GC()
 
 	err = fn(rt)
 	var trap *TrapError

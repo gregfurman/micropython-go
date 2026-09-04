@@ -69,7 +69,7 @@ func TestProgramCall(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := map[string]any{"id": "r-1", "score": int64(13), "ok": true}
-	if !reflect.DeepEqual(got, want) {
+	if !reflect.DeepEqual(got.Export(), want) {
 		t.Errorf("score = %#v, want %#v", got, want)
 	}
 }
@@ -106,7 +106,7 @@ func TestProgramConcurrent(t *testing.T) {
 					errs <- err
 					return
 				}
-				m, ok := got.(map[string]any)
+				m, ok := got.Export().(map[string]any)
 				if !ok {
 					errs <- errors.New("not a dict")
 					return
@@ -172,7 +172,7 @@ func TestPoolBounded(t *testing.T) {
 		t.Errorf("pool kept %d idle interpreters, want at most %d", idle, max)
 	}
 
-	if got, err := p.Call(t.Context(), "f", int64(7)); err != nil || got != int64(7) {
+	if got, err := p.Call(t.Context(), "f", int64(7)); err != nil || got.Export() != int64(7) {
 		t.Errorf("after burst: %#v, %v", got, err)
 	}
 }
@@ -204,7 +204,7 @@ def peek():
 		if err != nil {
 			t.Fatal(err)
 		}
-		if got != int64(1) {
+		if got.Export() != int64(1) {
 			t.Fatalf("call %d: counter = %v, want 1 -- state survived the pool", i, got)
 		}
 	}
@@ -216,7 +216,7 @@ def peek():
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got != "clean" {
+	if got.Export() != "clean" {
 		t.Errorf("peek = %v, want \"clean\" -- a global leaked through the pool", got)
 	}
 }
@@ -239,7 +239,7 @@ func TestProgramsAreIndependent(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if want := fmt.Sprintf("p%d", i); got != want {
+		if want := fmt.Sprintf("p%d", i); got.Export() != want {
 			t.Errorf("program %d: name() = %v, want %q", i, got, want)
 		}
 	}
@@ -273,7 +273,7 @@ func TestProgramCloseIsLocal(t *testing.T) {
 	}
 
 	got, err := b.Call(t.Context(), "name")
-	if err != nil || got != "b" {
+	if err != nil || got.Export() != "b" {
 		t.Errorf("after closing a: b.name() = %v, %v", got, err)
 	}
 }
@@ -302,7 +302,7 @@ func TestProgramsConcurrentAcrossPrograms(t *testing.T) {
 						errs <- err
 						return
 					}
-					if got != want {
+					if got.Export() != want {
 						errs <- fmt.Errorf("got %v, want %q -- interpreters crossed", got, want)
 						return
 					}
@@ -330,7 +330,7 @@ func TestProgramRepeatedCalls(t *testing.T) {
 		if err != nil {
 			t.Fatalf("call %d: %v", i, err)
 		}
-		if got != int64(1) {
+		if got.Export() != int64(1) {
 			t.Fatalf("call %d: bump() = %v, want 1 -- state carried over", i, got)
 		}
 	}
@@ -378,7 +378,7 @@ def handle(request):
 			if err != nil {
 				t.Fatalf("handle: %v", err)
 			}
-			m, ok := got.(map[string]any)
+			m, ok := got.Export().(map[string]any)
 			if !ok {
 				t.Fatalf("handle returned %#v (%T), want a dict", got, got)
 			}
@@ -445,7 +445,7 @@ func TestCancelDeadline(t *testing.T) {
 		t.Errorf("took %v to stop, want promptly after the deadline", elapsed)
 	}
 
-	if got, err := p.Call(context.Background(), "double", int64(21)); err != nil || got != int64(42) {
+	if got, err := p.Call(context.Background(), "double", int64(21)); err != nil || got.Export() != int64(42) {
 		t.Errorf("after cancellation: %#v, %v", got, err)
 	}
 }
@@ -459,7 +459,7 @@ func TestCancelBeforeCall(t *testing.T) {
 	if _, err := p.Call(ctx, "spin"); !errors.Is(err, context.Canceled) {
 		t.Fatalf("spin() = %v, want Canceled", err)
 	}
-	if got, err := p.Call(context.Background(), "double", int64(1)); err != nil || got != int64(2) {
+	if got, err := p.Call(context.Background(), "double", int64(1)); err != nil || got.Export() != int64(2) {
 		t.Errorf("after a pre-cancelled call: %#v, %v", got, err)
 	}
 }
@@ -533,14 +533,21 @@ func TestProgramHostFunc(t *testing.T) {
 	rates := map[string]float64{"EUR": 1.09, "GBP": 1.27}
 
 	var calls atomic.Int64
-	usd := func(args []any) (any, error) {
+	usd := func(_ context.Context, args []Value) (Value, error) {
 		calls.Add(1)
-		code := args[0].(string)
+		code, err := args[0].AsString()
+		if err != nil {
+			return Value{}, err
+		}
 		rate, ok := rates[code]
 		if !ok {
-			return nil, Raise("KeyError", code)
+			return Value{}, Raise("KeyError", code)
 		}
-		return rate * float64(args[1].(int64)), nil
+		amount, err := args[1].AsInt()
+		if err != nil {
+			return Value{}, err
+		}
+		return Float(rate * float64(amount)), nil
 	}
 
 	// The pool holds one idle instance, so concurrent calls have to restore
@@ -561,7 +568,7 @@ def convert(code, amount):
 	if err != nil {
 		t.Fatalf("convert: %v", err)
 	}
-	if got != 109.0 {
+	if got.Export() != 109.0 {
 		t.Fatalf("got %v, want 109.0", got)
 	}
 
@@ -577,7 +584,7 @@ def convert(code, amount):
 				errs[i] = err
 				return
 			}
-			if v != 12.7 {
+			if v.Export() != 12.7 {
 				errs[i] = fmt.Errorf("got %v, want 12.7", v)
 			}
 		}()
@@ -605,9 +612,9 @@ LIMIT = fetch_limit()
 def within(n):
     return n <= LIMIT
 `,
-		WithHostFunc("fetch_limit", func([]any) (any, error) {
+		WithHostFunc("fetch_limit", func(context.Context, []Value) (Value, error) {
 			calls.Add(1)
-			return 5, nil
+			return Int(5), nil
 		}),
 	)
 	if err != nil {
@@ -623,7 +630,7 @@ def within(n):
 		if err != nil {
 			t.Fatalf("within(%d): %v", tc.n, err)
 		}
-		if got != tc.want {
+		if got.Export() != tc.want {
 			t.Errorf("within(%d) = %v, want %v", tc.n, got, tc.want)
 		}
 	}
@@ -643,8 +650,9 @@ def lookup(code):
     except KeyError:
         return None
 `,
-		WithHostFunc("rate", func(args []any) (any, error) {
-			return nil, Raise("KeyError", args[0].(string))
+		WithHostFunc("rate", func(ctx context.Context, args []Value) (Value, error) {
+			str, _ := args[0].AsString()
+			return Value{}, Raise("KeyError", str)
 		}),
 	)
 	if err != nil {
@@ -656,7 +664,7 @@ def lookup(code):
 	if err != nil {
 		t.Fatalf("lookup: %v", err)
 	}
-	if got != nil {
+	if got.Export() != nil {
 		t.Fatalf("got %v, want nil", got)
 	}
 
@@ -679,12 +687,12 @@ def lookup(code):
 
 func TestProgramStdout(t *testing.T) {
 	spins := 3
-	spinFn := func(args []any) (any, error) {
+	spinFn := func(context.Context, []Value) (Value, error) {
 		if spins == 0 {
-			return false, nil
+			return Bool(false), nil
 		}
 		spins--
-		return true, nil
+		return Bool(true), nil
 	}
 
 	out := new(bytes.Buffer)

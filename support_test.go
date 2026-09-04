@@ -92,7 +92,7 @@ func TestSupportedTemplatelib(t *testing.T) {
 	if err != nil {
 		t.Fatalf("import string: %v", err)
 	}
-	names, ok := got.([]any)
+	names, ok := got.Export().([]any)
 	if !ok {
 		t.Fatalf("dir(string) = %#v, want a list", got)
 	}
@@ -169,7 +169,7 @@ func TestBuiltinsPresentButUnusable(t *testing.T) {
 		t.Error("slice() constructed; the matrix says it cannot be in either build")
 	}
 	// Slice syntax is unaffected.
-	if got, err := in.Eval(ctx, `"abcdef"[1:3]`); err != nil || got != "bc" {
+	if got, err := in.Eval(ctx, `"abcdef"[1:3]`); err != nil || got.Export() != "bc" {
 		t.Errorf(`"abcdef"[1:3] = %#v, %v; want "bc"`, got, err)
 	}
 }
@@ -242,22 +242,22 @@ func TestSupportedNumerics(t *testing.T) {
 
 	// Arbitrary precision, so a value far past the small-int boundary is still exact.
 	const big = "1606938044258990275541962092341162602522202993782792835301376"
-	if got, err := in.Eval(ctx, "2**200 == "+big); err != nil || got != true {
+	if got, err := in.Eval(ctx, "2**200 == "+big); err != nil || got.Export() != true {
 		t.Errorf("2**200 exact = %#v, %v", got, err)
 	}
-	if got, err := in.Eval(ctx, "repr(0.1 + 0.2)"); err != nil || got != "0.30000000000000004" {
+	if got, err := in.Eval(ctx, "repr(0.1 + 0.2)"); err != nil || got.Export() != "0.30000000000000004" {
 		t.Errorf("float is not a 64-bit double: %#v, %v", got, err)
 	}
-	if got, err := in.Eval(ctx, "(1+2j).imag"); err != nil || got != 2.0 {
+	if got, err := in.Eval(ctx, "(1+2j).imag"); err != nil || got.Export() != 2.0 {
 		t.Errorf("complex = %#v, %v", got, err)
 	}
 
 	// wasm32, so the small-int boundary is 32-bit. The matrix records this exact value.
-	if got, err := in.Eval(ctx, "__import__('sys').maxsize"); err != nil || got != int64(2147483647) {
+	if got, err := in.Eval(ctx, "__import__('sys').maxsize"); err != nil || got.Export() != int64(2147483647) {
 		t.Errorf("sys.maxsize = %#v, %v; want 2147483647", got, err)
 	}
 	// It is a boundary, not a ceiling: larger values promote rather than overflow.
-	if got, err := in.Eval(ctx, "__import__('sys').maxsize + 1 > 0"); err != nil || got != true {
+	if got, err := in.Eval(ctx, "__import__('sys').maxsize + 1 > 0"); err != nil || got.Export() != true {
 		t.Errorf("maxsize+1 did not promote: %#v, %v", got, err)
 	}
 }

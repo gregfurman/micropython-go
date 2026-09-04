@@ -17,10 +17,15 @@ const (
 	KindTuple     Kind = abi.KindTuple     // w1 = ref
 	KindList      Kind = abi.KindList      // w1 = ref
 	KindDict      Kind = abi.KindDict      // w1 = ref
-	KindCallable  Kind = abi.KindCallable  // w1 = ref
-	KindObject    Kind = abi.KindObject    // w1 = ref
+	KindObject    Kind = abi.KindObject    // w1 = ref, w2 = object-info ptr | attributes
 	KindRef       Kind = abi.KindRef       // host -> guest only: w1 = ref
 	KindException Kind = abi.KindException // w1 = len, w2 = ptr (type \x04 traceback)
 	KindSet       Kind = abi.KindSet       // w1 = len, w2 = ptr
 	KindFrozenSet Kind = abi.KindFrozenSet // w1 = len, w2 = ptr
+)
+
+const (
+	KindObjectIterable uint32 = abi.KindObjectIterable
+	KindObjectCallable uint32 = abi.KindObjectCallable
+	KindObjectAttrMask        = KindObjectIterable | KindObjectCallable
 )

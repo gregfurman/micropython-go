@@ -244,7 +244,7 @@ def visit(n):
 			if err != nil {
 				return
 			}
-			out := got.([]any)
+			out := got.Export().([]any)
 			mu.Lock()
 			defer mu.Unlock()
 			// out[1] is always 1: each call starts from the snapshot, so the
@@ -374,17 +374,21 @@ func ExampleInstance_DefineFunction() {
 
 	rates := map[string]float64{"EUR": 1.09, "GBP": 1.27}
 
-	// Arguments arrive as native Go values; the result is converted back.
-	err = in.DefineFunction(ctx, "usd", func(args []any) (any, error) {
-		code, ok := args[0].(string)
-		if !ok {
-			return nil, fmt.Errorf("usd: want a currency code, got %T", args[0])
+	// Arguments and results use explicit Python values at the boundary.
+	err = in.DefineFunction(ctx, "usd", func(_ context.Context, args []micropython.Value) (micropython.Value, error) {
+		code, err := args[0].AsString()
+		if err != nil {
+			return micropython.Value{}, err
 		}
 		rate, ok := rates[code]
 		if !ok {
-			return nil, micropython.Raise("KeyError", code)
+			return micropython.Value{}, micropython.Raise("KeyError", code)
 		}
-		return rate * float64(args[1].(int64)), nil
+		amount, err := args[1].AsInt()
+		if err != nil {
+			return micropython.Value{}, err
+		}
+		return micropython.Float(rate * float64(amount)), nil
 	})
 	if err != nil {
 		log.Fatal(err)
@@ -418,8 +422,8 @@ func ExampleInstance_DefineFunction_error() {
 	}
 	defer in.Close()
 
-	if err := in.DefineFunction(ctx, "fetch", func([]any) (any, error) {
-		return nil, errors.New("connection refused")
+	if err := in.DefineFunction(ctx, "fetch", func(context.Context, []micropython.Value) (micropython.Value, error) {
+		return micropython.Value{}, errors.New("connection refused")
 	}); err != nil {
 		log.Fatal(err)
 	}
