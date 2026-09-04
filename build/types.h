@@ -15,16 +15,20 @@ enum
     KIND_FLOAT = 6,   // w1..w2 = double
     KIND_STR = 7,     // w1 = len, w2 = ptr
     KIND_BYTES = 8,   // w1 = len, w2 = ptr
-    KIND_TUPLE = 9,   // w1 = len, w2 = ptr (3-word elements)
-    KIND_LIST = 10,   // w1 = len, w2 = ptr (3-word elements)
-    KIND_DICT = 11,   // w1 = used, w2 = ptr (alternating k/v 3-word elements)
+    // Containers cross in opposite shapes: out as a handle the host walks,
+    // in as one block the host laid out.
+    // guest -> host: w1 = len, w2 = ref;
+    // host -> guest: w1 = len, w2 = ptr (3-word elements)
+    KIND_TUPLE = 9,
+    KIND_LIST = 10,
+    KIND_DICT = 11, // host -> guest: w1 = pairs, w2 = ptr (alternating k/v)
     // guest -> host: w1 = ref, w2 = object-info ptr | attributes;
     // host -> guest: w1 = ref
     KIND_OBJECT = 13,
     KIND_REF = 14,       // host -> guest only: w1 = ref
     KIND_EXCEPTION = 15, // w1 = len, w2 = ptr (formatted traceback)
-    KIND_SET = 16,       // w1 = len, w2 = ptr (3-word elements)
-    KIND_FROZENSET = 17, // w1 = len, w2 = ptr (3-word elements)
+    KIND_SET = 16,       // as KIND_LIST
+    KIND_FROZENSET = 17, // as KIND_LIST
 };
 
 typedef enum
@@ -59,6 +63,10 @@ int32_t iterator_next(uint32_t ref, mp_value_t *out);
 void value_from_obj(mp_obj_t obj, mp_value_t *out);
 void value_from_exception(mp_obj_t exc, mp_value_t *out);
 
+int32_t map_next(mp_obj_t obj, size_t cursor, mp_value_t *out);
+
 mp_obj_t obj_from_value(const mp_value_t *in);
+void value_release(const mp_value_t *in);
+void values_release(const mp_value_t *buf, uint32_t count);
 
 #endif

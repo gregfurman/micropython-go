@@ -271,7 +271,8 @@ func (c *Codec) releaseHostAt(ptr int32) {
 	}
 }
 
-// ReleaseHostBlock rolls back values encoded by Go that the guest did not consume.
+// ReleaseHostBlock rolls back values encoded by Go that were never handed to
+// the guest. Once they are, releasing them is the guest's.
 func (c *Codec) ReleaseHostBlock(ptr, count int32) {
 	for i := int32(0); i < count; i++ {
 		c.releaseHostAt(ptr + i*ValueSize)

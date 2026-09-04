@@ -9,6 +9,10 @@ import (
 
 var _ wasi.Xenv = &Module{}
 
+func (i *Module) Xmemory() wasi.Memory {
+	return i.mem
+}
+
 func (i *Module) Xhost_trampoline(funcID, argsPtr, numArgs, outPtr int32) {
 	defer func() {
 		if r := recover(); r != nil {

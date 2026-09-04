@@ -363,8 +363,8 @@ func gcWait(t *testing.T) {
 	for range 3 {
 		done := make(chan struct{})
 		func() {
-			// Not new(int): objects the tiny allocator batches can hold each
-			// other's cleanups back.
+			// Not new(int): the tiny allocator batches those, and they hold
+			// each other's cleanups back.
 			sentinel := new([64]byte)
 			runtime.AddCleanup(sentinel, func(ch chan struct{}) { close(ch) }, done)
 		}()

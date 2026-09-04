@@ -1,12 +1,12 @@
 package host
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"io"
 	"maps"
+	"slices"
 	"sync/atomic"
 
 	"github.com/gregfurman/micropython-go/internal/host/codec"
@@ -17,10 +17,14 @@ import (
 )
 
 const (
-	maxHostArgs     = 8 // TODO: investigate + potentially autogen with cgo def gen
-	wasmPageSize    = 64 * 1024
-	maxMemoryPages  = 65536
-	defaultHeapSize = 2 * wasmPageSize // give 128KB to start
+	maxHostArgs = 8 // TODO: investigate + potentially autogen with cgo def gen
+
+	// guestPages is the memory the module is linked against, matching
+	// -Wl,--import-memory -Wl,--initial-memory in build/build.sh. The host
+	// hands this in, so it has to cover the guest's stack and data segments.
+	guestPages = 393216 / memory.PageSize
+
+	defaultHeapSize = 2 * memory.PageSize // give 128KB to start
 )
 
 type Module struct {
@@ -37,7 +41,8 @@ type Module struct {
 
 	stdout io.Writer
 
-	scratch int32
+	scratch     int32
+	walkScratch []int32
 
 	refs *OwnedReferences
 }
@@ -72,16 +77,17 @@ func newModule(stdout io.Writer) *Module {
 		shutSig:  util.NewSignaller(),
 	}
 
+	i.mem = memory.New(guestPages, memory.MaxPages)
 	i.mod = wasi.New(i)
-	i.mem = memory.New(i.mod)
+	i.mem.Bind(i.mod)
 	i.codec = codec.New(i.mem, refs)
 
 	return i
 }
 
 // GC frees the refs the host has dropped since the last operation. Callers
-// serialise access to a Module and run this before touching the guest, which is
-// the only place it is safe to release one.
+// serialise access to a Module and run this before touching the guest, the only
+// place it is safe to release one.
 func (i *Module) GC() {
 	i.refs.Drain(func(id uint32) { i.mod.Xrelease_ref(int32(id)) })
 }
@@ -108,7 +114,7 @@ func (i *Module) Eval(code string) (value.Value, error) {
 	defer free()
 
 	i.mod.Xeval(ptr, int32(len(code)), i.scratch)
-	return i.codec.Consume(i.scratch)
+	return i.consume(i.scratch)
 }
 
 func (i *Module) Get(name string) (value.Value, error) {
@@ -119,7 +125,7 @@ func (i *Module) Get(name string) (value.Value, error) {
 	defer free()
 
 	i.mod.Xget_global(ptr, int32(len(name)), i.scratch)
-	return i.codec.Consume(i.scratch)
+	return i.consume(i.scratch)
 }
 
 func (i *Module) Exec(code string) error {
@@ -131,7 +137,7 @@ func (i *Module) Exec(code string) error {
 	defer free()
 
 	i.mod.Xexec(ptr, int32(len(code)), i.scratch)
-	_, err = i.codec.Consume(i.scratch)
+	_, err = i.consume(i.scratch)
 	return err
 }
 
@@ -164,12 +170,12 @@ func (i *Module) Call(name string, args []any) (value.Value, error) {
 			}
 			encoded++
 		}
-		// obj_from_value consumes every child allocation on the normal path.
+		// Handed over: the guest releases the block, the raise path included.
 		defer func() { encoded = -1 }()
 	}
 
 	i.mod.Xcall(namePtr, int32(len(name)), argsPtr, int32(len(args)), i.scratch)
-	return i.codec.Consume(i.scratch)
+	return i.consume(i.scratch)
 }
 
 // CallRef calls a value the guest handed out as a ref, for callables that no
@@ -202,16 +208,17 @@ func (i *Module) CallRef(obj value.Object, args []any) (value.Value, error) {
 			}
 			encoded++
 		}
-		// obj_from_value consumes every child allocation on the normal path.
+		// Handing the block over transfers it: the guest releases every child
+		// allocation once the call is over, the raise path included.
 		defer func() { encoded = -1 }()
 	}
 
 	i.mod.Xcall_ref(int32(ref), argsPtr, int32(len(args)), i.scratch)
-	return i.codec.Consume(i.scratch)
+	return i.consume(i.scratch)
 }
 
-// Resolve re-reads the object a ref names. A container the host only holds a
-// handle to, because it was reachable from itself, comes back by value.
+// Resolve re-reads the object a ref names, so a container the host only holds
+// a handle to comes back by value.
 func (i *Module) Resolve(obj value.Object) (value.Value, error) {
 	ref, err := i.refs.Lookup(obj.Handle())
 	if err != nil {
@@ -219,7 +226,7 @@ func (i *Module) Resolve(obj value.Object) (value.Value, error) {
 	}
 
 	i.mod.Xref_to_value(int32(ref), i.scratch)
-	return i.codec.Consume(i.scratch)
+	return i.consume(i.scratch)
 }
 
 // NextGenerator advances a generator ref returned by the guest. When exhausted,
@@ -236,7 +243,7 @@ func (i *Module) NextGenerator(obj value.Object) (out value.Value, next bool, er
 		return nil, false, err
 	}
 
-	out, err = i.codec.Consume(i.scratch)
+	out, err = i.consume(i.scratch)
 	return out, err == nil, err
 }
 
@@ -255,15 +262,16 @@ func (i *Module) Set(name string, value any) error {
 		return err
 	}
 	i.mod.Xset_global(namePtr, int32(len(name)), valuePtr, i.scratch)
-	_, err = i.codec.Consume(i.scratch)
+	_, err = i.consume(i.scratch)
 	return err
 }
 
 func (i *Module) Snapshot() *Snapshot {
 	return &Snapshot{
-		memory:   bytes.Clone(*i.mod.Xmemory().Slice()),
+		memory:   i.mem.Image(),
 		stack:    *i.mod.X__stack_pointer(),
 		scratch:  i.scratch,
+		walk:     slices.Clone(i.walkScratch),
 		registry: maps.Clone(i.registry),
 		counter:  i.counter,
 		stdout:   i.stdout,
@@ -276,16 +284,12 @@ func (i *Module) Snapshot() *Snapshot {
 func (i *Module) Restore(s *Snapshot) error {
 	i.refs.Inc()
 
-	mem := i.mod.Xmemory()
-	if grow := len(s.memory) - len(*mem.Slice()); grow > 0 {
-		pages := int64((grow + wasmPageSize - 1) / wasmPageSize)
-		if mem.Grow(pages, maxMemoryPages) < 0 {
-			return fmt.Errorf("cannot grow memory to %d bytes", len(s.memory))
-		}
+	if err := i.mem.Load(s.memory); err != nil {
+		return err
 	}
-	copy(*mem.Slice(), s.memory)
 	*i.mod.X__stack_pointer() = s.stack
 	i.scratch = s.scratch
+	i.walkScratch = slices.Clone(s.walk)
 
 	// NOTE: Invalidate refs
 	i.mod.Xreset_refs()

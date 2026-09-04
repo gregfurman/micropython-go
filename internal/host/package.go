@@ -62,7 +62,7 @@ func (i *Module) defineModule(path string) error {
 	defer free()
 
 	i.mod.Xdefine_module(ptr, int32(len(path)), i.scratch)
-	_, err = i.codec.Consume(i.scratch)
+	_, err = i.consume(i.scratch)
 	return err
 }
 
@@ -83,7 +83,7 @@ func (i *Module) defineModuleFunction(path, name string, fn HostFunc) error {
 	defer freeName()
 
 	i.mod.Xdefine_module_function(pathPtr, int32(len(path)), namePtr, int32(len(name)), i.register(fn), i.scratch)
-	_, err = i.codec.Consume(i.scratch)
+	_, err = i.consume(i.scratch)
 	return err
 }
 
@@ -109,7 +109,7 @@ func (i *Module) setModuleAttr(path, name string, v value.Value) error {
 	}
 
 	i.mod.Xset_module_attr(pathPtr, int32(len(path)), namePtr, int32(len(name)), valuePtr, i.scratch)
-	_, err = i.codec.Consume(i.scratch)
+	_, err = i.consume(i.scratch)
 	return err
 }
 

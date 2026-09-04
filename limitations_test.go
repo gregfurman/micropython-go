@@ -346,15 +346,38 @@ func TestRefCycleGuest(t *testing.T) {
 		}
 	}
 
-	// Nesting deeper than the guest C stack allows is still refused, but as a
-	// catchable Python error rather than a WASM trap.
+	// Nesting deeper than the host copies out in one go is not refused either.
+	// The value crosses, and the level at the bound is a handle to carry on
+	// from, the same as a cycle.
 	deep := "z = []\nc = z\nfor _ in range(2000):\n    n = []\n    c.append(n)\n    c = n\n"
 	if err := in.Exec(ctx, deep); err != nil {
 		t.Fatal(err)
 	}
-	var exc *PythonError
-	if _, err := in.Eval(ctx, "z"); !errors.As(err, &exc) {
-		t.Fatalf("deeply nested list gave %v (%T), want a *PythonError", err, err)
+	nested, err := in.Eval(ctx, "z")
+	if err != nil {
+		t.Fatalf("deeply nested list: %v", err)
+	}
+	depth := 0
+	for {
+		items, err := nested.AsList()
+		if err != nil || len(items) == 0 {
+			break
+		}
+		nested = items[0]
+		depth++
+	}
+	if depth != 128 {
+		t.Errorf("copied out %d levels, want the %d the walk bounds itself to", depth, 128)
+	}
+	if _, err := nested.AsObject(); err != nil {
+		t.Fatalf("level %d is %#v, want a handle: %v", depth, nested, err)
+	}
+	rest, err := in.Resolve(ctx, nested)
+	if err != nil {
+		t.Fatalf("resolving the level at the bound: %v", err)
+	}
+	if _, err := rest.AsList(); err != nil {
+		t.Errorf("the handle does not read back as a list: %v", err)
 	}
 
 	if got, err := in.Eval(ctx, "1 + 1"); err != nil || got.Export() != int64(2) {

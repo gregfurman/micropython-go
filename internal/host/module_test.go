@@ -30,7 +30,6 @@ func newT(t *testing.T) *Module {
 	return inst
 }
 
-// define registers fn and fails the test if the guest rejects it.
 func define(t *testing.T, inst *Module, name string, fn HostFunc) {
 	t.Helper()
 	if err := inst.DefineFunction(name, fn); err != nil {
@@ -38,9 +37,6 @@ func define(t *testing.T, inst *Module, name string, fn HostFunc) {
 	}
 }
 
-// eval evaluates expr and fails the test if the guest raises. Begin mirrors what
-// api.run does before every operation. The result is lifted to the Go value it
-// stands for, which is what these tests assert on.
 func eval(t *testing.T, inst *Module, expr string) any {
 	t.Helper()
 	step(t, inst)
@@ -303,17 +299,92 @@ func TestGarbageCollection(t *testing.T) {
 
 }
 
-// ---------------------------------------------------------------------
-// Reference lifetime
-//
-// Ids handed to the host are released from whichever goroutine holds the
-// interpreter; internal/api/instance_test.go covers that lifecycle end to end.
-// What is left here needs to reach inside the Module to forge a ref.
-// ---------------------------------------------------------------------
+func TestHostValuesAreFreedWhenAConversionRaises(t *testing.T) {
+	const rounds = 2000
+	blob := strings.Repeat("x", 4096) // one guest allocation per argument
 
-// step mirrors what api.run does before every operation: it clears a cancel
-// left over from the last one and frees the refs the host has dropped since.
+	tests := []struct {
+		name string
+		args func(stale value.Object) []any
+	}{
+		{
+			name: "raise on an argument before the rest of the block",
+			args: func(stale value.Object) []any { return []any{stale, blob} },
+		},
+		{
+			name: "raise inside a container argument",
+			args: func(stale value.Object) []any { return []any{[]any{blob, stale}} },
+		},
+		{
+			name: "raise inside a dict argument",
+			args: func(stale value.Object) []any {
+				return []any{map[string]any{"blob": blob, "stale": stale}}
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			inst := newT(t)
+			exec(t, inst, "def f(*args):\n    return args\n")
+
+			// An id no slot ever held, so converting it raises mid-block.
+			stale := value.NewObject("function", "<stale>", inst.refs.Track(refIDNeverHandedOut), false, true)
+
+			before := guestPagesUsed(inst)
+			for range rounds {
+				step(t, inst)
+				if _, err := inst.Call("f", tc.args(stale)); err == nil {
+					t.Fatal("Call with a stale ref returned no error")
+				}
+			}
+			if grew := guestPagesUsed(inst) - before; grew > 0 {
+				t.Errorf("guest memory grew by %d pages over %d raising calls, want none", grew, rounds)
+			}
+		})
+	}
+}
+
+func TestWalkingContainersLeavesNothingBehind(t *testing.T) {
+	const rounds = 2000
+
+	inst := newT(t)
+	exec(t, inst, "def f():\n    return [{'k': (1, 2)}, {1, 2}, [[['deep']]]]\n")
+
+	step(t, inst)
+	if _, err := inst.Call("f", nil); err != nil {
+		t.Fatal(err)
+	}
+	before := guestHeapFree(t, inst)
+
+	for range rounds {
+		step(t, inst)
+		if _, err := inst.Call("f", nil); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if lost := before - guestHeapFree(t, inst); lost > 0 {
+		t.Errorf("guest heap lost %d bytes over %d walks, want none", lost, rounds)
+	}
+}
+
+const refIDNeverHandedOut = 0xfffff
+
+func guestPagesUsed(inst *Module) int { return len(*inst.mem.Slice()) >> 16 }
+
+func guestHeapFree(t *testing.T, inst *Module) int64 {
+	t.Helper()
+	exec(t, inst, "import gc\ngc.collect()")
+	free, ok := eval(t, inst, "gc.mem_free()").(int64)
+	if !ok {
+		t.Fatal("gc.mem_free() did not return an int")
+	}
+	return free
+}
+
 func step(t *testing.T, inst *Module) {
+	//  mirrors what that whee little api.run does before every operation.
 	t.Helper()
 	inst.Begin()
 	inst.GC()
@@ -339,16 +410,15 @@ func objOf(t *testing.T, v value.Value) value.Object {
 	return o
 }
 
-// gcWait forces collection and waits for the runtime to drain the cleanup
-// queue, using a sentinel cleanup as the barrier. Cleanup ordering is not
-// specified, so it runs a few rounds.
+// gcWait drains the cleanup queue, using a sentinel cleanup as the barrier.
+// Cleanup ordering is not specified, so it runs a few rounds.
 func gcWait(t *testing.T) {
 	t.Helper()
 	for range 3 {
 		done := make(chan struct{})
 		func() {
-			// Not new(int): objects the tiny allocator batches can hold each
-			// other's cleanups back.
+			// Not new(int): the tiny allocator batches those, and they hold
+			// each other's cleanups back.
 			sentinel := new([64]byte)
 			runtime.AddCleanup(sentinel, func(ch chan struct{}) { close(ch) }, done)
 		}()
@@ -361,8 +431,6 @@ func gcWait(t *testing.T) {
 	}
 }
 
-// A released id can be handed out again for a different object, so an id that
-// outlives its handle must be rejected rather than resolve to the new one.
 func TestReleasedRefIDIsNotReused(t *testing.T) {
 	inst := newT(t)
 	exec(t, inst, `first = lambda: "first"`)

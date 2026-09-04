@@ -31,10 +31,10 @@ func (i *Module) dispatch(funcID, argsPtr, numArgs, outPtr int32) error {
 
 	args := make([]value.Value, numArgs)
 	for k := range numArgs {
-		v, err := i.codec.Consume(argsPtr + k*codec.ValueSize)
+		v, err := i.consume(argsPtr + k*codec.ValueSize)
 		if err != nil {
 			for rest := k + 1; rest < numArgs; rest++ {
-				_, _ = i.codec.Consume(argsPtr + rest*codec.ValueSize)
+				_, _ = i.consume(argsPtr + rest*codec.ValueSize)
 			}
 			return fmt.Errorf("arg %d: %w", k, err)
 		}
@@ -80,7 +80,7 @@ func (i *Module) writeErrAt(ptr int32, err error) {
 func (i *Module) iterate(ref, outPtr int32) (int32, error) {
 	status := i.mod.Xiterator_next(ref, outPtr)
 	if status < 0 {
-		_, err := i.codec.Consume(outPtr)
+		_, err := i.consume(outPtr)
 		return status, err
 	}
 	return status, nil

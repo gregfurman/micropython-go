@@ -101,12 +101,27 @@ static mp_obj_t generic_host_invoke(size_t n_args, const mp_obj_t *args)
         mp_raise_msg(&mp_type_RuntimeError, MP_ERROR_TEXT("host wrote no value"));
     }
 
+    // Convert under its own nlr so the release runs whichever way this leaves.
+    mp_obj_t result;
+    nlr_buf_t nlr;
+    if (nlr_push(&nlr) == 0)
+    {
+        result = obj_from_value(&ret);
+        nlr_pop();
+    }
+    else
+    {
+        value_release(&ret);
+        nlr_jump(nlr.ret_val);
+    }
+    value_release(&ret);
+
     if (ret.kind == KIND_EXCEPTION)
     {
-        nlr_raise(obj_from_value(&ret));
+        nlr_raise(result);
     }
 
-    return obj_from_value(&ret);
+    return result;
 }
 
 MP_DEFINE_CONST_FUN_OBJ_VAR(generic_host_invoke_obj, 1, generic_host_invoke);
@@ -233,6 +248,7 @@ __attribute__((export_name("set_module_attr"))) void set_module_attr_ext(
     {
         value_from_exception((mp_obj_t)nlr.ret_val, out);
     }
+    value_release((mp_value_t *)(uintptr_t)value_ptr);
 }
 
 // Re-read an object the host holds a ref to. A container comes back by value,
@@ -320,6 +336,7 @@ __attribute__((export_name("call"))) void call_ext(const char *name, uint32_t na
     {
         value_from_exception((mp_obj_t)nlr.ret_val, out);
     }
+    values_release(args, num_args);
 }
 
 __attribute__((export_name("call_ref"))) void call_ref_ext(uint32_t ref, uint32_t args_ptr,
@@ -353,6 +370,61 @@ __attribute__((export_name("call_ref"))) void call_ref_ext(uint32_t ref, uint32_
     {
         value_from_exception((mp_obj_t)nlr.ret_val, out);
     }
+    values_release(args, num_args);
+}
+
+// seq_item reads one element of a list or tuple the host holds a handle to.
+__attribute__((export_name("seq_item"))) void seq_item(uint32_t ref, uint32_t index, uint32_t out_ptr)
+{
+    mp_value_t *out = (mp_value_t *)(uintptr_t)out_ptr;
+    nlr_buf_t nlr;
+    if (nlr_push(&nlr) == 0)
+    {
+        mp_obj_t obj = ref_get(ref);
+        if (obj == MP_OBJ_NULL)
+        {
+            mp_raise_ValueError(MP_ERROR_TEXT("stale ref"));
+        }
+
+        size_t len;
+        mp_obj_t *items;
+        mp_obj_get_array(obj, &len, &items);
+        if (index >= len)
+        {
+            mp_raise_msg(&mp_type_IndexError, MP_ERROR_TEXT("index out of range"));
+        }
+
+        value_from_obj(items[index], out);
+        nlr_pop();
+    }
+    else
+    {
+        value_from_exception((mp_obj_t)nlr.ret_val, out);
+    }
+}
+
+// map_next reads the entry at or after cursor from a dict or set. It returns
+// the slot it read, -1 when the walk is done, and -2 after writing an exception
+// to out[0].
+__attribute__((export_name("map_next"))) int32_t map_next_ext(uint32_t ref, uint32_t cursor, uint32_t out_ptr)
+{
+    mp_value_t *out = (mp_value_t *)(uintptr_t)out_ptr;
+    nlr_buf_t nlr;
+    if (nlr_push(&nlr) == 0)
+    {
+        mp_obj_t obj = ref_get(ref);
+        if (obj == MP_OBJ_NULL)
+        {
+            mp_raise_ValueError(MP_ERROR_TEXT("stale ref"));
+        }
+
+        int32_t slot = map_next(obj, cursor, out);
+        nlr_pop();
+        return slot;
+    }
+
+    value_from_exception((mp_obj_t)nlr.ret_val, out);
+    return -2;
 }
 
 __attribute__((export_name("release_ref"))) void release_ref_ext(uint32_t ref)
@@ -435,6 +507,7 @@ __attribute__((export_name("set_global"))) void set_global_ext(const char *name,
     {
         value_from_exception((mp_obj_t)nlr.ret_val, out);
     }
+    value_release((mp_value_t *)(uintptr_t)value_ptr);
 }
 
 mp_import_stat_t mp_import_stat(const char *path)

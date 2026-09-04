@@ -8,6 +8,7 @@ type Snapshot struct {
 	memory   []byte
 	stack    int32
 	scratch  int32
+	walk     []int32
 	registry map[int32]HostFunc
 	counter  int32
 	stdout   io.Writer
