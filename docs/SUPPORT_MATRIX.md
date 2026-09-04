@@ -6,7 +6,7 @@ The MicroPython column is v1.28.0's unix port (`standard` variant,
 `MICROPY_CONFIG_ROM_LEVEL_EVERYTHING`) built from the same commit this repo vendors, so the
 comparison isolates configuration rather than version drift. micropython-go is built at
 `MICROPY_CONFIG_ROM_LEVEL_MINIMUM` plus roughly 40 explicit flags; see
-[`build/mpconfigport.h`](build/mpconfigport.h).
+[`build/mpconfigport.h`](../build/mpconfigport.h).
 
 Every row was produced by running the expression in both interpreters and recording whether it
 raised, not by reading config flags. A name appearing in `dir(builtins)` does not guarantee it
