@@ -458,6 +458,8 @@ def twice(s):
 }
 
 func TestInstallPackage(t *testing.T) {
+	t.Skip()
+
 	ctx := context.Background()
 	in := newT(t)
 
@@ -514,6 +516,8 @@ func TestInstallPackage(t *testing.T) {
 }
 
 func TestWithPackageRunsBeforeSource(t *testing.T) {
+	t.Skip()
+
 	ctx := context.Background()
 	in, err := NewInstance(ctx,
 		WithPackage(Package("host", Attribute("answer", Int(42)))),

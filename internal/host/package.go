@@ -2,10 +2,10 @@ package host
 
 import (
 	"fmt"
-	"sort"
+	"maps"
+	"slices"
 
 	"github.com/gregfurman/micropython-go/internal/host/codec"
-	"github.com/gregfurman/micropython-go/internal/host/memory"
 	"github.com/gregfurman/micropython-go/internal/value"
 )
 
@@ -34,13 +34,13 @@ func (i *Module) installPackage(parent string, pkg Package) error {
 		return err
 	}
 
-	for _, name := range sortedKeys(pkg.Values) {
+	for _, name := range slices.Sorted(maps.Keys(pkg.Values)) {
 		if err := i.setModuleAttr(path, name, pkg.Values[name]); err != nil {
 			return fmt.Errorf("package %s attribute %s: %w", path, name, err)
 		}
 	}
 
-	for _, name := range sortedKeys(pkg.Functions) {
+	for _, name := range slices.Sorted(maps.Keys(pkg.Functions)) {
 		if err := i.defineModuleFunction(path, name, pkg.Functions[name]); err != nil {
 			return fmt.Errorf("package %s function %s: %w", path, name, err)
 		}
@@ -55,14 +55,20 @@ func (i *Module) installPackage(parent string, pkg Package) error {
 }
 
 func (i *Module) defineModule(path string) error {
-	ptr, free, err := i.mem.WriteString(path)
+	defer i.arena.Mark()()
+
+	ptr, err := i.arena.String(path)
 	if err != nil {
 		return err
 	}
-	defer free()
 
-	i.mod.Xdefine_module(ptr, int32(len(path)), i.scratch)
-	_, err = i.consume(i.scratch)
+	outPtr, err := i.result()
+	if err != nil {
+		return err
+	}
+
+	used := i.mod.Xdefine_module(ptr, int32(len(path)), outPtr, defaultValueArenaCapacity)
+	_, err = i.consumeArena(outPtr, used)
 	return err
 }
 
@@ -71,53 +77,63 @@ func (i *Module) defineModuleFunction(path, name string, fn HostFunc) error {
 		return fmt.Errorf("nil host function")
 	}
 
-	pathPtr, freePath, err := i.mem.WriteString(path)
-	if err != nil {
-		return err
-	}
-	defer freePath()
-	namePtr, freeName, err := i.mem.WriteString(name)
-	if err != nil {
-		return err
-	}
-	defer freeName()
+	defer i.arena.Mark()()
 
-	i.mod.Xdefine_module_function(pathPtr, int32(len(path)), namePtr, int32(len(name)), i.register(fn), i.scratch)
-	_, err = i.consume(i.scratch)
+	pathPtr, err := i.arena.String(path)
+	if err != nil {
+		return err
+	}
+	namePtr, err := i.arena.String(name)
+	if err != nil {
+		return err
+	}
+
+	outPtr, err := i.result()
+	if err != nil {
+		return err
+	}
+
+	used := i.mod.Xdefine_module_function(
+		pathPtr, int32(len(path)),
+		namePtr, int32(len(name)),
+		i.register(fn),
+		outPtr, defaultValueArenaCapacity,
+	)
+	_, err = i.consumeArena(outPtr, used)
 	return err
 }
 
 func (i *Module) setModuleAttr(path, name string, v value.Value) error {
-	pathPtr, freePath, err := i.mem.WriteString(path)
+	defer i.arena.Mark()()
+
+	pathPtr, err := i.arena.String(path)
 	if err != nil {
 		return err
 	}
-	defer freePath()
-	namePtr, freeName, err := i.mem.WriteString(name)
+	namePtr, err := i.arena.String(name)
 	if err != nil {
 		return err
 	}
-	defer freeName()
 
-	valuePtr := i.mem.Alloc(codec.ValueSize)
-	if valuePtr == 0 {
-		return memory.ErrGuestOOM
+	valuePtr, err := i.arena.New(codec.ValueSize)
+	if err != nil {
+		return err
 	}
-	defer i.mem.Free(valuePtr)
-	if err := i.codec.Encode(valuePtr, v); err != nil {
+	if err := i.codec.EncodeInto(i.arena, valuePtr, v); err != nil {
 		return err
 	}
 
-	i.mod.Xset_module_attr(pathPtr, int32(len(path)), namePtr, int32(len(name)), valuePtr, i.scratch)
-	_, err = i.consume(i.scratch)
+	outPtr, err := i.result()
+	if err != nil {
+		return err
+	}
+
+	used := i.mod.Xset_module_attr(
+		pathPtr, int32(len(path)),
+		namePtr, int32(len(name)),
+		valuePtr,
+		outPtr, defaultValueArenaCapacity,
+	)
+	_, err = i.consumeArena(outPtr, used)
 	return err
-}
-
-func sortedKeys[V any](m map[string]V) []string {
-	keys := make([]string, 0, len(m))
-	for key := range m {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	return keys
 }

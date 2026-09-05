@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"io"
 	"maps"
-	"slices"
+	"math"
 	"sync/atomic"
 
 	"github.com/gregfurman/micropython-go/internal/host/codec"
@@ -25,6 +25,17 @@ const (
 	guestPages = 393216 / memory.PageSize
 
 	defaultHeapSize = 2 * memory.PageSize // give 128KB to start
+
+	// defaultValueArenaCapacity is the region a single guest call gets for its
+	// result and everything nested in it. It is a default transfer size, not a
+	// semantic maximum.
+	defaultValueArenaCapacity = 16 * 1024
+
+	// moduleArenaCapacity is the span the module arena bumps through. One
+	// operation takes a result region plus its arguments and the strings that
+	// name them, so the span is sized to hold all of that without spilling to
+	// the guest heap.
+	moduleArenaCapacity = 4 * defaultValueArenaCapacity
 )
 
 type Module struct {
@@ -41,8 +52,7 @@ type Module struct {
 
 	stdout io.Writer
 
-	scratch     int32
-	walkScratch []int32
+	arena *memory.Arena
 
 	refs *OwnedReferences
 }
@@ -53,15 +63,20 @@ func NewModule(size uint, stdout io.Writer) (*Module, error) {
 	}
 
 	i := newModule(stdout)
+
 	if i.mod.Xinit_vm(int32(size), int32(maxHostArgs)) != 0 {
 		return nil, memory.ErrGuestOOM
 	}
-	if i.scratch = i.mem.Alloc(codec.ValueSize); i.scratch == 0 {
-		return nil, memory.ErrGuestOOM
+
+	arena, err := i.mem.NewArena(moduleArenaCapacity)
+	if err != nil {
+		return nil, err
 	}
+
+	i.arena = arena
+
 	return i, nil
 }
-
 func newModule(stdout io.Writer) *Module {
 	if stdout == nil {
 		stdout = io.Discard
@@ -106,76 +121,143 @@ func (i *Module) Context(ctx context.Context) (context.Context, context.CancelFu
 	return i.shutSig.Context(ctx)
 }
 
+// result reserves one contiguous region for a guest call to write its result
+// into. The C side puts the root value at the front and treats the rest as its
+// transfer arena, so the whole tree comes back in this one span.
+//
+// It must be called under an arena Mark, which is what releases it.
+func (i *Module) result() (int32, error) {
+	return i.arena.New(defaultValueArenaCapacity)
+}
+
+// consumeArena decodes the tree a guest call left at outPtr. The decoded value
+// is fully Go-owned, so the arena can be reset the moment this returns.
+func (i *Module) consumeArena(outPtr, used int32) (value.Value, error) {
+	if err := transferError(used); err != nil {
+		return nil, err
+	}
+	return i.codec.Consume(outPtr)
+}
+
+// transferError reads the status a result-producing guest call returns: the
+// bytes it used, or a negative ABI failure. A Python exception is not a
+// failure here, it comes back as a KIND_EXCEPTION value.
+func transferError(used int32) error {
+	switch {
+	case used >= codec.ValueSize:
+		return nil
+	case used >= 0:
+		return fmt.Errorf("guest result uses %d bytes, want at least %d", used, codec.ValueSize)
+	case used == -2:
+		return fmt.Errorf("%w: %d byte result region", memory.ErrArenaFull, defaultValueArenaCapacity)
+	default:
+		return fmt.Errorf("invalid result region: guest returned %d", used)
+	}
+}
+
+// args lays out one block of argument records in the module arena. The guest
+// reads them during the call and never takes ownership of them: the caller's
+// Mark releases the block and everything it points at, whether the call
+// returned or raised.
+func (i *Module) args(args []any) (int32, error) {
+	if len(args) == 0 {
+		return 0, nil
+	}
+	if len(args) > math.MaxInt32/codec.ValueSize {
+		return 0, fmt.Errorf("too many arguments: %d", len(args))
+	}
+
+	block, err := i.arena.New(int32(len(args)) * codec.ValueSize)
+	if err != nil {
+		return 0, err
+	}
+	for n, arg := range args {
+		if err := i.codec.EncodeInto(i.arena, block+int32(n)*codec.ValueSize, arg); err != nil {
+			return 0, fmt.Errorf("argument %d: %w", n, err)
+		}
+	}
+	return block, nil
+}
+
 func (i *Module) Eval(code string) (value.Value, error) {
-	ptr, free, err := i.mem.WriteString(code)
+	defer i.arena.Mark()()
+
+	codePtr, err := i.arena.String(code)
 	if err != nil {
 		return nil, err
 	}
-	defer free()
 
-	i.mod.Xeval(ptr, int32(len(code)), i.scratch)
-	return i.consume(i.scratch)
+	outPtr, err := i.result()
+	if err != nil {
+		return nil, err
+	}
+
+	used := i.mod.Xeval(
+		codePtr,
+		int32(len(code)),
+		outPtr,
+		defaultValueArenaCapacity,
+	)
+
+	return i.consumeArena(outPtr, used)
 }
 
 func (i *Module) Get(name string) (value.Value, error) {
-	ptr, free, err := i.mem.WriteString(name)
+	defer i.arena.Mark()()
+
+	ptr, err := i.arena.String(name)
 	if err != nil {
 		return nil, err
 	}
-	defer free()
 
-	i.mod.Xget_global(ptr, int32(len(name)), i.scratch)
-	return i.consume(i.scratch)
+	outPtr, err := i.result()
+	if err != nil {
+		return nil, err
+	}
+
+	used := i.mod.Xget_global(ptr, int32(len(name)), outPtr, defaultValueArenaCapacity)
+	return i.consumeArena(outPtr, used)
 }
 
 func (i *Module) Exec(code string) error {
-	ptr, free, err := i.mem.WriteString(code)
+	defer i.arena.Mark()()
+
+	ptr, err := i.arena.String(code)
 	if err != nil {
 		return err
 	}
 
-	defer free()
+	outPtr, err := i.result()
+	if err != nil {
+		return err
+	}
 
-	i.mod.Xexec(ptr, int32(len(code)), i.scratch)
-	_, err = i.consume(i.scratch)
+	used := i.mod.Xexec(ptr, int32(len(code)), outPtr, defaultValueArenaCapacity)
+	_, err = i.consumeArena(outPtr, used)
 	return err
 }
 
 func (i *Module) Call(name string, args []any) (value.Value, error) {
-	namePtr, freeName, err := i.mem.WriteString(name)
+	defer i.arena.Mark()()
+
+	namePtr, err := i.arena.String(name)
 	if err != nil {
 		return nil, err
 	}
-	defer freeName()
 
-	var argsPtr int32
-	if len(args) > 0 {
-		if len(args) > int(^uint32(0)>>1)/int(codec.ValueSize) {
-			return nil, fmt.Errorf("too many arguments: %d", len(args))
-		}
-		argsPtr = i.mem.Alloc(int32(len(args)) * codec.ValueSize)
-		if argsPtr == 0 {
-			return nil, memory.ErrGuestOOM
-		}
-		encoded := int32(0)
-		defer func() {
-			if encoded >= 0 {
-				i.codec.ReleaseHostBlock(argsPtr, encoded)
-			}
-			i.mem.Free(argsPtr)
-		}()
-		for n, arg := range args {
-			if err := i.codec.Encode(argsPtr+int32(n)*codec.ValueSize, arg); err != nil {
-				return nil, err
-			}
-			encoded++
-		}
-		// Handed over: the guest releases the block, the raise path included.
-		defer func() { encoded = -1 }()
+	argsPtr, err := i.args(args)
+	if err != nil {
+		return nil, err
 	}
 
-	i.mod.Xcall(namePtr, int32(len(name)), argsPtr, int32(len(args)), i.scratch)
-	return i.consume(i.scratch)
+	outPtr, err := i.result()
+	if err != nil {
+		return nil, err
+	}
+
+	used := i.mod.Xcall(
+		namePtr, int32(len(name)), argsPtr, int32(len(args)), outPtr, defaultValueArenaCapacity)
+	return i.consumeArena(outPtr, used)
 }
 
 // CallRef calls a value the guest handed out as a ref, for callables that no
@@ -186,35 +268,20 @@ func (i *Module) CallRef(obj value.Object, args []any) (value.Value, error) {
 		return nil, err
 	}
 
-	var argsPtr int32
-	if len(args) > 0 {
-		if len(args) > int(^uint32(0)>>1)/int(codec.ValueSize) {
-			return nil, fmt.Errorf("too many arguments: %d", len(args))
-		}
-		argsPtr = i.mem.Alloc(int32(len(args)) * codec.ValueSize)
-		if argsPtr == 0 {
-			return nil, memory.ErrGuestOOM
-		}
-		encoded := int32(0)
-		defer func() {
-			if encoded >= 0 {
-				i.codec.ReleaseHostBlock(argsPtr, encoded)
-			}
-			i.mem.Free(argsPtr)
-		}()
-		for n, arg := range args {
-			if err := i.codec.Encode(argsPtr+int32(n)*codec.ValueSize, arg); err != nil {
-				return nil, err
-			}
-			encoded++
-		}
-		// Handing the block over transfers it: the guest releases every child
-		// allocation once the call is over, the raise path included.
-		defer func() { encoded = -1 }()
+	defer i.arena.Mark()()
+
+	argsPtr, err := i.args(args)
+	if err != nil {
+		return nil, err
 	}
 
-	i.mod.Xcall_ref(int32(ref), argsPtr, int32(len(args)), i.scratch)
-	return i.consume(i.scratch)
+	outPtr, err := i.result()
+	if err != nil {
+		return nil, err
+	}
+
+	used := i.mod.Xcall_ref(int32(ref), argsPtr, int32(len(args)), outPtr, defaultValueArenaCapacity)
+	return i.consumeArena(outPtr, used)
 }
 
 // Resolve re-reads the object a ref names, so a container the host only holds
@@ -225,8 +292,15 @@ func (i *Module) Resolve(obj value.Object) (value.Value, error) {
 		return nil, err
 	}
 
-	i.mod.Xref_to_value(int32(ref), i.scratch)
-	return i.consume(i.scratch)
+	defer i.arena.Mark()()
+
+	outPtr, err := i.result()
+	if err != nil {
+		return nil, err
+	}
+
+	used := i.mod.Xref_to_value(int32(ref), outPtr, defaultValueArenaCapacity)
+	return i.consumeArena(outPtr, used)
 }
 
 // NextGenerator advances a generator ref returned by the guest. When exhausted,
@@ -238,31 +312,52 @@ func (i *Module) NextGenerator(obj value.Object) (out value.Value, next bool, er
 		return nil, false, err
 	}
 
-	status, err := i.iterate(int32(ref), i.scratch)
-	if err != nil || status == 0 {
+	defer i.arena.Mark()()
+
+	outPtr, err := i.result()
+	if err != nil {
 		return nil, false, err
 	}
 
-	out, err = i.consume(i.scratch)
+	status := i.mod.Xiterator_next(int32(ref), outPtr, defaultValueArenaCapacity)
+	if status < 0 {
+		if status == -2 {
+			return nil, false, transferError(status)
+		}
+		_, err = i.codec.Consume(outPtr)
+		return nil, false, err
+	}
+	if status == 0 {
+		return nil, false, nil
+	}
+
+	out, err = i.codec.Consume(outPtr)
 	return out, err == nil, err
 }
 
-func (i *Module) Set(name string, value any) error {
-	namePtr, freeName, err := i.mem.WriteString(name)
+func (i *Module) Set(name string, v any) error {
+	defer i.arena.Mark()()
+
+	namePtr, err := i.arena.String(name)
 	if err != nil {
 		return err
 	}
-	defer freeName()
-	valuePtr := i.mem.Alloc(codec.ValueSize)
-	if valuePtr == 0 {
-		return memory.ErrGuestOOM
-	}
-	defer i.mem.Free(valuePtr)
-	if err := i.codec.Encode(valuePtr, value); err != nil {
+
+	valuePtr, err := i.arena.New(codec.ValueSize)
+	if err != nil {
 		return err
 	}
-	i.mod.Xset_global(namePtr, int32(len(name)), valuePtr, i.scratch)
-	_, err = i.consume(i.scratch)
+	if err := i.codec.EncodeInto(i.arena, valuePtr, v); err != nil {
+		return err
+	}
+
+	outPtr, err := i.result()
+	if err != nil {
+		return err
+	}
+
+	used := i.mod.Xset_global(namePtr, int32(len(name)), valuePtr, outPtr, defaultValueArenaCapacity)
+	_, err = i.consumeArena(outPtr, used)
 	return err
 }
 
@@ -270,8 +365,7 @@ func (i *Module) Snapshot() *Snapshot {
 	return &Snapshot{
 		memory:   i.mem.Image(),
 		stack:    *i.mod.X__stack_pointer(),
-		scratch:  i.scratch,
-		walk:     slices.Clone(i.walkScratch),
+		arena:    i.arena.Save(),
 		registry: maps.Clone(i.registry),
 		counter:  i.counter,
 		stdout:   i.stdout,
@@ -288,8 +382,11 @@ func (i *Module) Restore(s *Snapshot) error {
 		return err
 	}
 	*i.mod.X__stack_pointer() = s.stack
-	i.scratch = s.scratch
-	i.walkScratch = slices.Clone(s.walk)
+
+	if i.arena == nil {
+		i.arena = &memory.Arena{}
+	}
+	i.arena.Load(i.mem, s.arena)
 
 	// NOTE: Invalidate refs
 	i.mod.Xreset_refs()
@@ -308,12 +405,13 @@ func (i *Module) DefineFunction(name string, fn HostFunc) error {
 		return errors.New("nil host func")
 	}
 
+	defer i.arena.Mark()()
+
 	// qstr_from_str strlens this, so it must be NUL-terminated.
-	ptr, free, err := i.mem.WriteCString(name)
+	ptr, err := i.arena.CString(name)
 	if err != nil {
 		return err
 	}
-	defer free()
 
 	i.mod.Xdefine_function(ptr, i.register(fn))
 	return nil

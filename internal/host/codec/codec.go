@@ -13,6 +13,8 @@ type Refs interface {
 	Lookup(*value.Ref) (uint32, error)
 }
 
+// Codec understands the ABI and nothing about who owns transfer memory. Every
+// operation that needs space is handed an arena by its caller.
 type Codec struct {
 	mem  *memory.Memory
 	refs Refs
@@ -25,35 +27,17 @@ func New(m *memory.Memory, refs Refs) *Codec {
 	}
 }
 
-func (c *Codec) Encode(ptr int32, v any) error {
-	return c.encodeAt(ptr, v)
-}
-
-// releaseGuest frees what the guest allocated to write a value. Strings and
-// bytes are borrowed from live objects, and a container is a handle.
-func (c *Codec) releaseGuest(v Value) {
-	switch v.Kind {
-	case KindBigint, KindException:
-		c.mem.Free(int32(v.W2))
-	case KindObject:
-		c.mem.Free(int32(v.W2 &^ KindObjectAttrMask))
-	}
-}
-
-// Consume decodes the value at ptr and releases what the guest allocated to
-// write it. A container comes back as a Container for the caller to walk, since
-// reaching into the guest is not the codec's to do.
-func (c *Codec) Consume(ptr int32) (value.Value, Container, error) {
+// Consume decodes the value tree rooted at ptr into Go-owned values. Every
+// payload it reads belongs to the caller's transfer arena and stays valid only
+// for the duration of this call, so nothing it returns aliases guest memory:
+// once Consume returns, resetting that arena is safe.
+//
+// Object metadata is the one payload the guest still allocates outside the
+// arena; decode releases each one as it reads it, so this frees nothing itself.
+func (c *Codec) Consume(ptr int32) (value.Value, error) {
 	v, err := c.valueAt(ptr)
 	if err != nil {
-		return nil, Container{}, err
+		return nil, err
 	}
-	defer c.releaseGuest(v)
-
-	if box, ok, err := container(v); ok {
-		return nil, box, err
-	}
-
-	out, err := c.decode(v)
-	return out, Container{}, err
+	return c.decode(v, 0)
 }

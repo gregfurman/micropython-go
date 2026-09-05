@@ -13,14 +13,14 @@ func (i *Module) Xmemory() wasi.Memory {
 	return i.mem
 }
 
-func (i *Module) Xhost_trampoline(funcID, argsPtr, numArgs, outPtr int32) {
+func (i *Module) Xhost_trampoline(funcID, argsPtr, numArgs, outPtr, outCapacity int32) {
 	defer func() {
 		if r := recover(); r != nil {
-			i.writeErrAt(outPtr, fmt.Errorf("host function panicked: %v", r))
+			i.writeErr(outPtr, outCapacity, fmt.Errorf("host function panicked: %v", r))
 		}
 	}()
-	if err := i.dispatch(funcID, argsPtr, numArgs, outPtr); err != nil {
-		i.writeErrAt(outPtr, err)
+	if err := i.dispatch(funcID, argsPtr, numArgs, outPtr, outCapacity); err != nil {
+		i.writeErr(outPtr, outCapacity, err)
 	}
 }
 

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"math/big"
 	"reflect"
 	"strings"
 )
@@ -20,11 +21,10 @@ func lower(v any, depth int) (Value, error) {
 	if v == nil {
 		return None{}, nil
 	}
+	// Object, Exception, and every concrete kind below already satisfy Value,
+	// so they arrive here fully lowered and pass straight through.
 	if semantic, ok := v.(Value); ok {
 		return semantic, nil
-	}
-	if object, ok := v.(Object); ok {
-		return nil, fmt.Errorf("micropython: %s came from Python and cannot be passed back", object.Type())
 	}
 
 	switch x := v.(type) {
@@ -62,6 +62,8 @@ func lower(v any, depth int) (Value, error) {
 		return Str(x), nil
 	case []byte:
 		return Bytes(x), nil
+	case *big.Int:
+		return NewBigInt(x), nil
 	case Tuple:
 		return sequence(NewTuple, []any(x), depth)
 	case Set:

@@ -152,6 +152,20 @@ func (m *Memory) ReadString(ptr, n int32) (string, error) {
 	return string(b), nil
 }
 
+func (m *Memory) Write(ptr int32, b []byte) error {
+	if int64(len(b)) > math.MaxInt32 {
+		return fmt.Errorf("blob too large: %d bytes", len(b))
+	}
+
+	buf, err := m.View(ptr, int32(len(b)))
+	if err != nil {
+		return fmt.Errorf("malloc returned out-of-range pointer %d: %w", ptr, err)
+	}
+	copy(buf, b)
+	return nil
+
+}
+
 func (m *Memory) WriteCString(s string) (int32, func(), error) {
 	size := int64(len(s)) + 1
 	if size > math.MaxInt32 {

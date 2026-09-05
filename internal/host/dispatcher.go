@@ -6,10 +6,11 @@ import (
 	"maps"
 
 	"github.com/gregfurman/micropython-go/internal/host/codec"
+	"github.com/gregfurman/micropython-go/internal/host/memory"
 	"github.com/gregfurman/micropython-go/internal/value"
 )
 
-func (i *Module) dispatch(funcID, argsPtr, numArgs, outPtr int32) error {
+func (i *Module) dispatch(funcID, argsPtr, numArgs, outPtr, outCapacity int32) error {
 	fn, ok := i.registry[funcID]
 	if !ok {
 		return fmt.Errorf("unknown host func %d", funcID)
@@ -21,36 +22,51 @@ func (i *Module) dispatch(funcID, argsPtr, numArgs, outPtr int32) error {
 		return fmt.Errorf("args block: %w", err)
 	}
 
-	if _, err := i.mem.View(outPtr, codec.ValueSize); err != nil {
-		return fmt.Errorf("return slot: %w", err)
-	}
-
-	if err := i.codec.Encode(outPtr, nil); err != nil {
-		return fmt.Errorf("return slot: %w", err)
-	}
-
 	args := make([]value.Value, numArgs)
 	for k := range numArgs {
-		v, err := i.consume(argsPtr + k*codec.ValueSize)
+		v, err := i.codec.Consume(argsPtr + k*codec.ValueSize)
 		if err != nil {
-			for rest := k + 1; rest < numArgs; rest++ {
-				_, _ = i.consume(argsPtr + rest*codec.ValueSize)
-			}
 			return fmt.Errorf("arg %d: %w", k, err)
 		}
-		if v != nil {
-			args[k] = v
-		}
+		args[k] = v
 	}
 
-	ctx, cancel := i.Context(context.Background())
+	ctx, cancel :=
+		i.Context(context.Background())
 	defer cancel()
 
 	out, err := fn(ctx, args)
 	if err != nil {
 		return err
 	}
-	return i.codec.Encode(outPtr, out)
+
+	arena, root, err := i.returnArena(outPtr, outCapacity)
+	if err != nil {
+		return err
+	}
+	return i.codec.EncodeInto(arena, root, out)
+}
+
+// returnArena views the region the guest lends a host callback for its return
+// value. The guest owns the span and reclaims it when the trampoline returns,
+// so the arena never spills to the heap: the whole tree has to fit.
+//
+// The root record sits at the front, matching what the C side reads back, and
+// is reserved first so nested payloads land after it.
+func (i *Module) returnArena(outPtr, outCapacity int32) (*memory.Arena, int32, error) {
+	if outCapacity < codec.ValueSize {
+		return nil, 0, fmt.Errorf("return arena too small: %d", outCapacity)
+	}
+	if _, err := i.mem.View(outPtr, outCapacity); err != nil {
+		return nil, 0, fmt.Errorf("return arena: %w", err)
+	}
+
+	arena := i.mem.ArenaAt(outPtr, outCapacity)
+	root, err := arena.New(codec.ValueSize)
+	if err != nil {
+		return nil, 0, err
+	}
+	return arena, root, nil
 }
 
 func (i *Module) register(fn HostFunc) int32 {
@@ -70,18 +86,22 @@ func (i *Module) restore(registry map[int32]HostFunc, counter int32) {
 	i.counter = counter
 }
 
-func (i *Module) writeErrAt(ptr int32, err error) {
-	if e := i.codec.EncodeError(ptr, err); e != nil {
-		// fallback to just raise a regular Exception
-		_ = i.codec.EncodeEmptyError(ptr)
+// writeErr replaces whatever a failed callback left in the return region with
+// the exception to raise. Each attempt takes a fresh view of the region, which
+// rewinds the bump pointer the way output_arena_reset does on the C side.
+func (i *Module) writeErr(outPtr, outCapacity int32, err error) {
+	arena, root, aerr := i.returnArena(outPtr, outCapacity)
+	if aerr != nil {
+		return
 	}
-}
+	if e := i.codec.EncodeErrorInto(arena, root, err); e == nil {
+		return
+	}
 
-func (i *Module) iterate(ref, outPtr int32) (int32, error) {
-	status := i.mod.Xiterator_next(ref, outPtr)
-	if status < 0 {
-		_, err := i.consume(outPtr)
-		return status, err
+	// The text did not fit. Fall back to a bare exception, which always does.
+	arena, root, aerr = i.returnArena(outPtr, outCapacity)
+	if aerr != nil {
+		return
 	}
-	return status, nil
+	_ = i.codec.EncodeEmptyErrorInto(arena, root)
 }

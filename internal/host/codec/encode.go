@@ -1,289 +1,66 @@
 package codec
 
 import (
-	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
-	"math/big"
-	"reflect"
 	"strings"
 
+	"github.com/gregfurman/micropython-go/internal/host/memory"
 	"github.com/gregfurman/micropython-go/internal/value"
-	val "github.com/gregfurman/micropython-go/internal/value"
 )
 
-func (c *Codec) encodeAt(ptr int32, value any) error {
-	if value == nil {
-		return c.putValue(ptr, Value{Kind: KindNone})
-	}
+// encodeFailure carries an error out of the encoder's recursion. The arms
+// below return records rather than (record, error) pairs so the shape of a
+// value tree stays readable; EncodeInto turns this back into a plain error.
+type encodeFailure struct{ err error }
 
-	switch v := value.(type) {
-	case *val.Exception:
-		return c.putBlob(ptr, KindException, []byte(v.Type()+"\x04"+v.Message()))
-	case val.ListValue:
-		return c.encodeSequenceKind(ptr, reflect.ValueOf([]val.Value(v)), KindList)
-	case val.TupleValue:
-		return c.encodeSequenceKind(ptr, reflect.ValueOf([]val.Value(v)), KindTuple)
-	case val.SetValue:
-		return c.encodeSequenceKind(ptr, reflect.ValueOf([]val.Value(v)), KindSet)
-	case val.FrozenSetValue:
-		return c.encodeSequenceKind(ptr, reflect.ValueOf([]val.Value(v)), KindFrozenSet)
-	case val.Tuple:
-		return c.encodeSequenceKind(ptr, reflect.ValueOf([]any(v)), KindTuple)
-	case val.Set:
-		return c.encodeSequenceKind(ptr, reflect.ValueOf([]any(v)), KindSet)
-	case val.FrozenSet:
-		return c.encodeSequenceKind(ptr, reflect.ValueOf([]any(v)), KindFrozenSet)
-	case val.Object:
-		if v.Handle() == nil {
-			return fmt.Errorf("micropython: %s is not bound to an interpreter", v.Type())
-		}
-		id, err := c.refs.Lookup(v.Handle())
-		if err != nil {
-			return err
-		}
-		return c.putValue(ptr, Value{Kind: KindObject, W1: id})
-	case val.Value:
-		lifted := val.Lift(v)
-		if err, ok := lifted.(error); ok {
-			return err
-		}
-		return c.encodeAt(ptr, lifted)
-	case bool:
-		var word uint32
-		if v {
-			word = 1
-		}
-		return c.putValue(ptr, Value{Kind: KindBool, W1: word})
-	case int:
-		return c.encodeInt64(ptr, int64(v))
-	case int8:
-		return c.encodeInt64(ptr, int64(v))
-	case int16:
-		return c.encodeInt64(ptr, int64(v))
-	case int32:
-		return c.encodeInt64(ptr, int64(v))
-	case int64:
-		return c.encodeInt64(ptr, v)
-	case uint:
-		return c.encodeUint64(ptr, uint64(v))
-	case uint8:
-		return c.encodeUint64(ptr, uint64(v))
-	case uint16:
-		return c.encodeUint64(ptr, uint64(v))
-	case uint32:
-		return c.encodeUint64(ptr, uint64(v))
-	case uint64:
-		return c.encodeUint64(ptr, v)
-	case float32:
-		return c.encodeFloat(ptr, float64(v))
-	case float64:
-		return c.encodeFloat(ptr, v)
-	case string:
-		return c.putBlob(ptr, KindStr, []byte(v))
-	case []byte:
-		return c.putBlob(ptr, KindBytes, v)
-	case json.Number:
-		if n, err := v.Int64(); err == nil {
-			return c.encodeInt64(ptr, n)
-		}
-		f, err := v.Float64()
-		if err != nil {
-			return fmt.Errorf("cannot encode number %q: %w", v, err)
-		}
-		return c.encodeFloat(ptr, f)
-	case *big.Int:
-		return c.putBlob(ptr, KindBigint, []byte(v.String()))
-	}
-
-	rv := reflect.ValueOf(value)
-	switch rv.Kind() {
-	case reflect.Interface, reflect.Pointer:
-		if rv.IsNil() {
-			return c.putValue(ptr, Value{Kind: KindNone})
-		}
-		// TODO: how should we handle interfaces being passed in?
-		return c.encodeAt(ptr, rv.Elem().Interface())
-	case reflect.Slice, reflect.Array:
-		return c.encodeSequence(ptr, rv)
-	case reflect.Map:
-		return c.encodeMap(ptr, rv)
-	}
-	return c.encodeJSON(ptr, value)
+// encoder writes one value tree into one arena. It is per-operation: the codec
+// itself owns no transfer memory.
+type encoder struct {
+	codec *Codec
+	arena *memory.Arena
+	depth int
 }
 
-func (c *Codec) encodeJSON(ptr int32, value any) error {
-	data, err := json.Marshal(value)
-	if err != nil {
-		return fmt.Errorf("micropython: cannot pass %T to Python: %w", value, err)
-	}
-	dec := json.NewDecoder(bytes.NewReader(data))
-	dec.UseNumber()
-	var standard any
-	if err := dec.Decode(&standard); err != nil {
-		return fmt.Errorf("micropython: cannot parse %T for Python: %w", value, err)
-	}
-	return c.encodeAt(ptr, standard)
-}
-
-func (c *Codec) encodeInt64(ptr int32, v int64) error {
-	bits := uint64(v)
-	return c.putValue(ptr, Value{Kind: KindInt, W1: uint32(bits), W2: uint32(bits >> 32)})
-}
-
-func (c *Codec) encodeUint64(ptr int32, v uint64) error {
-	if v > math.MaxInt64 {
-		return fmt.Errorf("micropython: %d is too large to pass as an int", v)
-	}
-	return c.encodeInt64(ptr, int64(v))
-}
-
-func (c *Codec) encodeFloat(ptr int32, v float64) error {
-	bits := math.Float64bits(v)
-	return c.putValue(ptr, Value{Kind: KindFloat, W1: uint32(bits), W2: uint32(bits >> 32)})
-}
-
-func (c *Codec) putValue(ptr int32, v Value) error {
-	b, err := c.mem.View(ptr, ValueSize)
+// EncodeInto writes v as a value tree rooted at ptr, taking every nested record
+// and payload from a. The arena owns all of it: a caller releases the tree by
+// resetting the arena, never by freeing anything the tree points at.
+//
+// ptr must already be reserved from a, so that nested payloads land after the
+// root rather than on top of it.
+func (c *Codec) EncodeInto(a *memory.Arena, ptr int32, v any) error {
+	// Lower is the one place an arbitrary Go value becomes a Python one: it
+	// owns the numeric conversions, the reflect fallback for slices and maps,
+	// the JSON fallback for everything else, and the depth limit. Encoding
+	// starts from the closed model it produces.
+	lowered, err := value.Lower(v)
 	if err != nil {
 		return err
 	}
-	v.MarshalWords(b)
-	return nil
+	return c.encodeValueInto(a, ptr, lowered)
 }
 
-func (c *Codec) putBlob(ptr int32, kind Kind, data []byte) error {
-	if len(data) == 0 {
-		return c.putValue(ptr, Value{Kind: kind})
-	}
-	p, free, err := c.mem.WriteBytes(data)
-	if err != nil {
-		return err
-	}
-	if err := c.putValue(ptr, Value{Kind: kind, W1: uint32(len(data)), W2: uint32(p)}); err != nil {
-		free()
-		return err
-	}
-	return nil
-}
-
-func (c *Codec) encodeSequence(ptr int32, seq reflect.Value) error {
-	return c.encodeSequenceKind(ptr, seq, KindList)
-}
-
-func (c *Codec) encodeSequenceKind(ptr int32, seq reflect.Value, kind Kind) error {
-	n := seq.Len()
-	if n == 0 {
-		return c.putValue(ptr, Value{Kind: kind})
-	}
-	if n > math.MaxInt32/ValueSize {
-		return fmt.Errorf("sequence too large: %d entries", n)
-	}
-	block, free, err := c.mem.WriteBytes(make([]byte, n*ValueSize))
-	if err != nil {
-		return err
-	}
-	encoded := 0
+func (c *Codec) encodeValueInto(a *memory.Arena, ptr int32, v value.Value) (err error) {
 	defer func() {
-		if encoded < 0 {
+		recovered := recover()
+		if recovered == nil {
 			return
 		}
-		for i := 0; i < encoded; i++ {
-			c.releaseHostAt(block + int32(i)*ValueSize)
+		failure, ok := recovered.(encodeFailure)
+		if !ok {
+			panic(recovered)
 		}
-		free()
+		err = failure.err
 	}()
-	for i := range n {
-		if err := c.encodeAt(block+int32(i)*ValueSize, seq.Index(i).Interface()); err != nil {
-			return err
-		}
-		encoded++
-	}
-	if err := c.putValue(ptr, Value{Kind: kind, W1: uint32(n), W2: uint32(block)}); err != nil {
-		return err
-	}
-	encoded = -1
+
+	e := &encoder{codec: c, arena: a}
+	e.put(ptr, e.encode(v))
 	return nil
 }
 
-func (c *Codec) encodeMap(ptr int32, m reflect.Value) error {
-	n := m.Len()
-	if n == 0 {
-		return c.putValue(ptr, Value{Kind: KindDict})
-	}
-	if n > math.MaxInt32/(2*ValueSize) {
-		return fmt.Errorf("map too large: %d entries", n)
-	}
-	block, free, err := c.mem.WriteBytes(make([]byte, n*2*ValueSize))
-	if err != nil {
-		return err
-	}
-	encoded := 0
-	defer func() {
-		if encoded < 0 {
-			return
-		}
-		for i := 0; i < encoded; i++ {
-			c.releaseHostAt(block + int32(i)*ValueSize)
-		}
-		free()
-	}()
-	iter := m.MapRange()
-	for iter.Next() {
-		if err := c.encodeAt(block+int32(encoded)*ValueSize, iter.Key().Interface()); err != nil {
-			return err
-		}
-		encoded++
-		if err := c.encodeAt(block+int32(encoded)*ValueSize, iter.Value().Interface()); err != nil {
-			return err
-		}
-		encoded++
-	}
-	if err := c.putValue(ptr, Value{Kind: KindDict, W1: uint32(n), W2: uint32(block)}); err != nil {
-		return err
-	}
-	encoded = -1
-	return nil
-}
-
-// releaseHostAt is only used to roll back a partial host-to-guest encoding.
-// All pointer payloads in that direction were allocated by the host codec.
-func (c *Codec) releaseHostAt(ptr int32) {
-	v, err := c.valueAt(ptr)
-	if err != nil {
-		return
-	}
-	switch v.Kind {
-	case KindStr, KindBytes, KindBigint, KindException:
-		c.mem.Free(int32(v.W2))
-	case KindList, KindTuple, KindSet, KindFrozenSet:
-		for i := int32(0); i < int32(v.W1); i++ {
-			c.releaseHostAt(int32(v.W2) + i*ValueSize)
-		}
-		c.mem.Free(int32(v.W2))
-	case KindDict:
-		for i := int32(0); i < int32(v.W1)*2; i++ {
-			c.releaseHostAt(int32(v.W2) + i*ValueSize)
-		}
-		c.mem.Free(int32(v.W2))
-	}
-}
-
-// ReleaseHostBlock rolls back values encoded by Go that were never handed to
-// the guest. Once they are, releasing them is the guest's.
-func (c *Codec) ReleaseHostBlock(ptr, count int32) {
-	for i := int32(0); i < count; i++ {
-		c.releaseHostAt(ptr + i*ValueSize)
-	}
-}
-
-func (c *Codec) EncodeEmptyError(ptr int32) error {
-	return c.putValue(ptr, Value{Kind: KindException})
-}
-
-func (c *Codec) EncodeError(ptr int32, target error) error {
+// EncodeErrorInto writes target as the exception the guest will raise.
+func (c *Codec) EncodeErrorInto(a *memory.Arena, ptr int32, target error) error {
 	// An unnamed type lets the guest apply its own default, HostError, which
 	// keeps a failed host callback distinguishable from an interpreter error.
 	typ, msg := "", target.Error()
@@ -293,5 +70,152 @@ func (c *Codec) EncodeError(ptr int32, target error) error {
 	if strings.ContainsRune(typ, '\x04') {
 		return fmt.Errorf("exception type %q contains the field separator", typ)
 	}
-	return c.putBlob(ptr, KindException, []byte(typ+"\x04"+msg))
+	return c.encodeValueInto(a, ptr, value.NewException(typ, msg))
+}
+
+// EncodeEmptyErrorInto writes an exception with no payload, the fallback for
+// when even the error text will not fit.
+func (c *Codec) EncodeEmptyErrorInto(a *memory.Arena, ptr int32) error {
+	e := &encoder{codec: c, arena: a}
+	defer func() { _ = recover() }()
+	e.put(ptr, Value{Kind: KindException})
+	return nil
+}
+
+func (e *encoder) fail(err error) { panic(encodeFailure{err}) }
+
+func (e *encoder) must(ptr int32, err error) int32 {
+	if err != nil {
+		e.fail(err)
+	}
+	return ptr
+}
+
+// encode turns one semantic value into its 12-byte record, allocating whatever
+// the record points at from the arena first.
+func (e *encoder) encode(v value.Value) Value {
+	// Lower counts depth on the way in from `any`, but a caller can hand us a
+	// value tree it built by hand, which never passed through that counter.
+	if e.depth > value.MaxDepth {
+		e.fail(fmt.Errorf("micropython: value nested deeper than %d levels", value.MaxDepth))
+	}
+	e.depth++
+	defer func() { e.depth-- }()
+
+	switch x := v.(type) {
+	case nil, value.None:
+		return Value{Kind: KindNone}
+
+	case value.Bool:
+		var word uint32
+		if x {
+			word = 1
+		}
+		return Value{Kind: KindBool, W1: word}
+
+	case value.Int:
+		bits := uint64(int64(x))
+		return Value{Kind: KindInt, W1: uint32(bits), W2: uint32(bits >> 32)}
+
+	case value.Float:
+		bits := math.Float64bits(float64(x))
+		return Value{Kind: KindFloat, W1: uint32(bits), W2: uint32(bits >> 32)}
+
+	case value.BigInt:
+		return e.blob(KindBigint, []byte(x.Unwrap().String()))
+
+	case value.Str:
+		return e.blob(KindStr, []byte(x))
+
+	case value.Bytes:
+		return e.blob(KindBytes, x)
+
+	case *value.Exception:
+		return e.blob(KindException, []byte(x.Type()+"\x04"+x.Message()))
+
+	case value.ListValue:
+		return e.seq(KindList, x)
+
+	case value.TupleValue:
+		return e.seq(KindTuple, x)
+
+	case value.SetValue:
+		return e.seq(KindSet, x)
+
+	case value.FrozenSetValue:
+		return e.seq(KindFrozenSet, x)
+
+	case value.DictValue:
+		return e.dict(x)
+
+	case value.Object:
+		if x.Handle() == nil {
+			e.fail(fmt.Errorf("micropython: %s is not bound to an interpreter", x.Type()))
+		}
+		id, err := e.codec.refs.Lookup(x.Handle())
+		if err != nil {
+			e.fail(err)
+		}
+		return Value{Kind: KindObject, W1: id}
+	}
+
+	// Invalid values keep their reason behind the interface; Lift is the only
+	// way to it from here.
+	if err, ok := value.Lift(v).(error); ok {
+		e.fail(err)
+	}
+	e.fail(fmt.Errorf("micropython: cannot pass %s to Python", v.Type()))
+	return Value{}
+}
+
+func (e *encoder) blob(kind Kind, data []byte) Value {
+	if len(data) == 0 {
+		return Value{Kind: kind}
+	}
+	ptr := e.must(e.arena.Bytes(data))
+	return Value{Kind: kind, W1: uint32(len(data)), W2: uint32(ptr)}
+}
+
+// seq lays out the elements of a list, tuple, set, or frozenset as one run of
+// records. The run is reserved before the elements are encoded, so whatever
+// they allocate lands after it.
+func (e *encoder) seq(kind Kind, items []value.Value) Value {
+	if len(items) == 0 {
+		return Value{Kind: kind}
+	}
+	if len(items) > math.MaxInt32/ValueSize {
+		e.fail(fmt.Errorf("sequence too large: %d entries", len(items)))
+	}
+
+	block := e.must(e.arena.New(int32(len(items)) * ValueSize))
+	for i, item := range items {
+		e.put(block+int32(i)*ValueSize, e.encode(item))
+	}
+	return Value{Kind: kind, W1: uint32(len(items)), W2: uint32(block)}
+}
+
+// dict lays out entries as alternating key and value records, which is the one
+// container shape the ABI spells out rather than nesting.
+func (e *encoder) dict(entries []value.Item) Value {
+	if len(entries) == 0 {
+		return Value{Kind: KindDict}
+	}
+	if len(entries) > math.MaxInt32/(2*ValueSize) {
+		e.fail(fmt.Errorf("dict too large: %d entries", len(entries)))
+	}
+
+	block := e.must(e.arena.New(int32(len(entries)) * 2 * ValueSize))
+	for i, entry := range entries {
+		e.put(block+int32(2*i)*ValueSize, e.encode(entry.Key))
+		e.put(block+int32(2*i+1)*ValueSize, e.encode(entry.Val))
+	}
+	return Value{Kind: KindDict, W1: uint32(len(entries)), W2: uint32(block)}
+}
+
+func (e *encoder) put(ptr int32, v Value) {
+	buf, err := e.arena.View(ptr, ValueSize)
+	if err != nil {
+		e.fail(err)
+	}
+	v.MarshalWords(buf)
 }
