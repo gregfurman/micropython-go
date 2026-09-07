@@ -144,7 +144,7 @@ func (i *Instance) Snapshot(ctx context.Context) (*host.Snapshot, error) {
 		return nil, err
 	}
 	rt := i.rt.Load()
-	rt.GC() // so the image does not root objects the host has already dropped
+	rt.ReleasePendingRefs() // exclude references whose cleanups have run
 	return rt.Snapshot(), nil
 }
 
@@ -209,11 +209,6 @@ func (i *Instance) run(ctx context.Context, fn func(*host.Module) error) (err er
 	}
 
 	rt := i.rt.Load()
-	rt.Begin()
-	if ctx.Done() != nil {
-		stop := context.AfterFunc(ctx, rt.Cancel)
-		defer stop()
-	}
 	defer func() {
 		if recovered := recover(); recovered != nil {
 			t := &TrapError{Value: recovered, Stack: debug.Stack()}
@@ -222,9 +217,9 @@ func (i *Instance) run(ctx context.Context, fn func(*host.Module) error) (err er
 		}
 	}()
 
-	// clears up old references manually since the Go GC
-	// could have booted something.
-	rt.GC()
+	rt.Begin()
+	stop := context.AfterFunc(ctx, rt.Cancel)
+	defer stop()
 
 	err = fn(rt)
 	var trap *TrapError

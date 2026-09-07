@@ -387,7 +387,6 @@ func step(t *testing.T, inst *Module) {
 	//  mirrors what that whee little api.run does before every operation.
 	t.Helper()
 	inst.Begin()
-	inst.GC()
 }
 
 func exec(t *testing.T, inst *Module, src string) {

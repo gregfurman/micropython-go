@@ -202,6 +202,59 @@ func BenchmarkGuestWork(b *testing.B) {
 	}
 }
 
+func BenchmarkCallable(b *testing.B) {
+	b.Run("operation=eval", func(b *testing.B) {
+		in := benchInstance(b)
+		ctx := context.Background()
+		b.ReportAllocs()
+		b.ResetTimer()
+		for b.Loop() {
+			val, _ := in.Eval(ctx, "add")
+			addFn, _ := val.AsCallable()
+			addFn(ctx, in, 1, 2)
+		}
+		in.Close()
+
+	})
+
+	b.Run("operation=get", func(b *testing.B) {
+		in := benchInstance(b)
+		ctx := context.Background()
+		b.ReportAllocs()
+		b.ResetTimer()
+		for b.Loop() {
+			val, _ := in.Get(ctx, "add")
+			addFn, _ := val.AsCallable()
+			addFn(ctx, in, 1, 2)
+		}
+		in.Close()
+	})
+
+	b.Run("operation=call_ref", func(b *testing.B) {
+		in := benchInstance(b)
+		ctx := context.Background()
+		b.ReportAllocs()
+		b.ResetTimer()
+		for b.Loop() {
+			back, _ := in.Call(ctx, "add")
+			callable, _ := in.AsCallable(back)
+			callable.Call(ctx, 1, 2)
+		}
+		in.Close()
+	})
+
+	b.Run("operation=call", func(b *testing.B) {
+		in := benchInstance(b)
+		ctx := context.Background()
+		b.ReportAllocs()
+		b.ResetTimer()
+		for b.Loop() {
+			in.Call(ctx, "add", 1, 2)
+		}
+		in.Close()
+	})
+}
+
 // The VM hook runs every MICROPY_VM_HOOK_COUNT bytecodes to ask whether to
 // stop. This is what it costs when nothing is cancelling: a call with a
 // context that can never fire still arms one, a call with a background context

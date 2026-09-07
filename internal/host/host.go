@@ -37,6 +37,21 @@ func (i *Module) Xhost_stdout(ptr, n int32) {
 	_, _ = i.stdout.Write(b)
 }
 
+// Xgo_ref_add and Xgo_ref_free are the guest asking the host to do the
+// reference bookkeeping it no longer keeps for itself. Both run while a guest
+// call is in flight, so the instance lock is already held by this goroutine and
+// neither may reach for it.
+func (i *Module) Xgo_ref_add(addr int32) int32 {
+	return i.refs.Acquire(uint32(addr))
+}
+
+func (i *Module) Xgo_ref_free(id int32) int32 {
+	if i.refs.Release(uint32(id)) {
+		return 1
+	}
+	return 0
+}
+
 func (i *Module) Xhost_poll() int32 {
 	if i.cancelled.Load() {
 		return 1

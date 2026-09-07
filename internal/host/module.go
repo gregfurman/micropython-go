@@ -81,9 +81,8 @@ func newModule(stdout io.Writer) *Module {
 	if stdout == nil {
 		stdout = io.Discard
 	}
-	refs := &OwnedReferences{
-		pending: make(chan refKey, pendingRefs),
-	}
+
+	refs := &OwnedReferences{}
 
 	i := &Module{
 		registry: make(map[int32]HostFunc),
@@ -100,16 +99,17 @@ func newModule(stdout io.Writer) *Module {
 	return i
 }
 
-// GC frees the refs the host has dropped since the last operation. Callers
-// serialise access to a Module and run this before touching the guest, the only
-// place it is safe to release one.
-func (i *Module) GC() {
+// ReleasePendingRefs applies queued releases while no guest call is in flight.
+// Callers must hold the instance lock. This does not run either collector.
+func (i *Module) ReleasePendingRefs() {
 	i.refs.Drain(func(id uint32) { i.mod.Xrelease_ref(int32(id)) })
 }
 
-// Begin starts an operation, clearing a cancel left over from the last one.
+// Begin starts an operation under the instance lock, clearing cancellation and
+// releasing references before any arguments are reduced to guest IDs.
 func (i *Module) Begin() {
 	i.cancelled.Store(false)
+	i.ReleasePendingRefs()
 }
 
 func (i *Module) Cancel() {
@@ -122,8 +122,8 @@ func (i *Module) Context(ctx context.Context) (context.Context, context.CancelFu
 }
 
 // result reserves one contiguous region for a guest call to write its result
-// into. The C side puts the root value at the front and treats the rest as its
-// transfer arena, so the whole tree comes back in this one span.
+// into. The C side puts the root value and reference-list head at the front,
+// then allocates all payloads from the rest of the region.
 //
 // It must be called under an arena Mark, which is what releases it.
 func (i *Module) result() (int32, error) {
@@ -133,6 +133,7 @@ func (i *Module) result() (int32, error) {
 // consumeArena decodes the tree a guest call left at outPtr. The decoded value
 // is fully Go-owned, so the arena can be reset the moment this returns.
 func (i *Module) consumeArena(outPtr, used int32) (value.Value, error) {
+	defer i.mod.Xrelease_transfer(outPtr)
 	if err := transferError(used); err != nil {
 		return nil, err
 	}
@@ -144,10 +145,10 @@ func (i *Module) consumeArena(outPtr, used int32) (value.Value, error) {
 // failure here, it comes back as a KIND_EXCEPTION value.
 func transferError(used int32) error {
 	switch {
-	case used >= codec.ValueSize:
+	case used >= codec.TransferSize:
 		return nil
 	case used >= 0:
-		return fmt.Errorf("guest result uses %d bytes, want at least %d", used, codec.ValueSize)
+		return fmt.Errorf("guest result uses %d bytes, want at least %d", used, codec.TransferSize)
 	case used == -2:
 		return fmt.Errorf("%w: %d byte result region", memory.ErrArenaFull, defaultValueArenaCapacity)
 	default:
@@ -187,7 +188,7 @@ func (i *Module) Eval(code string) (value.Value, error) {
 		return nil, err
 	}
 
-	outPtr, err := i.result()
+	outPtr, err := i.arena.New(defaultValueArenaCapacity)
 	if err != nil {
 		return nil, err
 	}
@@ -257,6 +258,7 @@ func (i *Module) Call(name string, args []any) (value.Value, error) {
 
 	used := i.mod.Xcall(
 		namePtr, int32(len(name)), argsPtr, int32(len(args)), outPtr, defaultValueArenaCapacity)
+
 	return i.consumeArena(outPtr, used)
 }
 
@@ -320,6 +322,7 @@ func (i *Module) NextGenerator(obj value.Object) (out value.Value, next bool, er
 	}
 
 	status := i.mod.Xiterator_next(int32(ref), outPtr, defaultValueArenaCapacity)
+	defer i.mod.Xrelease_transfer(outPtr)
 	if status < 0 {
 		if status == -2 {
 			return nil, false, transferError(status)
@@ -372,12 +375,9 @@ func (i *Module) Snapshot() *Snapshot {
 	}
 }
 
-// Restore rewinds guest memory, so every ref minted before it now names a
-// different object. Bumping the epoch invalidates those handles and discards
-// the releases they queued.
+// Restore rewinds guest memory and replaces its reference owner. Old handles
+// and their cleanup queues belong to the abandoned owner, never the new one.
 func (i *Module) Restore(s *Snapshot) error {
-	i.refs.Inc()
-
 	if err := i.mem.Load(s.memory); err != nil {
 		return err
 	}
@@ -388,8 +388,9 @@ func (i *Module) Restore(s *Snapshot) error {
 	}
 	i.arena.Load(i.mem, s.arena)
 
-	// NOTE: Invalidate refs
 	i.mod.Xreset_refs()
+	i.refs = &OwnedReferences{}
+	i.codec = codec.New(i.mem, i.refs)
 
 	i.restore(s.registry, s.counter)
 	i.cancelled.Store(false)

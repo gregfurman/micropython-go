@@ -1,0 +1,36 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/gregfurman/micropython-go/benchmarks
+cpu: Apple M3 Pro
+BenchmarkLoopSum/engine=micropython-12         	       5	  24847108 ns/op	     228 B/op	       4 allocs/op
+BenchmarkLoopSum/engine=micropython-12         	       5	  20963017 ns/op	     225 B/op	       4 allocs/op
+BenchmarkLoopSum/engine=micropython-12         	       5	  20450150 ns/op	     225 B/op	       4 allocs/op
+BenchmarkLoopSum/engine=micropython-12         	       5	  20508875 ns/op	     225 B/op	       4 allocs/op
+BenchmarkLoopSum/engine=micropython-12         	       5	  20235042 ns/op	     225 B/op	       4 allocs/op
+BenchmarkLoopSum/engine=micropython-12         	       5	  20573033 ns/op	     225 B/op	       4 allocs/op
+BenchmarkLoopSum/engine=micropython-12         	       5	  20585083 ns/op	     225 B/op	       4 allocs/op
+BenchmarkLoopSum/engine=micropython-12         	       5	  20229733 ns/op	     225 B/op	       4 allocs/op
+BenchmarkLoopSum/engine=micropython-12         	       5	  20224658 ns/op	     225 B/op	       4 allocs/op
+BenchmarkLoopSum/engine=micropython-12         	       5	  20443067 ns/op	     225 B/op	       4 allocs/op
+BenchmarkLoopSum/engine=go-python-12           	       5	  14592467 ns/op	    2544 B/op	      18 allocs/op
+BenchmarkLoopSum/engine=go-python-12           	       5	  14456575 ns/op	    1796 B/op	       8 allocs/op
+BenchmarkLoopSum/engine=go-python-12           	       5	  14749933 ns/op	    1796 B/op	       8 allocs/op
+BenchmarkLoopSum/engine=go-python-12           	       5	  14739900 ns/op	    1796 B/op	       8 allocs/op
+BenchmarkLoopSum/engine=go-python-12           	       5	  14529875 ns/op	    1796 B/op	       8 allocs/op
+BenchmarkLoopSum/engine=go-python-12           	       5	  14761683 ns/op	    1796 B/op	       8 allocs/op
+BenchmarkLoopSum/engine=go-python-12           	       5	  14709150 ns/op	    1796 B/op	       8 allocs/op
+BenchmarkLoopSum/engine=go-python-12           	       5	  14468200 ns/op	    1796 B/op	       8 allocs/op
+BenchmarkLoopSum/engine=go-python-12           	       5	  14529500 ns/op	    1796 B/op	       8 allocs/op
+BenchmarkLoopSum/engine=go-python-12           	       5	  15046133 ns/op	    1796 B/op	       8 allocs/op
+BenchmarkLoopSum/engine=gpython-12             	       5	   3599775 ns/op	 3236880 B/op	  399787 allocs/op
+BenchmarkLoopSum/engine=gpython-12             	       5	   3506767 ns/op	 3244256 B/op	  399788 allocs/op
+BenchmarkLoopSum/engine=gpython-12             	       5	   3465492 ns/op	 3244243 B/op	  399787 allocs/op
+BenchmarkLoopSum/engine=gpython-12             	       5	   3607942 ns/op	 3244220 B/op	  399787 allocs/op
+BenchmarkLoopSum/engine=gpython-12             	       5	   3508958 ns/op	 3244224 B/op	  399787 allocs/op
+BenchmarkLoopSum/engine=gpython-12             	       5	   3555092 ns/op	 3244224 B/op	  399787 allocs/op
+BenchmarkLoopSum/engine=gpython-12             	       5	   3672958 ns/op	 3244236 B/op	  399788 allocs/op
+BenchmarkLoopSum/engine=gpython-12             	       5	   3571467 ns/op	 3237880 B/op	  399788 allocs/op
+BenchmarkLoopSum/engine=gpython-12             	       5	   3550750 ns/op	 3244246 B/op	  399787 allocs/op
+BenchmarkLoopSum/engine=gpython-12             	       5	   3526600 ns/op	 3244227 B/op	  399787 allocs/op
+PASS
+ok  	github.com/gregfurman/micropython-go/benchmarks	5.565s

@@ -7,7 +7,8 @@ import (
 
 // Refs owns the guest references a codec hands out and takes back. Track wraps
 // an id the guest just minted; Lookup reports the id an owned ref names, or an
-// error if it belongs to another interpreter or an older timeline.
+// error if it belongs to another interpreter or an older timeline. Track takes
+// ownership of one acquisition; it does not increment the guest counter.
 type Refs interface {
 	Track(id uint32) *value.Ref
 	Lookup(*value.Ref) (uint32, error)
@@ -32,8 +33,8 @@ func New(m *memory.Memory, refs Refs) *Codec {
 // for the duration of this call, so nothing it returns aliases guest memory:
 // once Consume returns, resetting that arena is safe.
 //
-// Object metadata is the one payload the guest still allocates outside the
-// arena; decode releases each one as it reads it, so this frees nothing itself.
+// Each decoded object claims its reference from the transfer. The caller must
+// finish the transfer to release unclaimed references, even if Consume fails.
 func (c *Codec) Consume(ptr int32) (value.Value, error) {
 	v, err := c.valueAt(ptr)
 	if err != nil {

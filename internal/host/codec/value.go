@@ -3,9 +3,14 @@ package codec
 import (
 	"encoding/binary"
 	"math"
+
+	"github.com/gregfurman/micropython-go/internal/host/abi"
 )
 
-const ValueSize = 12
+const (
+	ValueSize    = abi.ValueSize
+	TransferSize = abi.TransferSize
+)
 
 type Value struct {
 	Kind Kind

@@ -1,0 +1,46 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/gregfurman/micropython-go/benchmarks
+cpu: Apple M3 Pro
+BenchmarkFibRecursive-12    	       5	  98134725 ns/op	    1380 B/op	       8 allocs/op
+BenchmarkFibRecursive-12    	       5	  98110508 ns/op	     337 B/op	       7 allocs/op
+BenchmarkFibRecursive-12    	       5	  98011250 ns/op	     337 B/op	       7 allocs/op
+BenchmarkFibRecursive-12    	       5	  97818892 ns/op	     337 B/op	       7 allocs/op
+BenchmarkFibRecursive-12    	       5	 100057183 ns/op	     337 B/op	       7 allocs/op
+BenchmarkFibRecursive-12    	       5	  98832850 ns/op	    1380 B/op	       8 allocs/op
+BenchmarkFibRecursive-12    	       5	  98480267 ns/op	     337 B/op	       7 allocs/op
+BenchmarkFibRecursive-12    	       5	  98095333 ns/op	    1380 B/op	       8 allocs/op
+BenchmarkFibRecursive-12    	       5	  99971325 ns/op	    1377 B/op	       8 allocs/op
+BenchmarkFibRecursive-12    	       5	  99850617 ns/op	    2420 B/op	       8 allocs/op
+BenchmarkLoopSum-12         	       5	  58275500 ns/op	    1777 B/op	       8 allocs/op
+BenchmarkLoopSum-12         	       5	  46990308 ns/op	    1777 B/op	       8 allocs/op
+BenchmarkLoopSum-12         	       5	  46191283 ns/op	    1777 B/op	       8 allocs/op
+BenchmarkLoopSum-12         	       5	  46640450 ns/op	    1777 B/op	       8 allocs/op
+BenchmarkLoopSum-12         	       5	  46580175 ns/op	    1780 B/op	       8 allocs/op
+BenchmarkLoopSum-12         	       5	  46437825 ns/op	    1777 B/op	       8 allocs/op
+BenchmarkLoopSum-12         	       5	  46375375 ns/op	    2817 B/op	       9 allocs/op
+BenchmarkLoopSum-12         	       5	  47519542 ns/op	    2817 B/op	       9 allocs/op
+BenchmarkLoopSum-12         	       5	  47265442 ns/op	    1777 B/op	       8 allocs/op
+BenchmarkLoopSum-12         	       5	  46244533 ns/op	    2817 B/op	       9 allocs/op
+BenchmarkStartup-12         	       5	  11310800 ns/op	14654657 B/op	     853 allocs/op
+BenchmarkStartup-12         	       5	  11021050 ns/op	14654632 B/op	     853 allocs/op
+BenchmarkStartup-12         	       5	  10984942 ns/op	14654632 B/op	     853 allocs/op
+BenchmarkStartup-12         	       5	  10967700 ns/op	14654654 B/op	     853 allocs/op
+BenchmarkStartup-12         	       5	  10971975 ns/op	14654632 B/op	     853 allocs/op
+BenchmarkStartup-12         	       5	  11066308 ns/op	14654632 B/op	     853 allocs/op
+BenchmarkStartup-12         	       5	  10976883 ns/op	14654632 B/op	     853 allocs/op
+BenchmarkStartup-12         	       5	  10976433 ns/op	14654632 B/op	     853 allocs/op
+BenchmarkStartup-12         	       5	  10890058 ns/op	14654632 B/op	     853 allocs/op
+BenchmarkStartup-12         	       5	  11053250 ns/op	14654632 B/op	     853 allocs/op
+BenchmarkFootprint-12       	       5	 264978850 ns/op	        13.91 MiB/interp	14662398 B/op	     873 allocs/op
+BenchmarkFootprint-12       	       5	 263888684 ns/op	        13.91 MiB/interp	14663448 B/op	     874 allocs/op
+BenchmarkFootprint-12       	       5	 264788208 ns/op	        13.91 MiB/interp	14662401 B/op	     873 allocs/op
+BenchmarkFootprint-12       	       5	 271649250 ns/op	        13.91 MiB/interp	14664500 B/op	     875 allocs/op
+BenchmarkFootprint-12       	       5	 265567584 ns/op	        13.92 MiB/interp	14664550 B/op	     876 allocs/op
+BenchmarkFootprint-12       	       5	 263965234 ns/op	        13.91 MiB/interp	14662411 B/op	     873 allocs/op
+BenchmarkFootprint-12       	       5	 266791592 ns/op	        13.91 MiB/interp	14662398 B/op	     873 allocs/op
+BenchmarkFootprint-12       	       5	 267468800 ns/op	        13.91 MiB/interp	14665540 B/op	     876 allocs/op
+BenchmarkFootprint-12       	       5	 268361441 ns/op	        13.91 MiB/interp	14662398 B/op	     873 allocs/op
+BenchmarkFootprint-12       	       5	 264286242 ns/op	        13.91 MiB/interp	14664478 B/op	     875 allocs/op
+PASS
+ok  	github.com/gregfurman/micropython-go/benchmarks	24.031s

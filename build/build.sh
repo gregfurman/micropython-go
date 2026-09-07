@@ -32,7 +32,8 @@ BUILTINS="$("$WASI_SDK/clang" -print-resource-dir)/lib/wasm32-unknown-wasi/libcl
 
 "$WASI_SDK/clang" --target=wasm32 -ffreestanding -nostdlib -Os -Wall -fno-common \
 	-o micropython \
-	main.c types.c wasm_sjlj.c \
+	arena.c decode.c encode.c exec.c gccollect.c hostfn.c main.c mphalport.c \
+	pymodule.c refs.c vm.c wasm_sjlj.c \
 	$ROOT/libc/libc.c \
 	$ROOT/libc/malloc_sbrk.c \
 	$ROOT/micropython/py/*.c \
@@ -54,7 +55,7 @@ BUILTINS="$("$WASI_SDK/clang" -print-resource-dir)/lib/wasm32-unknown-wasi/libcl
  	-Wl,--import-memory \
 	-Wl,--export=__stack_pointer \
 	-Wl,-z,stack-size=196608 \
-	-Wl,--initial-memory=393216 \
+	# -Wl,--initial-memory=393216 \
 	"$BUILTINS"
 
 "$BINARYEN/wasm-opt" -g micropython -o micropython.wasm \

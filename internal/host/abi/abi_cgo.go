@@ -3,14 +3,19 @@
 package abi
 
 /*
+// abi.h is the wire format alone: no MicroPython headers, so this needs
+// nothing on the include path but build/ itself.
 #cgo CFLAGS: -m32
-#cgo CFLAGS: -I${SRCDIR}/../../../build -I${SRCDIR}/../../../build/build-embed
-#cgo CFLAGS: -I${SRCDIR}/../../../micropython -I${SRCDIR}/../../../micropython/ports/embed
-#include "types.h"
+#cgo CFLAGS: -I${SRCDIR}/../../../build
+#include "abi.h"
 */
 import "C"
 
 const (
+	ValueSize      = C.sizeof_mp_value_t
+	TransferSize   = C.sizeof_mp_transfer_t
+	ObjectInfoSize = C.sizeof_mp_object_info_t
+
 	KindInvalid   = C.KIND_INVALID
 	KindNull      = C.KIND_NULL
 	KindNone      = C.KIND_NONE

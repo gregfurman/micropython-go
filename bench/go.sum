@@ -1,0 +1,14 @@
+github.com/aclements/go-moremath v0.0.0-20210112150236-f10218a38794 h1:xlwdaKcTNVW4PtpQb8aKA4Pjy0CdJHEqvFbAnvR5m2g=
+github.com/aclements/go-moremath v0.0.0-20210112150236-f10218a38794/go.mod h1:7e+I0LQFUI9AXWxOfsQROs9xPhoJtbsyWcjJqDd4KPY=
+github.com/go-python/gpython v0.2.0 h1:MW7m7pFnbpzHL88vhAdIhT1pgG1QUZ0Q5jcF94z5MBI=
+github.com/go-python/gpython v0.2.0/go.mod h1:fUN4z1X+GFaOwPOoHOAM8MOPnh1NJatWo/cDqGlZDEI=
+github.com/goccy/go-python v0.3.0 h1:brc2YR+KoW4YaB1xdNZiLl6n5g1s/mp/cP54dcYH5cA=
+github.com/goccy/go-python v0.3.0/go.mod h1:mQi4akC83vhc5n8fHWjijvuBUr6FSkJTSbz+hb1A5sU=
+github.com/goccy/pythonwasm2go v0.3.0 h1:jklkaV1jvfzpxVTie5jqjCKxd6exxsfH7+gqoNePGDY=
+github.com/goccy/pythonwasm2go v0.3.0/go.mod h1:k1fc36gVRk5RpKWGHogTZsBPLNzSAH+9f06c8m6UmBY=
+github.com/google/go-cmp v0.6.0 h1:ofyhxvXcZhMsU5ulbFiLKl/XBFqE1GSq7atu8tAmTRI=
+github.com/google/go-cmp v0.6.0/go.mod h1:17dUlkBOakJ0+DkrSSNjCkIjxS6bF9zb3elmeNGIjoY=
+golang.org/x/exp v0.0.0-20260824195058-e88cd73687aa h1:QSyA8ishJCyT21kER9KwNt0b7BM3iRK4x9QXhjN5Fdk=
+golang.org/x/exp v0.0.0-20260824195058-e88cd73687aa/go.mod h1:zeBbvyFKDaLwa7CH/zI8KXt7gTl14SF7sO08Pl5jBCM=
+golang.org/x/perf v0.0.0-20260825160852-19be9d8e6c70 h1:M+kM03JKR23KkrutTue5KEQYDSbZTZTJ4FJ1v5zYrHM=
+golang.org/x/perf v0.0.0-20260825160852-19be9d8e6c70/go.mod h1:ihD/LfJrdVe40PFEzKgix8YPzoXS4LFO4elW9HAFNqo=

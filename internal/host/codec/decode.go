@@ -8,6 +8,7 @@ import (
 	"math/big"
 	"strings"
 
+	"github.com/gregfurman/micropython-go/internal/host/abi"
 	"github.com/gregfurman/micropython-go/internal/value"
 )
 
@@ -122,7 +123,7 @@ func (c *Codec) decode(v Value, depth int) (value.Value, error) {
 	case KindObject:
 		attributes := v.W2 & KindObjectAttrMask
 		infoPtr := int32(v.W2 &^ KindObjectAttrMask)
-		header, err := c.mem.Read(infoPtr, 4)
+		header, err := c.mem.View(infoPtr, abi.ObjectInfoSize)
 		if err != nil {
 			return nil, fmt.Errorf("object info: %w", err)
 		}
@@ -130,21 +131,24 @@ func (c *Codec) decode(v Value, depth int) (value.Value, error) {
 		if length > math.MaxInt32 {
 			return nil, fmt.Errorf("object info length too large: %d", length)
 		}
+		if v.W1 == 0 || binary.LittleEndian.Uint32(header[4:]) != v.W1 {
+			return nil, fmt.Errorf("object reference %d is not owned by this transfer", v.W1)
+		}
 
-		blob, err := c.mem.ReadString(infoPtr+4, int32(length))
+		blob, err := c.mem.ReadString(infoPtr+abi.ObjectInfoSize, int32(length))
 		if err != nil {
 			return nil, err
 		}
-		// Object metadata is the one guest payload still allocated outside the
-		// arena, so it is released here, as each object is read, rather than
-		// only for the root of the tree.
-		c.mem.Free(infoPtr)
 
 		isIterable := (attributes & KindObjectIterable) != 0
 		isCallable := (attributes & KindObjectCallable) != 0
 
 		typ, repr, _ := strings.Cut(blob, "\x04")
-		return value.NewObject(typ, repr, c.refs.Track(v.W1), isIterable, isCallable), nil
+		ref := c.refs.Track(v.W1)
+		// The Go handle now owns this acquisition. The transfer's final cleanup
+		// will release only entries that decoding never reached or rejected.
+		binary.LittleEndian.PutUint32(header[4:], 0)
+		return value.NewObject(typ, repr, ref, isIterable, isCallable), nil
 
 	case KindRef:
 		return nil, fmt.Errorf(

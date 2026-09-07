@@ -184,15 +184,14 @@ func (d DictValue) lift() any {
 
 // Ref owns one guest reference. Object is copied freely, so the ref it names
 // is released when the last copy sharing this pointer becomes unreachable.
-// Owner and epoch identify the interpreter and the timeline that minted it.
+// Owner identifies the interpreter timeline that minted it.
 type Ref struct {
 	id    uint32
 	owner any
-	epoch uint64
 }
 
-func NewRef(id uint32, owner any, epoch uint64) *Ref {
-	return &Ref{id: id, owner: owner, epoch: epoch}
+func NewRef(id uint32, owner any) *Ref {
+	return &Ref{id: id, owner: owner}
 }
 
 func (r *Ref) ID() uint32 {
@@ -209,11 +208,10 @@ func (r *Ref) Owner() any {
 	return r.owner
 }
 
-func (r *Ref) Epoch() uint64 {
-	if r == nil {
-		return 0
-	}
-	return r.epoch
+func (r *Ref) Equals(o *Ref) bool {
+	return o != nil &&
+		o.Owner() == r.Owner() &&
+		o.ID() == r.ID()
 }
 
 type Object struct {

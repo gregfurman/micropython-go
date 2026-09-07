@@ -59,6 +59,10 @@ func (m *Module) _invoke_viiii(v0, v1, v2, v3, v4 int32) {
 	m.invoke(v0, func(f func(int32, int32, int32, int32)) int32 { f(v1, v2, v3, v4); return 0 })
 }
 
+func (m *Module) _invoke_viiiii(v0, v1, v2, v3, v4, v5 int32) {
+	m.invoke(v0, func(f func(int32, int32, int32, int32, int32)) int32 { f(v1, v2, v3, v4, v5); return 0 })
+}
+
 func (m *Module) _invoke_i(v0 int32) int32 {
 	return m.invoke(v0, func(f func() int32) int32 { return f() })
 }
