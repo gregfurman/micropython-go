@@ -315,9 +315,7 @@ func TestRefCycleGuest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("cyclic element: %v", err)
 	}
-	if obj.String() != "[...]" {
-		t.Errorf("repr of the cycle is %q, want %q", obj.String(), "[...]")
-	}
+
 	if got, err := in.Call(ctx, "same", obj); err != nil || got.Export() != true {
 		t.Errorf("the reference does not name a: %#v, %v", got, err)
 	}

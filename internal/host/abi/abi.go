@@ -4,9 +4,8 @@
 package abi
 
 const (
-	ValueSize      = 0xc
-	TransferSize   = 0x10
-	ObjectInfoSize = 0xc
+	ValueSize    = 0xc
+	TransferSize = 0x14
 
 	KindInvalid   = 0x0
 	KindNull      = 0x1

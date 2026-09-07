@@ -8,9 +8,7 @@
 // a local in the frame the interpreter was started from.
 void gc_collect_init(char* stack_top);
 
-// Clear a window of dead stack below the caller, so a pointer a finished call
-// left behind cannot keep an unreferenced object alive. See the definition for
-// why only a later, shallower call may do this.
-// void scrub_dead_stack(void);
+// Clear stale pointers below this frame after a final host reference release.
+void scrub_dead_stack(void);
 
 #endif

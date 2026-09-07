@@ -156,9 +156,14 @@ func (a *Arena) CString(s string) (int32, error) {
 	return ptr, nil
 }
 
-// View exposes arena bytes for writing in place, which is how fixed-size
-// records are filled without a staging copy.
+// View exposes arena bytes without a staging copy. Borrowed arenas restrict
+// reads and writes to their span; owning arenas also allow heap spills.
 func (a *Arena) View(ptr, length int32) ([]byte, error) {
+	if !a.owns && !(ptr == 0 && length == 0) {
+		if length < 0 || ptr < a.base || int64(ptr)+int64(length) > int64(a.base)+int64(a.size) {
+			return nil, fmt.Errorf("%w: [%d,+%d) outside arena", ErrInvalidMemory, ptr, length)
+		}
+	}
 	return a.mem.View(ptr, length)
 }
 

@@ -329,7 +329,7 @@ func TestHostValuesAreFreedWhenAConversionRaises(t *testing.T) {
 			exec(t, inst, "def f(*args):\n    return args\n")
 
 			// An id no slot ever held, so converting it raises mid-block.
-			stale := value.NewObject("function", "<stale>", inst.refs.Track(refIDNeverHandedOut), false, true)
+			stale := value.NewObject("", value.NewRef(refIDNeverHandedOut, inst.refs), false, true)
 
 			before := guestPagesUsed(inst)
 			for range rounds {
@@ -454,7 +454,7 @@ func TestReleasedRefIDIsNotReused(t *testing.T) {
 		t.Errorf("id %d was handed straight back out", staleID)
 	}
 
-	stale := value.NewObject("function", "<stale>", inst.refs.Track(staleID), false, true)
+	stale := value.NewObject("", value.NewRef(staleID, inst.refs), false, true)
 	step(t, inst)
 	if out, err := inst.CallRef(stale, nil); err == nil {
 		t.Fatalf("stale ref %d resolved to %#v, want an error", staleID, value.Lift(out))

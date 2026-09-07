@@ -215,34 +215,32 @@ func (r *Ref) Equals(o *Ref) bool {
 }
 
 type Object struct {
-	typeName string
-	repr     string
-	ref      *Ref
-
+	ref        *Ref
+	class      string
 	isCallable bool
 	isIterable bool
 }
 
-func NewObject(typ, repr string, ref *Ref, iterable, callable bool) Object {
+// NewObject names the Python class the handle refers to. The name is read while
+// the handle crosses, not when something asks: Type has no way to reach the
+// interpreter, and a call that went looking for one could be running inside a
+// host function, with the lock already held by the operation that called it.
+func NewObject(class string, ref *Ref, iterable, callable bool) Object {
 	return Object{
-		typeName:   typ,
-		repr:       repr,
 		ref:        ref,
+		class:      class,
 		isCallable: callable,
 		isIterable: iterable,
 	}
 }
 
+// Type is the handle's Python class, or "object" when no name crossed with it.
+// Nothing here can go and fetch one, so a missing name stays missing.
 func (o Object) Type() string {
-	return o.typeName
-}
-
-func (o Object) Repr() string {
-	return o.repr
-}
-
-func (o Object) String() string {
-	return o.repr
+	if o.class == "" {
+		return "object"
+	}
+	return o.class
 }
 
 func (o Object) Ref() uint32 {

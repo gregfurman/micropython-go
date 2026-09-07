@@ -13,13 +13,13 @@ func (i *Module) Xmemory() wasi.Memory {
 	return i.mem
 }
 
-func (i *Module) Xhost_trampoline(funcID, argsPtr, numArgs, outPtr, outCapacity int32) {
+func (i *Module) Xhost_trampoline(funcID, argsPtr, argsSize, outPtr, outCapacity int32) {
 	defer func() {
 		if r := recover(); r != nil {
 			i.writeErr(outPtr, outCapacity, fmt.Errorf("host function panicked: %v", r))
 		}
 	}()
-	if err := i.dispatch(funcID, argsPtr, numArgs, outPtr, outCapacity); err != nil {
+	if err := i.dispatch(funcID, argsPtr, argsSize, outPtr, outCapacity); err != nil {
 		i.writeErr(outPtr, outCapacity, err)
 	}
 }
@@ -46,7 +46,9 @@ func (i *Module) Xgo_ref_add(addr int32) int32 {
 }
 
 func (i *Module) Xgo_ref_free(id int32) int32 {
-	if i.refs.Release(uint32(id)) {
+	// The C caller removes the pin when this was the last acquisition.
+	// Release would enter the guest again and unpin the same slot twice.
+	if i.refs.drop(uint32(id)) {
 		return 1
 	}
 	return 0

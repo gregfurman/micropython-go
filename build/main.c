@@ -40,8 +40,8 @@ __attribute__((export_name("define_module"))) int32_t define_module_ext(
     nlr_buf_t nlr;
     if (nlr_push(&nlr) == 0) {
         get_or_create_module(path, path_len);
+        value_from_obj_committed(&arena, mp_const_none, out);
         nlr_pop();
-        value_from_obj(&arena, mp_const_none, out);
     } else {
         output_arena_reset(&arena);
         value_from_exception(&arena, (mp_obj_t)nlr.ret_val, out);
@@ -65,8 +65,8 @@ __attribute__((export_name("define_module_function"))) int32_t define_module_fun
     nlr_buf_t nlr;
     if (nlr_push(&nlr) == 0) {
         module_store_attr(get_or_create_module(path, path_len), name, name_len, new_host_function(func_id));
+        value_from_obj_committed(&arena, mp_const_none, out);
         nlr_pop();
-        value_from_obj(&arena, mp_const_none, out);
     } else {
         output_arena_reset(&arena);
         value_from_exception(&arena, (mp_obj_t)nlr.ret_val, out);
@@ -91,8 +91,8 @@ __attribute__((export_name("set_module_attr"))) int32_t set_module_attr_ext(cons
     if (nlr_push(&nlr) == 0) {
         module_store_attr(
             get_or_create_module(path, path_len), name, name_len, obj_from_value((mp_value_t*)(uintptr_t)value_ptr));
+        value_from_obj_committed(&arena, mp_const_none, out);
         nlr_pop();
-        value_from_obj(&arena, mp_const_none, out);
     } else {
         output_arena_reset(&arena);
         value_from_exception(&arena, (mp_obj_t)nlr.ret_val, out);
@@ -117,7 +117,7 @@ __attribute__((export_name("ref_to_value"))) int32_t ref_to_value(
         if (obj == MP_OBJ_NULL) {
             mp_raise_ValueError(MP_ERROR_TEXT("stale ref"));
         }
-        value_from_obj(&arena, obj, out);
+        value_from_obj_committed(&arena, obj, out);
         nlr_pop();
     } else {
         output_arena_reset(&arena);
@@ -173,7 +173,7 @@ __attribute__((export_name("call"))) int32_t call_ext(const char* name,
         }
 
         mp_obj_t result = mp_call_function_n_kw(fn, num_args, 0, argv);
-        value_from_obj(&arena, result, out);
+        value_from_obj_committed(&arena, result, out);
 
         nlr_pop();
     } else {
@@ -206,7 +206,7 @@ __attribute__((export_name("call_ref"))) int32_t call_ref_ext(
             argv[i] = obj_from_value(&args[i]);
         }
         mp_obj_t result = mp_call_function_n_kw(fn, num_args, 0, argv);
-        value_from_obj(&arena, result, out);
+        value_from_obj_committed(&arena, result, out);
         nlr_pop();
     } else {
         output_arena_reset(&arena);
@@ -225,26 +225,19 @@ __attribute__((export_name("release_ref"))) void release_ref_ext(uint32_t ref) {
     scrub_dead_stack();
 }
 
-// Go calls this after decoding, including when it stops partway through a
-// result. Claimed refs belong to Go handles; everything else belongs here.
-__attribute__((export_name("release_transfer"))) void release_transfer_ext(uint32_t out_ptr) {
-    mp_transfer_t* transfer = (mp_transfer_t*)(uintptr_t)out_ptr;
-    if (value_release_refs(&transfer->refs) || transfer->value.kind == KIND_EXCEPTION) {
-        // Failed serialization already rolled back its list, but its dead
-        // frames can still contain the objects that have just been unpinned.
-        scrub_dead_stack();
-    }
-}
-
 // A restored memory snapshot contains the old host root lists, but Go handles
 // from that timeline are intentionally invalid.  Drop those roots so the
 // restored guest can collect the no-longer-host-owned objects.
 __attribute__((export_name("reset_refs"))) void reset_refs_ext(void) { refs_reset(); }
 
-// Advance a host-held generator.  mp_iternext converts StopIteration to the
-// MP_OBJ_STOP_ITERATION sentinel; other Python exceptions cross the ABI as an
-// exception value.  A separate status return keeps a yielded None distinct
-// from normal exhaustion; -2 reports an output arena smaller than one value.
+// Advance a host-held generator. This returns what every other result-producing
+// export returns, the bytes used or a negative failure, and an uncaught Python
+// exception crosses as a KIND_EXCEPTION value the same way.
+//
+// Exhaustion is the one outcome with no result to describe. mp_iternext turns
+// StopIteration into the MP_OBJ_STOP_ITERATION sentinel, which crosses as 0: a
+// yielded None is a value like any other, and 0 is not a size any result can
+// have, since every one opens with a transfer header.
 __attribute__((export_name("iterator_next"))) int32_t iterator_next_ext(
     uint32_t ref, uint32_t out_ptr, uint32_t out_capacity) {
     mp_value_t* out = (mp_value_t*)(uintptr_t)out_ptr;
@@ -266,14 +259,14 @@ __attribute__((export_name("iterator_next"))) int32_t iterator_next_ext(
             return 0;
         }
 
-        value_from_obj(&arena, item, out);
+        value_from_obj_committed(&arena, item, out);
         nlr_pop();
-        return arena.overflowed ? -2 : 1;
+        return output_arena_status(&arena);
     }
 
     output_arena_reset(&arena);
     value_from_exception(&arena, (mp_obj_t)nlr.ret_val, out);
-    return arena.overflowed ? -2 : -1;
+    return output_arena_status(&arena);
 }
 
 __attribute__((export_name("get_global"))) int32_t get_global_ext(
@@ -287,7 +280,7 @@ __attribute__((export_name("get_global"))) int32_t get_global_ext(
     nlr_buf_t nlr;
     if (nlr_push(&nlr) == 0) {
         mp_obj_t value = mp_load_global(qstr_from_strn(name, name_len));
-        value_from_obj(&arena, value, out);
+        value_from_obj_committed(&arena, value, out);
         nlr_pop();
     } else {
         output_arena_reset(&arena);
@@ -308,8 +301,8 @@ __attribute__((export_name("set_global"))) int32_t set_global_ext(
     if (nlr_push(&nlr) == 0) {
         mp_obj_t value = obj_from_value((mp_value_t*)(uintptr_t)value_ptr);
         mp_store_global(qstr_from_strn(name, name_len), value);
+        value_from_obj_committed(&arena, mp_const_none, out);
         nlr_pop();
-        value_from_obj(&arena, mp_const_none, out);
     } else {
         output_arena_reset(&arena);
         value_from_exception(&arena, (mp_obj_t)nlr.ret_val, out);

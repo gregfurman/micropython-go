@@ -12,9 +12,8 @@ package abi
 import "C"
 
 const (
-	ValueSize      = C.sizeof_mp_value_t
-	TransferSize   = C.sizeof_mp_transfer_t
-	ObjectInfoSize = C.sizeof_mp_object_info_t
+	ValueSize    = C.sizeof_mp_value_t
+	TransferSize = C.sizeof_mp_transfer_t
 
 	KindInvalid   = C.KIND_INVALID
 	KindNull      = C.KIND_NULL

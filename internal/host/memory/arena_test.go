@@ -58,6 +58,24 @@ func TestArenaBumpsAndAligns(t *testing.T) {
 	}
 }
 
+func TestBorrowedArenaViewBounds(t *testing.T) {
+	m, _ := newTestMemory(t)
+	arena := m.ArenaAt(64, 32)
+	for _, tc := range []struct {
+		ptr, size int32
+		valid     bool
+	}{
+		{64, 32, true}, {96, 0, true}, {0, 0, true},
+		{60, 4, false}, {64, 33, false}, {97, 0, false},
+		{64, -1, false}, {0, 1, false}, {1<<31 - 1, 4, false},
+	} {
+		_, err := arena.View(tc.ptr, tc.size)
+		if (err == nil) != tc.valid {
+			t.Errorf("View(%d, %d) error = %v, valid = %v", tc.ptr, tc.size, err, tc.valid)
+		}
+	}
+}
+
 func TestArenaZeroSizeTakesNoSpace(t *testing.T) {
 	m, alloc := newTestMemory(t)
 	arena, err := m.NewArena(64)

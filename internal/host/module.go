@@ -94,6 +94,11 @@ func newModule(stdout io.Writer) *Module {
 	i.mem = memory.New(guestPages, memory.MaxPages)
 	i.mod = wasi.New(i)
 	i.mem.Bind(i.mod)
+
+	refs.release = func(id uint32) {
+		i.mod.Xrelease_ref(int32(id))
+	}
+
 	i.codec = codec.New(i.mem, refs)
 
 	return i
@@ -102,7 +107,7 @@ func newModule(stdout io.Writer) *Module {
 // ReleasePendingRefs applies queued releases while no guest call is in flight.
 // Callers must hold the instance lock. This does not run either collector.
 func (i *Module) ReleasePendingRefs() {
-	i.refs.Drain(func(id uint32) { i.mod.Xrelease_ref(int32(id)) })
+	i.refs.Drain()
 }
 
 // Begin starts an operation under the instance lock, clearing cancellation and
@@ -122,8 +127,8 @@ func (i *Module) Context(ctx context.Context) (context.Context, context.CancelFu
 }
 
 // result reserves one contiguous region for a guest call to write its result
-// into. The C side puts the root value and reference-list head at the front,
-// then allocates all payloads from the rest of the region.
+// into. The C side puts the root value at the front, then allocates all
+// payloads from the rest of the region.
 //
 // It must be called under an arena Mark, which is what releases it.
 func (i *Module) result() (int32, error) {
@@ -133,18 +138,16 @@ func (i *Module) result() (int32, error) {
 // consumeArena decodes the tree a guest call left at outPtr. The decoded value
 // is fully Go-owned, so the arena can be reset the moment this returns.
 func (i *Module) consumeArena(outPtr, used int32) (value.Value, error) {
-	defer i.mod.Xrelease_transfer(outPtr)
 	if err := transferError(used); err != nil {
 		return nil, err
 	}
-	return i.codec.Consume(outPtr)
+	return i.codec.Decode(outPtr, used)
 }
 
-// transferError reads the status a result-producing guest call returns: the
-// bytes it used, or a negative ABI failure. A Python exception is not a
-// failure here, it comes back as a KIND_EXCEPTION value.
 func transferError(used int32) error {
 	switch {
+	case used > defaultValueArenaCapacity:
+		return fmt.Errorf("guest result uses %d bytes, capacity is %d", used, defaultValueArenaCapacity)
 	case used >= codec.TransferSize:
 		return nil
 	case used >= 0:
@@ -156,10 +159,6 @@ func transferError(used int32) error {
 	}
 }
 
-// args lays out one block of argument records in the module arena. The guest
-// reads them during the call and never takes ownership of them: the caller's
-// Mark releases the block and everything it points at, whether the call
-// returned or raised.
 func (i *Module) args(args []any) (int32, error) {
 	if len(args) == 0 {
 		return 0, nil
@@ -181,7 +180,8 @@ func (i *Module) args(args []any) (int32, error) {
 }
 
 func (i *Module) Eval(code string) (value.Value, error) {
-	defer i.arena.Mark()()
+	reset := i.arena.Mark()
+	defer reset()
 
 	codePtr, err := i.arena.String(code)
 	if err != nil {
@@ -308,36 +308,42 @@ func (i *Module) Resolve(obj value.Object) (value.Value, error) {
 // NextGenerator advances a generator ref returned by the guest. When exhausted,
 // next returns false. Any uncaught Python exception during iteration is returned
 // as an error.
-func (i *Module) NextGenerator(obj value.Object) (out value.Value, next bool, err error) {
+func (i *Module) NextGenerator(
+	obj value.Object,
+) (value.Value, bool, error) {
 	ref, err := i.refs.Lookup(obj.Handle())
 	if err != nil {
 		return nil, false, err
 	}
 
-	defer i.arena.Mark()()
+	reset := i.arena.Mark()
+	defer reset()
 
 	outPtr, err := i.result()
 	if err != nil {
 		return nil, false, err
 	}
 
-	status := i.mod.Xiterator_next(int32(ref), outPtr, defaultValueArenaCapacity)
-	defer i.mod.Xrelease_transfer(outPtr)
-	if status < 0 {
-		if status == -2 {
-			return nil, false, transferError(status)
-		}
-		_, err = i.codec.Consume(outPtr)
-		return nil, false, err
-	}
-	if status == 0 {
+	used := i.mod.Xiterator_next(
+		int32(ref),
+		outPtr,
+		defaultValueArenaCapacity,
+	)
+
+	// Exhaustion is the only outcome that writes nothing. Everything else is an
+	// ordinary result, so a raise during iteration arrives as a KIND_EXCEPTION
+	// value and comes back out of the decode as the error it is.
+	if used == 0 {
 		return nil, false, nil
 	}
 
-	out, err = i.codec.Consume(outPtr)
-	return out, err == nil, err
-}
+	out, err := i.consumeArena(outPtr, used)
+	if err != nil {
+		return nil, false, err
+	}
 
+	return out, true, nil
+}
 func (i *Module) Set(name string, v any) error {
 	defer i.arena.Mark()()
 
@@ -389,7 +395,7 @@ func (i *Module) Restore(s *Snapshot) error {
 	i.arena.Load(i.mem, s.arena)
 
 	i.mod.Xreset_refs()
-	i.refs = &OwnedReferences{}
+	i.refs = &OwnedReferences{release: func(id uint32) { i.mod.Xrelease_ref(int32(id)) }}
 	i.codec = codec.New(i.mem, i.refs)
 
 	i.restore(s.registry, s.counter)

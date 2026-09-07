@@ -17,7 +17,7 @@ const (
 	KindTuple   Kind = abi.KindTuple   // w1 = len, w2 = ptr to w1 values
 	KindList    Kind = abi.KindList    // as KindTuple
 	KindDict    Kind = abi.KindDict    // w1 = pairs, w2 = ptr to w1*2 values (k, v, k, v)
-	KindObject  Kind = abi.KindObject  // w1 = ref, w2 = object-info ptr | attributes
+	KindObject  Kind = abi.KindObject  // w1 = ref, w2 = attributes
 	KindRef     Kind = abi.KindRef     // host -> guest only: w1 = ref
 	// w1 = len, w2 = ptr. Out: type \x04 str(exc) \x04 traceback. In: type \x04 message.
 	KindException Kind = abi.KindException

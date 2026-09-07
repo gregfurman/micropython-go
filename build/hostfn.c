@@ -3,15 +3,13 @@
 #include "arena.h"
 #include "host.h"
 #include "py/runtime.h"
-#include "refs.h"
 #include "value.h"
 
 int max_host_args;
 
 // Host callbacks consume their arguments synchronously, so the encoded
 // value tree only needs to live for the duration of host_trampoline.
-// This scratch arena holds payloads referenced by the top-level argbuf
-// records, including strings and nested containers.
+// This scratch arena holds the argument tuple, payloads and reference ledger.
 #define HOST_CALLBACK_ARENA_CAPACITY (16 * 1024)
 
 static mp_obj_t generic_host_invoke(size_t n_args, const mp_obj_t* args) {
@@ -20,16 +18,19 @@ static mp_obj_t generic_host_invoke(size_t n_args, const mp_obj_t* args) {
 
     if (n > (size_t)max_host_args) mp_raise_ValueError(MP_ERROR_TEXT("too many args"));
     _Alignas(4) uint8_t arg_storage[HOST_CALLBACK_ARENA_CAPACITY];
-    uint32_t refs = 0;
 
-    mp_arena_t arg_arena = {
-        .base = arg_storage,
-        .capacity = sizeof(arg_storage),
-        .offset = 0,
-        .refs = &refs,
+    mp_arena_t arg_arena;
+    output_arena_init(&arg_arena, (uint32_t)(uintptr_t)arg_storage, sizeof(arg_storage));
+    mp_value_t* argbuf = arena_alloc(&arg_arena, n * sizeof(mp_value_t));
+    if (argbuf == NULL) {
+        mp_raise_msg(&mp_type_MemoryError, MP_ERROR_TEXT("arena full"));
+    }
+    mp_transfer_t* arguments = (mp_transfer_t*)arg_storage;
+    arguments->value = (mp_value_t){
+        .kind = KIND_TUPLE, .w1 = n, .w2 = (uint32_t)(uintptr_t)argbuf,
     };
-
-    mp_value_t argbuf[max_host_args];
+    // Account for the tuple wrapper when bounding nested argument trees.
+    arg_arena.depth = 1;
 
     _Alignas(4) uint8_t ret_storage[HOST_CALLBACK_ARENA_CAPACITY];
 
@@ -39,19 +40,11 @@ static mp_obj_t generic_host_invoke(size_t n_args, const mp_obj_t* args) {
     ret->w1 = 0;
     ret->w2 = 0;
 
-    nlr_buf_t nlr;
-    if (nlr_push(&nlr) == 0) {
-        for (size_t i = 0; i < n; i++) {
-            value_from_obj(&arg_arena, args[i + 1], &argbuf[i]);
-        }
-        host_trampoline(
-            func_id, (uint32_t)(uintptr_t)argbuf, (uint32_t)n, (uint32_t)(uintptr_t)ret_storage, sizeof(ret_storage));
-        nlr_pop();
-    } else {
-        value_release_refs(&refs);
-        nlr_raise(nlr.ret_val);
-    }
-    value_release_refs(&refs);
+    // NOTE: args are committed prior to trampoline
+    value_from_objs_committed(&arg_arena, &args[1], n, argbuf);
+    host_trampoline(
+        func_id, (uint32_t)(uintptr_t)arg_storage, arg_arena.offset,
+        (uint32_t)(uintptr_t)ret_storage, sizeof(ret_storage));
 
     if (ret->kind == KIND_INVALID) {
         mp_raise_msg(&mp_type_RuntimeError, MP_ERROR_TEXT("host wrote no value"));

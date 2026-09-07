@@ -10,25 +10,48 @@ import (
 	"github.com/gregfurman/micropython-go/internal/value"
 )
 
-func (i *Module) dispatch(funcID, argsPtr, numArgs, outPtr, outCapacity int32) error {
+// callbackArenaCapacity mirrors HOST_CALLBACK_ARENA_CAPACITY in build/hostfn.c:
+// the scratch span the guest lends a callback for its arguments. It is a
+// separate span with a separate owner from the result region, so it gets its
+// own bound rather than borrowing defaultValueArenaCapacity, which the two
+// happen to share today.
+const callbackArenaCapacity = 16 * 1024
+
+// callbackArgsError checks the span the guest says it wrote its arguments into.
+// A transfer is at least a header, since that is what the region opens with.
+func callbackArgsError(size int32) error {
+	switch {
+	case size > callbackArenaCapacity:
+		return fmt.Errorf("callback arguments use %d bytes, capacity is %d", size, callbackArenaCapacity)
+	case size >= codec.TransferSize:
+		return nil
+	default:
+		return fmt.Errorf("callback arguments use %d bytes, want at least %d", size, codec.TransferSize)
+	}
+}
+
+func (i *Module) dispatch(funcID, argsPtr, argsSize, outPtr, outCapacity int32) error {
+	if err := callbackArgsError(argsSize); err != nil {
+		return err
+	}
 	fn, ok := i.registry[funcID]
 	if !ok {
+		// The arguments still have to be given back, but the rejection is what
+		// the caller needs to hear: a ledger that will not parse is a symptom
+		// of the same call, not a second failure worth reporting instead.
+		if err := i.codec.ReleaseRefs(argsPtr, argsSize); err != nil {
+			return fmt.Errorf("unknown host func %d (releasing arguments: %w)", funcID, err)
+		}
 		return fmt.Errorf("unknown host func %d", funcID)
 	}
-	if numArgs < 0 || numArgs > maxHostArgs {
-		return fmt.Errorf("bad arg count %d (max %d)", numArgs, maxHostArgs)
-	}
-	if _, err := i.mem.View(argsPtr, numArgs*codec.ValueSize); err != nil {
-		return fmt.Errorf("args block: %w", err)
-	}
 
-	args := make([]value.Value, numArgs)
-	for k := range numArgs {
-		v, err := i.codec.Consume(argsPtr + k*codec.ValueSize)
-		if err != nil {
-			return fmt.Errorf("arg %d: %w", k, err)
-		}
-		args[k] = v
+	decoded, err := i.codec.Decode(argsPtr, argsSize)
+	if err != nil {
+		return fmt.Errorf("callback arguments: %w", err)
+	}
+	args, ok := decoded.(value.TupleValue)
+	if !ok || len(args) > maxHostArgs {
+		return fmt.Errorf("invalid callback argument tuple (max %d arguments)", maxHostArgs)
 	}
 
 	ctx, cancel :=

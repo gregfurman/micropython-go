@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 
@@ -34,10 +35,7 @@ func TestFailedTransferReleasesReferences(t *testing.T) {
 		removeHost bool
 	}{
 		{"result overflow", "[Big(), 'x' * 20000]", true, false},
-		{"result repr raises", "[Big(), BadRepr()]", false, false},
-		{"object metadata overflow", "LongRepr()", true, false},
 		{"callback argument overflow", "sink(Big(), 'x' * 20000)", false, false},
-		{"callback argument repr raises", "sink(Big(), BadRepr())", false, false},
 		{"callback rejected before decoding", "sink(Big())", false, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -69,8 +67,10 @@ func TestFailedTransferReleasesReferences(t *testing.T) {
 	}
 }
 
-func TestPartialDecodeReleasesUnclaimedReferences(t *testing.T) {
+func TestPartialDecodeReleasesTransferReferences(t *testing.T) {
 	inst := newT(t)
+	// Destroy an object record itself. Cleanup must not depend on recognising
+	// its kind, nor on visiting the rest of the value tree.
 	exec(t, inst, transferClasses+"\ndef produce():\n    return [Big(), Big(), Big()]\n")
 	before := guestHeapFree(t, inst)
 	func() {
@@ -98,22 +98,82 @@ func TestPartialDecodeReleasesUnclaimedReferences(t *testing.T) {
 		}
 		secondID := binary.LittleEndian.Uint32(items[codec.ValueSize+4:])
 		thirdID := binary.LittleEndian.Uint32(items[2*codec.ValueSize+4:])
-		// The first object is claimed, decoding fails on the second, and the
-		// third is never visited. Both unclaimed acquisitions must be released.
+		// The first object gets a Go handle; the other two remain owned only
+		// by the transfer and must be released immediately.
 		binary.LittleEndian.PutUint32(items[codec.ValueSize:], uint32(codec.KindInvalid))
 		if _, err := inst.consumeArena(out, used); err == nil {
 			t.Fatal("decoding an invalid kind succeeded")
 		}
 		for _, id := range []uint32{secondID, thirdID} {
-			used := inst.mod.Xref_to_value(int32(id), out, defaultValueArenaCapacity)
+			used = inst.mod.Xref_to_value(int32(id), out, defaultValueArenaCapacity)
 			if _, err := inst.consumeArena(out, used); err == nil {
-				t.Fatalf("unclaimed reference %d still resolves", id)
+				t.Fatalf("transfer-only reference %d still resolves", id)
 			}
 		}
 	}()
-	// The first object was claimed by a Go handle before decoding failed. Its
+	// The first object was retained by a Go handle before decoding failed. Its
 	// cleanup is asynchronous; wait for the actual guest-memory outcome.
 	awaitGuestFree(t, inst, before)
+}
+
+// A __repr__ that raises or runs long used to fail a transfer, because every
+// object crossed with its repr and type name attached. Neither is computed now
+// until something asks for it, so an object whose repr misbehaves crosses like
+// any other.
+func TestUnprintableObjectsCross(t *testing.T) {
+	inst := newT(t)
+	exec(t, inst, transferClasses)
+	for _, expr := range []string{"BadRepr()", "LongRepr()", "[Big(), BadRepr()]"} {
+		inst.Begin()
+		if _, err := inst.Eval(expr); err != nil {
+			t.Errorf("%s: %v", expr, err)
+		}
+	}
+}
+
+// iterator_next reports a byte count like every other result, so the outcomes
+// it cannot express that way are the ones worth pinning down: exhaustion writes
+// nothing and is not an error, a yielded None writes a result and is not
+// exhaustion, and a raise arrives as an ordinary exception value.
+func TestIteratorOutcomes(t *testing.T) {
+	inst := newT(t)
+	exec(t, inst, "def produce():\n    yield None\n    yield 1\n    raise ValueError('stop here')\n")
+	v, err := inst.Call("produce", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	iter := objOf(t, v)
+
+	// A yielded None is a value, not the end of the iterator.
+	out, more, err := inst.NextGenerator(iter)
+	if err != nil || !more {
+		t.Fatalf("yielded None = %v, %v, %v; want None, true, nil", out, more, err)
+	}
+	if _, ok := out.(value.None); !ok {
+		t.Fatalf("yielded None decoded as %#v (%T), want value.None", out, out)
+	}
+
+	if out, more, err := inst.NextGenerator(iter); err != nil || !more || out != value.Int(1) {
+		t.Fatalf("next item = %v, %v, %v; want 1, true, nil", out, more, err)
+	}
+
+	// The raise crosses as an exception value rather than a status.
+	out, more, err = inst.NextGenerator(iter)
+	if err == nil || more || out != nil {
+		t.Fatalf("raising generator = %v, %v, %v; want nil, false, an error", out, more, err)
+	}
+	exc, ok := errors.AsType[*value.Exception](err)
+	if !ok {
+		t.Fatalf("err = %v (%T), want a Python exception", err, err)
+	}
+	if exc.Type() != "ValueError" || !strings.Contains(exc.Message(), "stop here") {
+		t.Fatalf("exception = %s(%q), want ValueError(\"stop here\")", exc.Type(), exc.Message())
+	}
+
+	// A generator that has raised is finished, and reports that as exhaustion.
+	if out, more, err := inst.NextGenerator(iter); err != nil || more || out != nil {
+		t.Fatalf("after raising = %v, %v, %v; want nil, false, nil", out, more, err)
+	}
 }
 
 func TestFailedIteratorTransferReleasesReferences(t *testing.T) {

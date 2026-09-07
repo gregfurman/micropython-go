@@ -45,7 +45,7 @@ void refs_reset(void) {
 
 uint32_t ref_add(mp_obj_t obj) {
     int32_t id = go_ref_add((uint32_t)(uintptr_t)obj);
-    if (id < 0) {
+    if (id == -1) {
         mp_raise_msg(&mp_type_MemoryError, MP_ERROR_TEXT("too many host references"));
     }
 
@@ -85,10 +85,7 @@ mp_obj_t ref_get(uint32_t id) {
     return l->items[index];
 }
 
-// Give one acquisition back. Used by the guest for references a transfer
-// acquired but the decoder never claimed; the host releases its own handles
-// through the release_ref export instead, having already done the counting.
-void refs_free(uint32_t id) {
+void ref_release(uint32_t id) {
     if (go_ref_free(id) <= 0) {
         return;
     }
@@ -96,19 +93,3 @@ void refs_free(uint32_t id) {
 }
 
 void refs_unpin(uint32_t id) { ref_unpin(id); }
-
-bool value_release_refs(uint32_t* refs) {
-    bool released = false;
-    uint32_t ptr = *refs;
-    *refs = 0;
-    while (ptr != 0) {
-        mp_object_info_t* info = (mp_object_info_t*)(uintptr_t)ptr;
-        if (info->ref != 0) {
-            refs_free(info->ref);
-            info->ref = 0;
-            released = true;
-        }
-        ptr = info->next;
-    }
-    return released;
-}

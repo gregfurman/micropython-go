@@ -5,13 +5,11 @@ import (
 	"github.com/gregfurman/micropython-go/internal/value"
 )
 
-// Refs owns the guest references a codec hands out and takes back. Track wraps
-// an id the guest just minted; Lookup reports the id an owned ref names, or an
-// error if it belongs to another interpreter or an older timeline. Track takes
-// ownership of one acquisition; it does not increment the guest counter.
+// Refs owns the guest references a codec hands out and takes back.
 type Refs interface {
-	Track(id uint32) *value.Ref
+	Retain(id uint32) (*value.Ref, error)
 	Lookup(*value.Ref) (uint32, error)
+	Release(id uint32) bool
 }
 
 // Codec understands the ABI and nothing about who owns transfer memory. Every
@@ -26,19 +24,4 @@ func New(m *memory.Memory, refs Refs) *Codec {
 		mem:  m,
 		refs: refs,
 	}
-}
-
-// Consume decodes the value tree rooted at ptr into Go-owned values. Every
-// payload it reads belongs to the caller's transfer arena and stays valid only
-// for the duration of this call, so nothing it returns aliases guest memory:
-// once Consume returns, resetting that arena is safe.
-//
-// Each decoded object claims its reference from the transfer. The caller must
-// finish the transfer to release unclaimed references, even if Consume fails.
-func (c *Codec) Consume(ptr int32) (value.Value, error) {
-	v, err := c.valueAt(ptr)
-	if err != nil {
-		return nil, err
-	}
-	return c.decode(v, 0)
 }

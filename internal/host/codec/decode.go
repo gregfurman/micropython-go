@@ -6,9 +6,10 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"slices"
 	"strings"
 
-	"github.com/gregfurman/micropython-go/internal/host/abi"
+	"github.com/gregfurman/micropython-go/internal/host/memory"
 	"github.com/gregfurman/micropython-go/internal/value"
 )
 
@@ -17,21 +18,99 @@ import (
 // pathological or corrupted tree rather than against reference cycles.
 const maxDecodeDepth = 128
 
-func (c *Codec) valueAt(ptr int32) (Value, error) {
-	b, err := c.mem.View(ptr, ValueSize)
-	if err != nil {
-		return Value{}, err
-	}
-
-	var v Value
-	v.UnmarshalWords(b)
-	return v, nil
+// decoder reads one result. Arena checks memory bounds; remaining limits the
+// number of records visited if corrupted pointers alias or cycle.
+type decoder struct {
+	codec     *Codec
+	arena     *memory.Arena
+	refs      []uint32
+	remaining int32
 }
 
-func (c *Codec) decode(v Value, depth int) (value.Value, error) {
+// Decode copies a guest result into Go values and releases all IDs acquired
+// for that result, even when decoding fails. Each returned handle retains its
+// own acquisition. The caller can reset its arena as soon as Decode returns.
+func (c *Codec) Decode(ptr, size int32) (value.Value, error) {
+	ids, err := c.readRefs(ptr, size)
+	if err != nil {
+		return nil, err
+	}
+	defer c.releaseRefs(ids)
+
+	d := decoder{
+		codec: c, arena: c.mem.ArenaAt(ptr, size),
+		refs: ids, remaining: size / ValueSize,
+	}
+	return d.decodeAt(ptr, 0)
+}
+
+// ReleaseRefs discards a result without decoding it. Rejected callbacks use
+// this to release their arguments without creating any Go handles.
+func (c *Codec) ReleaseRefs(ptr, size int32) error {
+	ids, err := c.readRefs(ptr, size)
+	if err != nil {
+		return err
+	}
+	c.releaseRefs(ids)
+	return nil
+}
+
+func (c *Codec) releaseRefs(ids []uint32) {
+	for _, id := range ids {
+		c.refs.Release(id)
+	}
+}
+
+func (c *Codec) readRefs(ptr, size int32) ([]uint32, error) {
+	if ptr < 0 || ptr%4 != 0 || size < TransferSize {
+		return nil, fmt.Errorf("invalid result region: [%d,+%d)", ptr, size)
+	}
+	b, err := c.mem.View(ptr, size)
+	if err != nil {
+		return nil, err
+	}
+	refsPtr := binary.LittleEndian.Uint32(b[ValueSize:])
+	count := binary.LittleEndian.Uint32(b[ValueSize+4:])
+	if count == 0 && refsPtr == 0 {
+		return nil, nil
+	}
+	start := int64(refsPtr) - int64(ptr)
+	if count == 0 || refsPtr%4 != 0 || start < TransferSize || start+int64(count)*4 > int64(size) {
+		return nil, errors.New("invalid reference ledger")
+	}
+	ids := make([]uint32, count)
+	for i := range ids {
+		ids[i] = binary.LittleEndian.Uint32(b[start+int64(i)*4:])
+		if ids[i] == 0 {
+			return nil, errors.New("zero reference in ledger")
+		}
+	}
+	// Object membership checks use binary search, not another ownership map.
+	slices.Sort(ids)
+	return ids, nil
+}
+
+func (d *decoder) decodeAt(ptr int32, depth int) (value.Value, error) {
+	if ptr%4 != 0 {
+		return nil, fmt.Errorf("unaligned value pointer %d", ptr)
+	}
+	b, err := d.arena.View(ptr, ValueSize)
+	if err != nil {
+		return nil, err
+	}
+	var v Value
+	v.UnmarshalWords(b)
+	return d.decode(v, depth)
+}
+
+func (d *decoder) decode(v Value, depth int) (value.Value, error) {
 	if depth > maxDecodeDepth {
 		return nil, fmt.Errorf("value nested deeper than %d levels", maxDecodeDepth)
 	}
+	if d.remaining == 0 {
+		return nil, errors.New("value tree exceeds result record limit")
+	}
+	d.remaining--
 
 	switch v.Kind {
 	case KindNull:
@@ -50,11 +129,12 @@ func (c *Codec) decode(v Value, depth int) (value.Value, error) {
 		return value.Float(v.Float()), nil
 
 	case KindBigint:
-		s, err := c.mem.ReadString(int32(v.W2), int32(v.W1))
+		b, err := d.arena.View(int32(v.W2), int32(v.W1))
 		if err != nil {
 			return nil, err
 		}
 
+		s := string(b)
 		n, ok := new(big.Int).SetString(s, 10)
 		if !ok {
 			return nil, fmt.Errorf("bad bigint %q", s)
@@ -63,26 +143,28 @@ func (c *Codec) decode(v Value, depth int) (value.Value, error) {
 		return value.NewBigInt(n), nil
 
 	case KindStr:
-		s, err := c.mem.ReadString(int32(v.W2), int32(v.W1))
+		b, err := d.arena.View(int32(v.W2), int32(v.W1))
 		if err != nil {
 			return nil, err
 		}
-		return value.Str(s), nil
+		return value.Str(string(b)), nil
 
 	case KindBytes:
-		b, err := c.mem.Read(int32(v.W2), int32(v.W1))
+		b, err := d.arena.View(int32(v.W2), int32(v.W1))
 		if err != nil {
 			return nil, err
 		}
-		return value.Bytes(b), nil
+		out := make(value.Bytes, len(b))
+		copy(out, b)
+		return out, nil
 
 	case KindException:
-		msg, err := c.mem.ReadString(int32(v.W2), int32(v.W1))
+		b, err := d.arena.View(int32(v.W2), int32(v.W1))
 		if err != nil {
 			return nil, err
 		}
 
-		typ, rest, _ := strings.Cut(msg, "\x04")
+		typ, rest, _ := strings.Cut(string(b), "\x04")
 		message, raw, _ := strings.Cut(rest, "\x04")
 
 		return nil, value.FromGuest(
@@ -92,7 +174,7 @@ func (c *Codec) decode(v Value, depth int) (value.Value, error) {
 		)
 
 	case KindList, KindTuple, KindSet, KindFrozenSet:
-		items, err := c.decodeBlock(v, int64(v.W1), depth)
+		items, err := d.decodeBlock(v, int64(v.W1), depth)
 		if err != nil {
 			return nil, err
 		}
@@ -110,7 +192,7 @@ func (c *Codec) decode(v Value, depth int) (value.Value, error) {
 	case KindDict:
 		// Entries alternate key, value, so a dict of n pairs is a run of 2n
 		// records rather than a second ABI structure.
-		flat, err := c.decodeBlock(v, 2*int64(v.W1), depth)
+		flat, err := d.decodeBlock(v, 2*int64(v.W1), depth)
 		if err != nil {
 			return nil, err
 		}
@@ -121,34 +203,28 @@ func (c *Codec) decode(v Value, depth int) (value.Value, error) {
 		return entries, nil
 
 	case KindObject:
-		attributes := v.W2 & KindObjectAttrMask
-		infoPtr := int32(v.W2 &^ KindObjectAttrMask)
-		header, err := c.mem.View(infoPtr, abi.ObjectInfoSize)
-		if err != nil {
-			return nil, fmt.Errorf("object info: %w", err)
+		if v.W1 == 0 {
+			return nil, errors.New("object has no reference")
 		}
-		length := binary.LittleEndian.Uint32(header)
-		if length > math.MaxInt32 {
-			return nil, fmt.Errorf("object info length too large: %d", length)
+		if _, ok := slices.BinarySearch(d.refs, v.W1); !ok {
+			return nil, fmt.Errorf("reference %d is absent from result ledger", v.W1)
 		}
-		if v.W1 == 0 || binary.LittleEndian.Uint32(header[4:]) != v.W1 {
-			return nil, fmt.Errorf("object reference %d is not owned by this transfer", v.W1)
-		}
-
-		blob, err := c.mem.ReadString(infoPtr+abi.ObjectInfoSize, int32(length))
+		ref, err := d.codec.refs.Retain(v.W1)
 		if err != nil {
 			return nil, err
 		}
 
-		isIterable := (attributes & KindObjectIterable) != 0
-		isCallable := (attributes & KindObjectCallable) != 0
+		class, err := d.class(v.W2)
+		if err != nil {
+			return nil, err
+		}
 
-		typ, repr, _ := strings.Cut(blob, "\x04")
-		ref := c.refs.Track(v.W1)
-		// The Go handle now owns this acquisition. The transfer's final cleanup
-		// will release only entries that decoding never reached or rejected.
-		binary.LittleEndian.PutUint32(header[4:], 0)
-		return value.NewObject(typ, repr, ref, isIterable, isCallable), nil
+		return value.NewObject(
+			class,
+			ref,
+			v.W2&KindObjectIterable != 0,
+			v.W2&KindObjectCallable != 0,
+		), nil
 
 	case KindRef:
 		return nil, fmt.Errorf(
@@ -161,10 +237,30 @@ func (c *Codec) decode(v Value, depth int) (value.Value, error) {
 	}
 }
 
-// decodeBlock reads the run of count records a container points at. The run
-// lives in the same transfer arena as its parent, so it is read directly
-// rather than asked for an element at a time.
-func (c *Codec) decodeBlock(v Value, count int64, depth int) ([]value.Value, error) {
+func (d *decoder) class(w2 uint32) (string, error) {
+	ptr := int32(w2 &^ KindObjectAttrMask)
+	if ptr == 0 {
+		return "", nil
+	}
+
+	header, err := d.arena.View(ptr, 4)
+	if err != nil {
+		return "", err
+	}
+
+	length := int32(binary.LittleEndian.Uint32(header))
+	if length <= 0 {
+		return "", nil
+	}
+
+	name, err := d.arena.View(ptr+4, length)
+	if err != nil {
+		return "", err
+	}
+	return string(name), nil
+}
+
+func (d *decoder) decodeBlock(v Value, count int64, depth int) ([]value.Value, error) {
 	if count == 0 {
 		return nil, nil
 	}
@@ -176,13 +272,15 @@ func (c *Codec) decodeBlock(v Value, count int64, depth int) ([]value.Value, err
 	}
 
 	block := int32(v.W2)
+	if count > int64(d.remaining) {
+		return nil, errors.New("container exceeds result record limit")
+	}
+	if _, err := d.arena.View(block, int32(count)*ValueSize); err != nil {
+		return nil, err
+	}
 	items := make([]value.Value, count)
 	for i := range items {
-		record, err := c.valueAt(block + int32(i)*ValueSize)
-		if err != nil {
-			return nil, err
-		}
-		item, err := c.decode(record, depth+1)
+		item, err := d.decodeAt(block+int32(i)*ValueSize, depth+1)
 		if err != nil {
 			return nil, err
 		}

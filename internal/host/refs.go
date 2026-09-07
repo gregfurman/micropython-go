@@ -2,22 +2,26 @@ package host
 
 import (
 	"errors"
+	"math"
 	"runtime"
 	"sync"
 
 	"github.com/gregfurman/micropython-go/internal/value"
 )
 
-var ErrStaleRef = errors.New("micropython: reference is not valid for this interpreter")
+var (
+	ErrStaleRef    = errors.New("micropython: reference is not valid for this interpreter")
+	ErrRefOverflow = errors.New("micropython: too many reference acquisitions")
+)
 
-// An id is a slot index in the low bits and the slot's generation in the high
-// bits, so an id that outlived its object is rejected rather than naming
-// whatever took the slot next.
 const (
 	refIndexBits = 20
-	refIndexMask = 1<<refIndexBits - 1
-	refGenMask   = 0xfff
-	refMaxSlots  = refIndexMask
+	refIndexMask = uint32(1<<refIndexBits - 1)
+	refGenMask   = uint32(0xfff)
+	refMaxSlots  = refIndexMask - 1 // reserve the all-ones ID for failure
+
+	firstRefGeneration = uint32(1)
+	invalidRefID       = int32(-1)
 )
 
 type refSlot struct {
@@ -26,8 +30,14 @@ type refSlot struct {
 	count uint32
 }
 
+// OwnedReferences counts acquisitions; the guest root list owns the actual
+// Python pins. Guest-facing methods run under the instance lock. The mutex
+// also protects the queue written by asynchronous Go cleanups.
 type OwnedReferences struct {
-	mu      sync.Mutex
+	mu sync.Mutex
+
+	release func(id uint32)
+
 	pending []uint32
 
 	slots  []refSlot
@@ -35,57 +45,88 @@ type OwnedReferences struct {
 	free   []uint32
 }
 
-func (o *OwnedReferences) id(index uint32) uint32 {
-	return index | o.slots[index].gen<<refIndexBits
-}
-
-// Acquire runs re-entrantly from the guest mid-serialisation, so it must never
-// reach for the instance lock: this goroutine already holds it.
 func (o *OwnedReferences) Acquire(addr uint32) int32 {
 	if addr == 0 {
-		return -1
+		return invalidRefID
 	}
+
 	o.mu.Lock()
 	defer o.mu.Unlock()
 
 	if o.byAddr == nil {
 		o.byAddr = make(map[uint32]uint32)
 	}
+
 	if index, ok := o.byAddr[addr]; ok {
+		if o.slots[index].count == math.MaxUint32 {
+			return invalidRefID
+		}
 		o.slots[index].count++
-		return int32(o.id(index))
+		return int32(o.refID(index))
 	}
 
-	var index uint32
-	switch {
-	case len(o.free) > 0:
-		index = o.free[len(o.free)-1]
-		o.free = o.free[:len(o.free)-1]
-		o.slots[index].addr = addr
-		o.slots[index].count = 1
-	default:
-		if len(o.slots) == 0 {
-			o.slots = append(o.slots, refSlot{gen: 1}) // slot 0 reserved
-		}
-		if len(o.slots) > refMaxSlots {
-			return -1
-		}
-		index = uint32(len(o.slots))
-		o.slots = append(o.slots, refSlot{addr: addr, gen: 1, count: 1})
+	index, ok := o.alloc(addr)
+	if !ok {
+		return invalidRefID
 	}
 
 	o.byAddr[addr] = index
-	return int32(o.id(index))
+	return int32(o.refID(index))
 }
 
-// Release reports whether that was the last acquisition, so the guest should
-// drop the pin.
+func (o *OwnedReferences) alloc(addr uint32) (uint32, bool) {
+	if len(o.free) > 0 {
+		index := o.free[len(o.free)-1]
+		o.free = o.free[:len(o.free)-1]
+
+		slot := &o.slots[index]
+		slot.addr = addr
+		slot.count = 1
+
+		return index, true
+	}
+
+	if len(o.slots) == 0 {
+		o.slots = append(o.slots, refSlot{
+			gen: firstRefGeneration,
+		})
+	}
+
+	if len(o.slots) > int(refMaxSlots) {
+		return 0, false
+	}
+
+	index := uint32(len(o.slots))
+	o.slots = append(o.slots, refSlot{
+		addr:  addr,
+		gen:   firstRefGeneration,
+		count: 1,
+	})
+
+	return index, true
+}
+
+// Release gives back one acquisition, unpinning the guest object behind the
+// last of them. It reports whether this was that last one.
 func (o *OwnedReferences) Release(id uint32) bool {
+	if !o.drop(id) {
+		return false
+	}
+	if o.release != nil {
+		o.release(id)
+	}
+	return true
+}
+
+// drop gives back one acquisition without calling the guest. It reports
+// whether the caller must remove the pin. Guest imports use it directly;
+// host releases call it through Release, outside the reference mutex.
+func (o *OwnedReferences) drop(id uint32) bool {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 
-	slot := o.slotFor(id)
-	if slot == nil {
+	index, slot, ok := o.slotFor(id)
+	if !ok {
 		return false
 	}
 
@@ -95,64 +136,95 @@ func (o *OwnedReferences) Release(id uint32) bool {
 	}
 
 	delete(o.byAddr, slot.addr)
+
 	slot.addr = 0
-	slot.gen = (slot.gen + 1) & refGenMask
-	if slot.gen == 0 {
-		slot.gen = 1
-	}
-	o.free = append(o.free, id&refIndexMask)
+	slot.gen = nextGeneration(slot.gen)
+	o.free = append(o.free, index)
+
 	return true
 }
 
-func (o *OwnedReferences) slotFor(id uint32) *refSlot {
-	index := id & refIndexMask
-	if index == 0 || int(index) >= len(o.slots) {
-		return nil
+func nextGeneration(gen uint32) uint32 {
+	gen = (gen + 1) & refGenMask
+	if gen == 0 {
+		return firstRefGeneration
 	}
-	slot := &o.slots[index]
-	if slot.count == 0 || id>>refIndexBits != slot.gen {
-		return nil
-	}
-	return slot
+	return gen
 }
 
-func (o *OwnedReferences) Track(id uint32) *value.Ref {
-	if id == 0 {
-		return nil
+func (o *OwnedReferences) refID(index uint32) uint32 {
+	return index | o.slots[index].gen<<refIndexBits
+}
+
+func (o *OwnedReferences) slotFor(id uint32) (uint32, *refSlot, bool) {
+	index := id & refIndexMask
+	if index == 0 || int(index) >= len(o.slots) {
+		return 0, nil, false
 	}
 
-	r := value.NewRef(id, o)
+	slot := &o.slots[index]
+	if slot.count == 0 || id>>refIndexBits != slot.gen {
+		return 0, nil, false
+	}
 
-	runtime.AddCleanup(r, func(id uint32) {
+	return index, slot, true
+}
+
+// Retain gives a Go handle its own acquisition. Decode releases the guest's
+// acquisition separately, so a handle can outlive the result arena.
+func (o *OwnedReferences) Retain(id uint32) (*value.Ref, error) {
+	o.mu.Lock()
+	_, slot, ok := o.slotFor(id)
+	if !ok {
+		o.mu.Unlock()
+		return nil, ErrStaleRef
+	}
+	if slot.count == math.MaxUint32 {
+		o.mu.Unlock()
+		return nil, ErrRefOverflow
+	}
+	slot.count++
+	o.mu.Unlock()
+
+	// track cannot fail, so the acquisition just counted always reaches a
+	// handle: nothing between here and the return can strand it.
+	return o.track(id), nil
+}
+
+func (o *OwnedReferences) track(id uint32) *value.Ref {
+	ref := value.NewRef(id, o)
+
+	runtime.AddCleanup(ref, func(id uint32) {
 		o.mu.Lock()
 		o.pending = append(o.pending, id)
 		o.mu.Unlock()
 	}, id)
 
-	return r
+	return ref
 }
 
-func (o *OwnedReferences) Lookup(r *value.Ref) (uint32, error) {
-	if r == nil || r.Owner() != o {
+func (o *OwnedReferences) Lookup(ref *value.Ref) (uint32, error) {
+	if ref == nil || ref.Owner() != o {
 		return 0, ErrStaleRef
 	}
+
 	o.mu.Lock()
 	defer o.mu.Unlock()
-	if o.slotFor(r.ID()) == nil {
+
+	if _, _, ok := o.slotFor(ref.ID()); !ok {
 		return 0, ErrStaleRef
 	}
-	return r.ID(), nil
+
+	return ref.ID(), nil
 }
 
-func (o *OwnedReferences) Drain(unpin func(id uint32)) {
+func (o *OwnedReferences) Drain() {
 	o.mu.Lock()
 	pending := o.pending
 	o.pending = nil
 	o.mu.Unlock()
 
 	for _, id := range pending {
-		if o.Release(id) {
-			unpin(id)
-		}
+		o.Release(id)
 	}
 }

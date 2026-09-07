@@ -26,7 +26,7 @@ enum {
     KIND_TUPLE = 9,
     KIND_LIST = 10,
     KIND_DICT = 11,  // w1 = pairs, w2 = ptr to w1 * 2 values (alternating k/v)
-    // guest -> host: w1 = ref, w2 = object-info ptr | attributes;
+    // guest -> host: w1 = ref, w2 = mp_object_class_t ptr | attributes;
     // host -> guest: w1 = ref
     KIND_OBJECT = 13,
     KIND_REF = 14,        // host -> guest only: w1 = ref
@@ -51,25 +51,30 @@ typedef struct {
 _Static_assert(sizeof(mp_value_t) == 12, "mp_value_t ABI mismatch");
 _Static_assert(_Alignof(mp_value_t) == 4, "mp_value_t alignment mismatch");
 
-// Guest-to-host object metadata belongs to the transfer arena. ref is cleared
-// by the decoder when a Go handle takes ownership; next links all acquisitions,
-// including objects in a tree whose serialization or decoding fails.
+// A handle's Python class, written into the arena beside the record naming it.
+// The host cannot ask for this later without a call per handle, and the name is
+// a qstr the guest already holds, so it crosses with the handle instead.
+//
+// w2 carries the pointer with the attribute flags folded into its low bits,
+// which the arena's four-byte alignment always leaves clear.
 typedef struct {
     uint32_t len;
-    uint32_t ref;
-    uint32_t next;
-    char blob[];
-} mp_object_info_t;
+    char name[];
+} mp_object_class_t;
 
-// A guest result starts with a value and the head of its acquisition list.
-// Callback arguments use the same list but keep its head on the C stack.
+_Static_assert(sizeof(mp_object_class_t) == 4, "object class ABI mismatch");
+_Static_assert(_Alignof(mp_object_class_t) == 4, "object class alignment mismatch");
+_Static_assert(KIND_OBJECT_ATTR_MASK < 4, "attributes must fit the pointer's spare bits");
+
+// The host releases every acquisition in refs after decoding this result.
+// Decoded Go handles retain their own acquisitions; records are read-only.
 typedef struct {
     mp_value_t value;
     uint32_t refs;
+    uint32_t num_refs;
 } mp_transfer_t;
 
-_Static_assert(sizeof(mp_object_info_t) == 12, "object info ABI mismatch");
-_Static_assert(sizeof(mp_transfer_t) == 16, "transfer ABI mismatch");
+_Static_assert(sizeof(mp_transfer_t) == 20, "transfer ABI mismatch");
 
 // A 64-bit payload occupies both words, low half first. memcpy rather than a
 // union, so nothing here depends on the guest's alignment for a double.

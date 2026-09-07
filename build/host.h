@@ -3,11 +3,10 @@
 
 #include <stdint.h>
 
-// The three functions the guest imports from the host. Everything else in this
-// port is called by the host, not the other way round.
+// Application callbacks and reference bookkeeping imported from the host.
 
 __attribute__((import_module("env"), import_name("host_trampoline"))) extern void host_trampoline(
-    uint32_t func_id, uint32_t args_ptr, uint32_t num_args, uint32_t out_ptr, uint32_t out_capacity);
+    uint32_t func_id, uint32_t args_ptr, uint32_t args_size, uint32_t out_ptr, uint32_t out_capacity);
 
 __attribute__((import_module("env"), import_name("host_stdout"))) extern void host_stdout(uint32_t ptr, uint32_t len);
 
