@@ -2,23 +2,16 @@ package micropython
 
 import (
 	"context"
+	"errors"
 	"runtime"
-	"slices"
 	"sync"
 
 	"github.com/gregfurman/micropython-go/internal/api"
 )
 
-// Program is a pool of pre-compiled MicroPython interpreters, safe for
-// concurrent use.
-//
-// Compile builds one interpreter, configures it with the given options, and
-// snapshots it. That snapshot is the baseline every later call starts from: a
-// call borrows an interpreter, runs, and the interpreter is rewound to the
-// snapshot before returning to the pool, so calls cannot see each other's
-// changes to Python state.
-//
-// Close must be called when the Program is no longer needed.
+// Program pools interpreters initialized from a common Python state.
+// Runs are safe to execute concurrently and do not retain each other's Python
+// state changes. Call Close when done.
 type Program struct {
 	snap *api.Snapshot
 
@@ -29,16 +22,51 @@ type Program struct {
 	closed bool
 }
 
-// Compile builds an interpreter from opts and captures it as the Program's
-// starting state. Use CompileSource to run Python source as part of that state.
-//
-// WithPoolSize sets how many interpreters stay idle between calls, defaulting
-// to runtime.NumCPU; it is not a ceiling on how many exist at once.
-func Compile(ctx context.Context, opts ...ProgramOption) (*Program, error) {
+// OwnedInstance provides interpreter operations during [Program.Run].
+// It must not be retained or used after the callback returns.
+type OwnedInstance struct {
+	wrapped *Instance
+}
+
+// Call invokes a Python global function; see [Instance.Call].
+func (o *OwnedInstance) Call(ctx context.Context, name string, args ...any) (Value, error) {
+	return o.wrapped.Call(ctx, name, args...)
+}
+
+// Eval evaluates a Python expression; see [Instance.Eval].
+func (o *OwnedInstance) Eval(ctx context.Context, expr string) (Value, error) {
+	return o.wrapped.Eval(ctx, expr)
+}
+
+// Get reads a Python global; see [Instance.Get].
+func (o *OwnedInstance) Get(ctx context.Context, name string) (Value, error) {
+	return o.wrapped.Get(ctx, name)
+}
+
+// Set binds a Python global; see [Instance.Set].
+func (o *OwnedInstance) Set(ctx context.Context, name string, v any) error {
+	return o.wrapped.Set(ctx, name, v)
+}
+
+// Exec runs Python statements; see [Instance.Exec].
+func (o *OwnedInstance) Exec(ctx context.Context, src string) error {
+	return o.wrapped.Exec(ctx, src)
+}
+
+// Compile applies opts, runs src, and snapshots the resulting state for a Program.
+// A nonempty src overrides [WithSource]; an empty src uses it if provided.
+// The caller must close the Program when done.
+func Compile(ctx context.Context, src string, opts ...ProgramOption) (*Program, error) {
 	// TODO(gregfurman): Consider catering for warm and cold starts
 	opt := newOptions(opts)
-	if opt.programPoolSize == 0 {
-		opt.programPoolSize = max(runtime.NumCPU(), 1)
+	if src != "" {
+		opt.sourceScript = src
+	}
+	if err := opt.validate(); err != nil {
+		return nil, err
+	}
+	if opt.maxIdle == 0 {
+		opt.maxIdle = max(runtime.NumCPU(), 1)
 	}
 
 	in, err := newInstance(ctx, opt)
@@ -54,45 +82,63 @@ func Compile(ctx context.Context, opts ...ProgramOption) (*Program, error) {
 
 	return &Program{
 		snap:    snap,
-		maxIdle: opt.programPoolSize,
+		maxIdle: opt.maxIdle,
 		free:    []*Instance{in},
 	}, nil
 }
 
-// CompileSource runs src at module level and captures the result as the
-// Program's starting state. Shorthand for Compile with WithSourceScript.
-func CompileSource(ctx context.Context, src string, opts ...ProgramOption) (*Program, error) {
-	return Compile(ctx, append(slices.Clip(opts), WithSource(src))...)
-}
-
-// Instance spawns a standalone Python interpreter initialized with the compiled
-// source's state.
-//
-// Unlike a Program, an Instance is stateful: variable mutations and definitions will
-// persist across evaluations. The returned Instance is completely detached from
-// the Program's pool and must be closed by the caller.
+// Instance creates a standalone interpreter from the compiled state.
+// It is not pooled: state persists across calls, and the caller must close it.
 func (p *Program) Instance(ctx context.Context) (*Instance, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	p.mu.Lock()
+	closed := p.closed
+	p.mu.Unlock()
+	if closed {
+		return nil, ErrClosed
+	}
+
 	return fromSnapshot(p.snap)
 }
 
-// Call invokes a named Python function with the provided arguments.
+// Run lends an interpreter to fn, then rewinds or discards it, even on error
+// or panic. It returns fn's error unchanged; panics propagate after cleanup.
+// External effects, including changes made by Go callbacks, are not rewound.
 //
-// The function executes in total isolation. Any changes made to Python's global
-// state during the execution are discarded before the underlying interpreter is
-// returned to the internal pool.
-func (p *Program) Call(ctx context.Context, name string, args ...any) (Value, error) {
-	in, err := p.acquire()
-	if err != nil {
-		return Value{}, err
+// Use the callback's context: it inherits ctx and is canceled when fn exits.
+// Cancellation is cooperative; Run waits for fn but not its goroutines.
+// Finish all interpreter-using work before returning. Do not retain the
+// OwnedInstance or use guest handles afterward, including handles nested in
+// exported containers. Only detached Go data may outlive the run.
+func (p *Program) Run(ctx context.Context, fn func(ctx context.Context, in *OwnedInstance) error) error {
+	if fn == nil {
+		return errors.New("micropython: Run needs a function to run")
+	}
+	if err := ctx.Err(); err != nil {
+		return err
 	}
 
+	in, err := p.acquire()
+	if err != nil {
+		return err
+	}
 	defer p.release(in)
 
-	return in.Call(ctx, name, args...)
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	return fn(ctx, &OwnedInstance{wrapped: in})
 }
 
-// Close releases every interpreter the Program is holding. Calls after it
-// return ErrClosed.
+// Close closes idle interpreters and rejects new work with [ErrClosed].
+// Active runs finish normally; their interpreters are closed on return.
 func (p *Program) Close() error {
 	p.mu.Lock()
 	free := p.free

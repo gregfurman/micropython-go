@@ -32,7 +32,7 @@ def handle(req):
 
 func benchProgram(b *testing.B) *Program {
 	b.Helper()
-	p, err := CompileSource(context.Background(), benchSrc)
+	p, err := Compile(context.Background(), benchSrc)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -92,7 +92,7 @@ func BenchmarkStartup(b *testing.B) {
 	b.Run("Compile", func(b *testing.B) {
 		b.ReportAllocs()
 		for b.Loop() {
-			p, err := CompileSource(ctx, benchSrc)
+			p, err := Compile(ctx, benchSrc)
 			if err != nil {
 				b.Fatal(err)
 			}
@@ -210,8 +210,8 @@ func BenchmarkCallable(b *testing.B) {
 		b.ResetTimer()
 		for b.Loop() {
 			val, _ := in.Eval(ctx, "add")
-			addFn, _ := val.AsCallable()
-			addFn(ctx, in, 1, 2)
+			addFn, _ := in.AsCallable(val)
+			addFn.Call(ctx, 1, 2)
 		}
 		in.Close()
 
@@ -224,8 +224,8 @@ func BenchmarkCallable(b *testing.B) {
 		b.ResetTimer()
 		for b.Loop() {
 			val, _ := in.Get(ctx, "add")
-			addFn, _ := val.AsCallable()
-			addFn(ctx, in, 1, 2)
+			addFn, _ := in.AsCallable(val)
+			addFn.Call(ctx, 1, 2)
 		}
 		in.Close()
 	})
@@ -300,7 +300,7 @@ func BenchmarkProgramVsInstance(b *testing.B) {
 		p := benchProgram(b)
 		b.ReportAllocs()
 		for b.Loop() {
-			if _, err := p.Call(ctx, "add", int64(1), int64(2)); err != nil {
+			if _, err := progCall(ctx, p, "add", int64(1), int64(2)); err != nil {
 				b.Fatal(err)
 			}
 		}
@@ -328,7 +328,7 @@ func BenchmarkParallel(b *testing.B) {
 		b.ReportAllocs()
 		b.RunParallel(func(pb *testing.PB) {
 			for pb.Next() {
-				if _, err := p.Call(ctx, "work", int64(1000)); err != nil {
+				if _, err := progCall(ctx, p, "work", int64(1000)); err != nil {
 					b.Fatal(err)
 				}
 			}
@@ -343,7 +343,7 @@ func BenchmarkHandler(b *testing.B) {
 
 	b.ReportAllocs()
 	for b.Loop() {
-		if _, err := p.Call(ctx, "handle", req); err != nil {
+		if _, err := progCall(ctx, p, "handle", req); err != nil {
 			b.Fatal(err)
 		}
 	}
@@ -360,7 +360,7 @@ func BenchmarkHandlerParallel(b *testing.B) {
 	b.ReportAllocs()
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			if _, err := p.Call(ctx, "handle", req); err != nil {
+			if _, err := progCall(ctx, p, "handle", req); err != nil {
 				b.Fatal(err)
 			}
 		}
@@ -376,7 +376,7 @@ func BenchmarkManyPrograms(b *testing.B) {
 		b.Run(fmt.Sprintf("%d programs", n), func(b *testing.B) {
 			programs := make([]*Program, n)
 			for i := range programs {
-				p, err := CompileSource(ctx, benchSrc)
+				p, err := Compile(ctx, benchSrc)
 				if err != nil {
 					b.Fatal(err)
 				}
@@ -389,7 +389,7 @@ func BenchmarkManyPrograms(b *testing.B) {
 
 			var i int
 			for b.Loop() {
-				if _, err := programs[i%n].Call(ctx, "add", int64(1), int64(2)); err != nil {
+				if _, err := progCall(ctx, programs[i%n], "add", int64(1), int64(2)); err != nil {
 					b.Fatal(err)
 				}
 				i++

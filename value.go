@@ -2,22 +2,19 @@ package micropython
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"iter"
 	"math/big"
 
 	"github.com/gregfurman/micropython-go/internal/value"
-	"golang.org/x/exp/constraints"
 )
 
-// Value is one Python value, either built here to send to the guest or handed
-// back by Eval, Call and Get.
-//
-// Export converts it to the closest Go value; the As methods, one per Python
-// type, convert it precisely and report a mismatch. The builders that make one
-// live alongside the conversions for the same type: scalar_values.go,
-// collection_values.go, callable_values.go, object_values.go and
-// exception_values.go.
+var errZeroValue = errors.New("micropython: the zero Value holds nothing to convert")
+
+// Value represents copied Python data or a handle owned by an interpreter.
+// Use Export for Go data or the As methods for checked, type-specific access.
+// The zero Value is invalid; use [None] for Python None.
 type Value struct {
 	val value.Value
 }
@@ -26,8 +23,7 @@ func wrapValue(v value.Value) Value {
 	return Value{val: v}
 }
 
-// Type names the value as Python would, so an Object reports its class and an
-// exception its exception class.
+// Type returns the Python type name, or "invalid" for a zero Value.
 func (v Value) Type() string {
 	if v.val == nil {
 		return "invalid"
@@ -35,14 +31,58 @@ func (v Value) Type() string {
 	return v.val.Type()
 }
 
-// Export converts the value to the closest Go equivalent, following the Type
-// Conversion table: int64, float64, string, []byte, []any, map[string]any and
-// so on. Composite exports deliberately flatten to ordinary Go collections;
-// use an As method when the exact Python container type matters.
+// Export converts data to Go scalars, slices, and maps. Handles remain Values,
+// including inside containers. None and the zero Value export as nil.
+// Container kinds are flattened and non-comparable dictionary keys stringified;
+// use the As methods when those distinctions matter.
 func (v Value) Export() any {
-	return value.Lift(v.val)
+	if v.val == nil {
+		return nil
+	}
+	return exported(value.Lift(v.val))
 }
 
+func exported(v any) any {
+	switch x := v.(type) {
+	case value.Object:
+		return wrapValue(x)
+
+	case []any:
+		return exportedSlice(x)
+	case value.Tuple:
+		return value.Tuple(exportedSlice(x))
+	case value.Set:
+		return value.Set(exportedSlice(x))
+	case value.FrozenSet:
+		return value.FrozenSet(exportedSlice(x))
+
+	case map[string]any:
+		out := make(map[string]any, len(x))
+		for k, item := range x {
+			out[k] = exported(item)
+		}
+		return out
+	case map[any]any:
+		out := make(map[any]any, len(x))
+		for k, item := range x {
+			out[exported(k)] = exported(item)
+		}
+		return out
+
+	default:
+		return v
+	}
+}
+
+func exportedSlice(items []any) []any {
+	out := make([]any, len(items))
+	for i, item := range items {
+		out[i] = exported(item)
+	}
+	return out
+}
+
+// String formats v for display; it is not Python repr or serialization.
 func (v Value) String() string {
 	switch x := v.val.(type) {
 	case nil:
@@ -59,25 +99,16 @@ func (v Value) String() string {
 	}
 }
 
-// Of converts an ordinary Go value to its closest resembling Python representation:
-//
-//	Go value                                Python representation
-//	-------------------------------------------------------------
-//	nil                                     None
-//	bool                                    bool
-//	int, int64, other integers              int
-//	float32, float64                        float
-//	string                                  str
-//	[]byte                                  bytes
-//	[]any                                   list
-//	map[string]any, map[any]any             dict
-//	anything else (e.g. structs)            JSON round-trip (dict/list)
+// Of converts Go data to a Value. Nil becomes None; []byte becomes bytes.
+// Scalars and collections use native conversions; other types use JSON.
+// Use builders such as [Tuple] when the Python type matters.
+// Conversion failures produce an invalid Value, reported when passed to Python.
 func Of(v any) Value {
 	if built, ok := v.(Value); ok {
 		return built
 	}
 
-	x, err := value.Lower(v)
+	x, err := value.Lower(unwrapAny(v))
 	if err != nil {
 		return wrapValue(value.Invalid(err))
 	}
@@ -93,37 +124,67 @@ func conversionError(v Value, expected string) error {
 	)
 }
 
-// unwrapArgs lowers the host's own wrappers to the value model the codec
-// encodes. A Func keeps the guest's handle, so it goes over as that function
-// rather than as the Go closure around it.
 func unwrapArgs(args []any) []any {
 	out := make([]any, len(args))
-
 	for i, arg := range args {
-		switch arg := arg.(type) {
-		case Value:
-			out[i] = arg.val
-		case Func:
-			out[i] = arg.c
-		case *Func:
-			out[i] = arg.c
-		case Iterator:
-			out[i] = arg.i
-		case *Iterator:
-			out[i] = arg.i
-		default:
-			out[i] = arg
-		}
+		out[i] = unwrapAny(arg)
 	}
-
 	return out
 }
 
+func unwrapAny(v any) any {
+	switch x := v.(type) {
+	case Value:
+		if x.val == nil {
+			// A Value that was never built carries no intent. Sending None in
+			// its place would hide the mistake where it matters least, so it
+			// converts to a refusal the encoder reports instead.
+			return value.Invalid(errZeroValue)
+		}
+		return x.val
+	case Object:
+		return x.unwrap()
+	case Func:
+		return x.c.unwrap()
+	case *Func:
+		return x.c.unwrap()
+	case Iterator:
+		return x.i
+	case *Iterator:
+		return x.i
+
+	case []any:
+		out := make([]any, len(x))
+		for i, item := range x {
+			out[i] = unwrapAny(item)
+		}
+		return out
+	case map[string]any:
+		out := make(map[string]any, len(x))
+		for k, item := range x {
+			out[k] = unwrapAny(item)
+		}
+		return out
+	case map[any]any:
+		out := make(map[any]any, len(x))
+		for k, item := range x {
+			out[unwrapAny(k)] = unwrapAny(item)
+		}
+		return out
+
+	default:
+		return v
+	}
+}
+
+// Iterator is a guest iterator bound to an Instance by [Instance.AsIterator].
 type Iterator struct {
 	i  value.Object
 	in *Instance
 }
 
+// Iter yields values until exhaustion or the first error.
+// Stopping early leaves the iterator positioned for a later call to Iter.
 func (i Iterator) Iter(ctx context.Context) iter.Seq2[Value, error] {
 	return func(yield func(Value, error) bool) {
 		if i.i.Ref() == 0 || i.in == nil || i.in.wrapped == nil {
@@ -147,6 +208,7 @@ func (i Iterator) Iter(ctx context.Context) iter.Seq2[Value, error] {
 	}
 }
 
+// IsIterator reports whether v holds a guest iterator, not a copied collection.
 func (v Value) IsIterator() bool {
 	obj, ok := v.val.(value.Object)
 	return ok && obj.IsIterable()
@@ -182,8 +244,7 @@ func Int(n int64) Value {
 	return wrapValue(value.Int(n))
 }
 
-// BigInt converts a big.Int to a Python int, for the magnitudes int64 cannot
-// hold. Python ints have no width limit.
+// BigInt copies n into a Python int Value; nil becomes zero.
 func BigInt(n *big.Int) Value {
 	return wrapValue(value.NewBigInt(n))
 }
@@ -198,7 +259,7 @@ func Str(s string) Value {
 	return wrapValue(value.Str(s))
 }
 
-// Bytes converts a Go byte slice to a Python bytes object.
+// Bytes copies b into a Python bytes Value.
 func Bytes(b []byte) Value {
 	out := make([]byte, len(b))
 	copy(out, b)
@@ -221,8 +282,8 @@ func (v Value) AsBool() (bool, error) {
 	return bool(x), nil
 }
 
-// AsInt returns a Python int, whatever its magnitude on the guest, and reports
-// an error rather than truncating one that does not fit. AsBigInt takes those.
+// AsInt returns an int64, reporting type mismatch or overflow.
+// Use [Value.AsBigInt] for larger integers.
 func (v Value) AsInt() (int64, error) {
 	switch x := v.val.(type) {
 	case value.Int:
@@ -325,24 +386,6 @@ func Dict(entries ...Item) Value {
 	return wrapValue(value.NewDict(out...))
 }
 
-// Strs is a convenience function that creates a Python list of strings.
-func Strs(items ...string) Value {
-	out := make([]Value, len(items))
-	for i, item := range items {
-		out[i] = Str(item)
-	}
-	return List(out...)
-}
-
-// Ints is a convenience function that creates a Python list of integers.
-func Ints[T constraints.Integer](items []T) Value {
-	out := make([]Value, len(items))
-	for i, item := range items {
-		out[i] = Of(item)
-	}
-	return List(out...)
-}
-
 // ---------------------------------------------------------------------
 
 func (v Value) AsList() ([]Value, error) {
@@ -377,9 +420,7 @@ func (v Value) AsFrozenSet() ([]Value, error) {
 	return wrapValues(x), nil
 }
 
-// AsDict returns the pairs of a Python dict, in the order the guest sent them.
-// Export gives a Go map instead, which drops that order and stringifies any key
-// a Go map cannot hold.
+// AsDict returns dictionary entries in received order without converting keys.
 func (v Value) AsDict() ([]Item, error) {
 	entries, ok := v.val.(value.DictValue)
 	if !ok {
@@ -417,28 +458,21 @@ func wrapValues[S ~[]value.Value](items S) []Value {
 
 // ---------------------------------------------------------------------
 
-// Callable is the guest's handle on a Python function. It carries no
-// interpreter of its own, so it is the form that can be passed back to Python
-// as an argument; Value.AsCallable takes one apart and Instance.AsCallable
-// binds it to an interpreter.
-
-// Func is a Callable bound to the Instance that produced it. Call invokes it,
-// and passing one to Call, Set or a HostFunc's result lowers it back to the
-// guest's own function object, the same as passing the Value it came from.
+// Func is a Python callable bound by [Instance.AsCallable].
+// It can be invoked in Go or passed back to the same interpreter.
 type Func struct {
 	c  Object
 	in *Instance
 }
 
-// Call invokes the function. It queues on the Instance the same way Eval and
-// Call do, so it cannot be invoked from inside a HostFunc, which is already
-// holding that Instance.
+// Call invokes the bound function with [Instance.Call] argument conversions.
+// It must not be called from a HostFunc running on the same Instance.
 func (f Func) Call(ctx context.Context, args ...any) (Value, error) {
-	if f.c.Ref() == 0 || f.in == nil || f.in.wrapped == nil {
+	if f.c.ref() == 0 || f.in == nil || f.in.wrapped == nil {
 		return Value{}, ErrInstanceNotInitialised
 	}
 
-	out, err := f.in.wrapped.CallRef(ctx, f.c, unwrapArgs(args))
+	out, err := f.in.wrapped.CallRef(ctx, f.c.unwrap(), unwrapArgs(args))
 	if err != nil {
 		return Value{}, err
 	}
@@ -446,54 +480,19 @@ func (f Func) Call(ctx context.Context, args ...any) (Value, error) {
 	return wrapValue(out), nil
 }
 
-// Value returns the function as a Value, the form Set and Globals take.
-func (f Func) Value() Value { return wrapValue(f.c) }
+// Value returns the function's handle as a Value.
+func (f Func) Value() Value {
+	return wrapValue(f.c.unwrap())
+}
 
-// IsCallable reports whether Python's callable() accepts this value.
-// Instance.AsCallable turns one into a Go function.
+// IsCallable reports whether v holds a Python callable.
 func (v Value) IsCallable() bool {
 	obj, ok := v.val.(value.Object)
 	return ok && obj.IsCallable()
 }
 
-func (v Value) AsCallable() (func(
-	ctx context.Context,
-	instance *Instance,
-	args ...any,
-) (Value, error), error) {
-	c, ok := v.val.(value.Object)
-	if !ok || c.Ref() == 0 {
-		return nil, conversionError(v, "callable")
-	}
-
-	return func(
-		ctx context.Context,
-		instance *Instance,
-		args ...any,
-	) (Value, error) {
-		out, err := instance.wrapped.CallRef(
-			ctx,
-			c,
-			unwrapArgs(args),
-		)
-		if err != nil {
-			return Value{}, err
-		}
-
-		return wrapValue(out), nil
-	}, nil
-}
-
-// AsCallable binds a Python callable to this Instance. It reaches the host as
-// an opaque handle rather than a Go value, so this is the way to invoke one:
-//
-//	got, err := in.Eval(ctx, "lambda x: x * 2")
-//	double, err := in.AsCallable(got)
-//	out, err := double.Call(ctx, 21) // 42
-//
-// Anything Python's callable() accepts qualifies, including bound methods,
-// classes, and instances defining __call__. The result can also be passed
-// straight back to Python, where it arrives as the same function object.
+// AsCallable binds a callable Value to this Instance for invocation through [Func.Call].
+// The value must belong to this interpreter and remain live when called.
 func (i *Instance) AsCallable(v Value) (Func, error) {
 	if i == nil || i.wrapped == nil {
 		return Func{}, ErrInstanceNotInitialised
@@ -504,54 +503,92 @@ func (i *Instance) AsCallable(v Value) (Func, error) {
 		return Func{}, conversionError(v, "callable")
 	}
 
-	return Func{c: c, in: i}, nil
+	return Func{c: Object{obj: c}, in: i}, nil
 }
 
 // ---------------------------------------------------------------------
 
-// Object is a Python value with no Go equivalent, such as a class or an
-// arbitrary instance, where only the type name and the repr cross over. It
-// cannot be passed back to the guest.
-type Object = value.Object
+// Object is an opaque guest handle with cached type and capability information.
+// Passing it back to its interpreter refers to the original Python object.
+type Object struct {
+	obj value.Object
+}
 
+func (o Object) unwrap() value.Object { return o.obj }
+
+func (o Object) handle() *value.Ref { return o.obj.Handle() }
+
+func (o Object) ref() uint32 { return o.obj.Ref() }
+
+// Type is the handle's Python class, or "object" when no name crossed with it.
+func (o Object) Type() string { return o.obj.Type() }
+
+// IsCallable reports whether the guest object can be called.
+func (o Object) IsCallable() bool { return o.obj.IsCallable() }
+
+// IsIterable reports whether the guest object is an iterator.
+func (o Object) IsIterable() bool { return o.obj.IsIterable() }
+
+// AsObject returns the opaque handle, or an error for copied data.
 func (v Value) AsObject() (Object, error) {
 	x, ok := v.val.(value.Object)
 	if !ok {
 		return Object{}, conversionError(v, "object")
 	}
-	return x, nil
+	return Object{obj: x}, nil
 }
 
-// PythonError is the error a failing call returns. Unwrap it to read which
-// exception the guest raised, rather than matching on the message:
-//
-//	var exc *micropython.PythonError
-//	if errors.As(err, &exc) && exc.Type() == "KeyError" { ... }
-//
-// Exception, by contrast, builds one to send.
+// PythonError describes a guest exception. Use errors.As with *PythonError
+// to inspect its Type, Message, and Raw traceback.
 type PythonError = value.Exception
 
-// Exception builds a Python exception as a Value, for binding one the guest can
-// raise itself:
-//
-//	WithGlobals(Globals{"BAD": Exception("ValueError", "bad input")})
-//
-// Returning one as a HostFunc's result raises it at the call site, which is what
-// Raise does in the error position.
+// Exception builds an exception Value. Returning it from a HostFunc raises it;
+// use [Raise] to return an exception through the error result instead.
 func Exception(typ, msg string) Value {
 	return wrapValue(value.NewException(typ, msg))
 }
 
-// Raise returns an error that makes the guest raise a specific Python exception.
-// Return it from a HostFunc to control which class the caller sees:
-//
-//	in.DefineFunction(ctx, "lookup", func(args []any) (any, error) {
-//	    return nil, micropython.Raise("KeyError", "missing")
-//	})
-//
-// Python then catches it as a KeyError. A typ that does not name a builtin
-// exception falls back to HostError, as does any other error a HostFunc
-// returns, carrying that error's text as the message.
+// Raise creates an error for a HostFunc to raise as a Python exception.
+// Unknown exception classes and ordinary Go errors become HostError,
+// a subclass of RuntimeError.
 func Raise(typ, msg string) error {
 	return value.NewException(typ, msg)
+}
+
+// walk recurses over an iterable or nested Value, applying a closure fn to each.
+func walk(v Value, fn func(v Value) bool) bool {
+	if !fn(v) {
+		return false
+	}
+
+	if items, err := v.AsList(); err == nil {
+		return walkAll(items, fn)
+	}
+	if items, err := v.AsTuple(); err == nil {
+		return walkAll(items, fn)
+	}
+	if items, err := v.AsSet(); err == nil {
+		return walkAll(items, fn)
+	}
+	if items, err := v.AsFrozenSet(); err == nil {
+		return walkAll(items, fn)
+	}
+	if entries, err := v.AsDict(); err == nil {
+		for _, entry := range entries {
+			if !walk(entry.Key, fn) || !walk(entry.Val, fn) {
+				return false
+			}
+		}
+	}
+
+	return true
+}
+
+func walkAll(items []Value, fn func(v Value) bool) bool {
+	for _, item := range items {
+		if !walk(item, fn) {
+			return false
+		}
+	}
+	return true
 }

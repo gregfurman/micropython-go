@@ -118,6 +118,39 @@ func (o *OwnedReferences) Release(id uint32) bool {
 	return true
 }
 
+// Free gives back every acquisition of one reference at once and unpins the
+// object in the guest, however many handles were sharing it.
+func (o *OwnedReferences) Free(id uint32) bool {
+	o.mu.Lock()
+	index, slot, ok := o.slotFor(id)
+	if !ok {
+		o.mu.Unlock()
+		return false
+	}
+
+	delete(o.byAddr, slot.addr)
+
+	slot.addr = 0
+	slot.count = 0
+	slot.gen = nextGeneration(slot.gen)
+	o.free = append(o.free, index)
+	o.mu.Unlock()
+
+	if o.release != nil {
+		o.release(id)
+	}
+	return true
+}
+
+// FreeHandle is Free addressed by handle rather than by bare id, refusing one
+// this table did not mint.
+func (o *OwnedReferences) FreeHandle(ref *value.Ref) bool {
+	if ref == nil || ref.Owner() != o {
+		return false
+	}
+	return o.Free(ref.ID())
+}
+
 // drop gives back one acquisition without calling the guest. It reports
 // whether the caller must remove the pin. Guest imports use it directly;
 // host releases call it through Release, outside the reference mutex.

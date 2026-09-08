@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -17,6 +18,18 @@ try:
     f()
 except %s:
     ok = True
+`
+
+const releaseSetup = `
+import gc, weakref
+
+class Thing:
+    pass
+
+def track(o):
+    global alive
+    alive = weakref.ref(o)
+    return o
 `
 
 func newT(t *testing.T) *Instance {
@@ -133,7 +146,7 @@ func TestEvalImport(t *testing.T) {
 }
 
 func TestGlobals(t *testing.T) {
-	p, err := CompileSource(context.Background(), `
+	p, err := Compile(context.Background(), `
 def run():
     return [
         NAME,
@@ -150,7 +163,7 @@ def run():
 		WithGlobals(Globals{
 			"NAME":    Str("service"),
 			"LIMITS":  Dict(Item{Key: Str("retries"), Val: Int(3)}),
-			"TAGS":    Strs("b", "a"),
+			"TAGS":    List(Str("b"), Str("a")),
 			"COUNTS":  Tuple(Int(1), Int(2)),
 			"FLAG":    Bool(true),
 			"RATIO":   Float(0.5),
@@ -164,7 +177,7 @@ def run():
 	}
 	defer p.Close()
 
-	got, err := p.Call(t.Context(), "run")
+	got, err := progCall(t.Context(), p, "run")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -186,7 +199,7 @@ func TestValueLiftMatchesRoundTrip(t *testing.T) {
 		Dict(Item{Key: Str("k"), Val: Int(1)}),
 	}
 
-	p, err := CompileSource(context.Background(), "def echo(v):\n    return v\n")
+	p, err := Compile(context.Background(), "def echo(v):\n    return v\n")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -280,7 +293,7 @@ func TestPythonValuesPassedBack(t *testing.T) {
 }
 
 func TestExceptionLowers(t *testing.T) {
-	p, err := CompileSource(context.Background(), `
+	p, err := Compile(context.Background(), `
 def raise_it():
     raise BAD
 
@@ -307,16 +320,16 @@ def unknown():
 	}
 	defer p.Close()
 
-	if got, err := p.Call(t.Context(), "caught"); err != nil || got.Export() != "caught:bad input" {
+	if got, err := progCall(t.Context(), p, "caught"); err != nil || got.Export() != "caught:bad input" {
 		t.Errorf("caught() = %#v, %v", got, err)
 	}
-	if got, err := p.Call(t.Context(), "unknown"); err != nil || got.Export() != "fallback:still readable" {
+	if got, err := progCall(t.Context(), p, "unknown"); err != nil || got.Export() != "fallback:still readable" {
 		t.Errorf("unknown() = %#v, %v", got, err)
 	}
 
 	// Raised and uncaught, it comes back out as the same exception.
 	var exc *PythonError
-	if _, err := p.Call(t.Context(), "raise_it"); !errors.As(err, &exc) {
+	if _, err := progCall(t.Context(), p, "raise_it"); !errors.As(err, &exc) {
 		t.Fatalf("got %v (%T), want *Exception", err, err)
 	} else if exc.Type() != "ValueError" || exc.Message() != "bad input" {
 		t.Errorf("round trip = %q / %q", exc.Type(), exc.Message())
@@ -324,7 +337,7 @@ def unknown():
 }
 
 func TestBuiltValueAsCallArgument(t *testing.T) {
-	p, err := CompileSource(context.Background(), "def echo(v):\n    return v\n")
+	p, err := Compile(context.Background(), "def echo(v):\n    return v\n")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -343,7 +356,7 @@ func TestBuiltValueAsCallArgument(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.arg.Type(), func(t *testing.T) {
-			got, err := p.Call(t.Context(), "echo", tt.arg)
+			got, err := progCall(t.Context(), p, "echo", tt.arg)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -394,36 +407,36 @@ func TestInstanceCancel(t *testing.T) {
 func TestWithHeapSize(t *testing.T) {
 	src := "def big(n):\n    return len(bytearray(n))\n"
 
-	small, err := CompileSource(context.Background(), src, WithHeapSize(128*1024))
+	small, err := Compile(context.Background(), src, WithHeapSize(128*1024))
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer small.Close()
 
 	// Comfortably inside a 128KB heap.
-	if got, err := small.Call(t.Context(), "big", 16*1024); err != nil || got.Export() != int64(16*1024) {
+	if got, err := progCall(t.Context(), small, "big", 16*1024); err != nil || got.Export() != int64(16*1024) {
 		t.Errorf("16KB in a 128KB heap: %#v, %v", got, err)
 	}
 
 	// Beyond it, and the guest says so rather than the module dying.
 	var exc *PythonError
-	if _, err := small.Call(t.Context(), "big", 4*1024*1024); !errors.As(err, &exc) {
+	if _, err := progCall(t.Context(), small, "big", 4*1024*1024); !errors.As(err, &exc) {
 		t.Fatalf("4MB in a 128KB heap: %v, want an *Exception", err)
 	} else if exc.Type() != "MemoryError" {
 		t.Errorf("Type = %q, want MemoryError", exc.Type())
 	}
 
 	// The Program is unharmed, and a larger heap takes what the smaller could not.
-	if got, err := small.Call(t.Context(), "big", 16*1024); err != nil || got.Export() != int64(16*1024) {
+	if got, err := progCall(t.Context(), small, "big", 16*1024); err != nil || got.Export() != int64(16*1024) {
 		t.Errorf("after MemoryError: %#v, %v", got, err)
 	}
 
-	big, err := CompileSource(context.Background(), src, WithHeapSize(4*1024*1024))
+	big, err := Compile(context.Background(), src, WithHeapSize(4*1024*1024))
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer big.Close()
-	if got, err := big.Call(t.Context(), "big", 2*1024*1024); err != nil || got.Export() != int64(2*1024*1024) {
+	if got, err := progCall(t.Context(), big, "big", 2*1024*1024); err != nil || got.Export() != int64(2*1024*1024) {
 		t.Errorf("2MB in a 4MB heap: %#v, %v", got, err)
 	}
 }
@@ -537,11 +550,11 @@ func TestDefineFunctionErrors(t *testing.T) {
 	}
 }
 
-// func TestDefineFunctionNil(t *testing.T) {
-// 	if err := newT(t).DefineFunction(context.Background(), "f", nil); err == nil {
-// 		t.Fatal("DefineFunction(nil) = nil, want error")
-// 	}
-// }
+func TestDefineFunctionNil(t *testing.T) {
+	if err := newT(t).DefineFunction(context.Background(), "f", nil); err == nil {
+		t.Fatal("DefineFunction(nil) = nil, want error")
+	}
+}
 
 func TestDefineFunctionSurvivesClone(t *testing.T) {
 	ctx := context.Background()
@@ -593,5 +606,125 @@ func TestHostErrorHierarchy(t *testing.T) {
 	// It is still narrower than RuntimeError: a plain RuntimeError is not one.
 	if got, err := in.Eval(ctx, "isinstance(RuntimeError('x'), HostError)"); err != nil || got.Export() != false {
 		t.Errorf("RuntimeError is not a HostError: %#v, %v", got, err)
+	}
+}
+
+func TestRelease(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		expr string
+	}{
+		{"object", "track(Thing())"},
+		{"dict", `{"thing": track(Thing()), "n": 1}`},
+		{"list", `[1, track(Thing())]`},
+		{"nested", `{"inner": [track(Thing())]}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			in := newT(t)
+			ctx := t.Context()
+
+			if err := in.Exec(ctx, releaseSetup); err != nil {
+				t.Fatal(err)
+			}
+
+			got, err := in.Eval(ctx, tc.expr)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			// Collecting while the host still holds the handle must not take it.
+			if err := in.Exec(ctx, "gc.collect()"); err != nil {
+				t.Fatal(err)
+			}
+			if v, err := in.Eval(ctx, "alive() is None"); err != nil || v.Export() != false {
+				t.Fatalf("collected an object the host still holds: %#v, %v", v, err)
+			}
+
+			if err := in.Release(ctx, got); err != nil {
+				t.Fatal(err)
+			}
+			if err := in.Exec(ctx, "gc.collect()"); err != nil {
+				t.Fatal(err)
+			}
+
+			if v, err := in.Eval(ctx, "alive() is None"); err != nil || v.Export() != true {
+				t.Fatalf("the object survived release: %#v, %v", v, err)
+			}
+
+			// Release, not Go's collector, must be what removed the pin.
+			runtime.KeepAlive(got)
+		})
+	}
+}
+
+func TestReleaseCallable(t *testing.T) {
+	in := newT(t)
+	ctx := t.Context()
+
+	if err := in.Exec(ctx, releaseSetup); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := in.Eval(ctx, "track(lambda x: x * 2)")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	doubler, err := in.AsCallable(got)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out, err := doubler.Call(ctx, Int(21)); err != nil || out.Export() != int64(42) {
+		t.Fatalf("lambda(21) = %#v, %v; want 42", out, err)
+	}
+
+	if err := in.Release(ctx, got); err != nil {
+		t.Fatal(err)
+	}
+	if err := in.Exec(ctx, "gc.collect()"); err != nil {
+		t.Fatal(err)
+	}
+
+	if v, err := in.Eval(ctx, "alive() is None"); err != nil || v.Export() != true {
+		t.Fatalf("the function survived release: %#v, %v", v, err)
+	}
+	if out, err := doubler.Call(ctx, Int(21)); err == nil {
+		t.Fatalf("lambda(21) = %#v after release, want a stale reference", out)
+	}
+}
+
+func TestCancellationDoesNotOutliveItsOperation(t *testing.T) {
+	in := newT(t)
+
+	var seen error
+	err := in.DefineFunction(t.Context(), "probe", func(ctx context.Context, _ []Value) (Value, error) {
+		select {
+		case <-ctx.Done():
+			seen = ctx.Err()
+		case <-time.After(100 * time.Millisecond):
+			seen = nil
+		}
+		return None(), nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := in.Exec(t.Context(), "probe()"); err != nil {
+		t.Fatal(err)
+	}
+	if seen != nil {
+		t.Fatalf("the callback context was cancelled before anything asked: %v", seen)
+	}
+
+	// Cancelling an idle interpreter is documented as harmless: the request is
+	// cleared when the next call begins.
+	in.Cancel()
+
+	if err := in.Exec(t.Context(), "probe()"); err != nil {
+		t.Fatalf("the interpreter was unusable after an idle Cancel: %v", err)
+	}
+	if seen != nil {
+		t.Errorf("a later callback inherited the earlier cancellation: %v", seen)
 	}
 }

@@ -76,6 +76,14 @@ typedef struct {
 
 _Static_assert(sizeof(mp_transfer_t) == 20, "transfer ABI mismatch");
 
+// What a call with no result to describe writes. The region still has to hold
+// a readable value, since the host decodes every result it is handed.
+static inline void mp_value_set_none(mp_value_t* v) {
+    v->kind = KIND_NONE;
+    v->w1 = 0;
+    v->w2 = 0;
+}
+
 // A 64-bit payload occupies both words, low half first. memcpy rather than a
 // union, so nothing here depends on the guest's alignment for a double.
 

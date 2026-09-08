@@ -8,9 +8,12 @@
 #include "py/lexer.h"
 #include "py/parse.h"
 
-// Compile and run one fragment of source, writing the result, or the exception
-// that ended it, into the arena. input_kind is what separates eval from exec.
-void execute_python(
-    const char* src, size_t len, mp_parse_input_kind_t input_kind, mp_arena_t* arena, mp_value_t* out);
+// Evaluate one expression, writing its value, or the exception that ended it,
+// into the arena.
+void eval_python(const char* src, size_t len, mp_arena_t* arena, mp_value_t* out);
+
+// Run one fragment of source for its effects. Nothing crosses but the exception
+// that ended it, if one did.
+void exec_python(const char* src, size_t len, mp_arena_t* arena, mp_value_t* out);
 
 #endif

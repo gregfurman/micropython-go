@@ -11,60 +11,52 @@ import (
 	"github.com/gregfurman/micropython-go/internal/value"
 )
 
-// HostFunc is a Go function callable from Python. See Instance.DefineFunction.
-//
-// Python's argument list arrives as one slice, however many arguments the call
-// site passed. A variadic Go function receives exactly the same values, so it
-// needs an adapter rather than a second supported signature:
-//
-//	func argmax(xs ...any) (any, error) { ... }
-//	in.DefineFunction(ctx, "argmax", func(args []any) (any, error) {
-//	    return argmax(args...)
-//	})
+// HostFunc is a Go function callable from Python through [WithHostFunc] or
+// [Instance.DefineFunction]. Errors and panics become Python exceptions;
+// use [Raise] to choose the exception class.
+// A callback must not synchronously call or close its own Instance.
 type HostFunc func(ctx context.Context, args []Value) (Value, error)
 
 var (
-	// ErrClosed indicates the interpreter or pool has been shut down and can no longer be used.
+	// ErrClosed reports a closed interpreter or pool.
 	ErrClosed = api.ErrClosed
 
-	// ErrInterrupted indicates the guest execution was halted, either by context cancellation or a manual Cancel call.
+	// ErrInterrupted identifies an interrupted call.
 	ErrInterrupted = api.ErrInterrupted
 
-	// ErrInstanceNotInitialised is returned if an operation is attempted on an improperly constructed Instance.
+	// ErrInstanceNotInitialised reports an Instance that was not initialized.
 	ErrInstanceNotInitialised = errors.New("cannot perform operation on Instance that has not been initialised")
 )
 
-// Instance represents a single, stateful MicroPython interpreter.
-//
-// Unlike a Program, an Instance maintains state between calls. Variables, imports,
-// and function definitions created during one execution will persist and remain
-// available for subsequent calls.
-//
-// An Instance is safe for concurrent use across multiple goroutines, but it is
-// strictly sequential. Because it operates on a single linear WebAssembly memory,
-// concurrent calls will queue and execute one at a time. If you need parallel
-// execution, use a Program or Clone this instance.
+// Instance is a MicroPython interpreter whose state persists between calls.
+// It is safe for concurrent use, but executes one operation at a time.
+// Use [Program] or [Instance.Clone] for parallel execution, and call Close when done.
 type Instance struct {
 	wrapped *api.Instance
 }
 
-// NewInstance boots a fresh MicroPython interpreter.
-//
-// If any globals are provided via options, they are injected into the Python
-// environment immediately upon startup.
+// NewInstance creates an interpreter and applies its initialization options.
+// The caller must close it when done.
 func NewInstance(ctx context.Context, opts ...Option) (*Instance, error) {
 	opt := newOptions(opts)
 	return newInstance(ctx, opt)
 }
 
 func newInstance(ctx context.Context, opt *options) (*Instance, error) {
-	in, err := api.New(opt.heapBytes, opt.stdout)
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if err := opt.validate(); err != nil {
+		return nil, err
+	}
+
+	in, err := api.New(int32(opt.heapBytes), opt.stdout)
 	if err != nil {
 		return nil, err
 	}
 
 	for _, key := range slices.Sorted(maps.Keys(opt.globals)) {
-		if err := in.Set(ctx, key, opt.globals[key].val); err != nil {
+		if err := in.Set(ctx, key, unwrapAny(opt.globals[key])); err != nil {
 			in.Close()
 			return nil, err
 		}
@@ -87,18 +79,17 @@ func newInstance(ctx context.Context, opt *options) (*Instance, error) {
 	return &Instance{wrapped: in}, nil
 }
 
-// Set directly binds a Go value to a global Python variable by name, bypassing
-// the need to parse source text.
-func (i *Instance) Set(ctx context.Context, name string, v Value) error {
+// Set binds v to a Python global. It accepts Go values and [Value] builders,
+// using the same conversion rules as [Instance.Call].
+func (i *Instance) Set(ctx context.Context, name string, v any) error {
 	if i.wrapped == nil {
 		return ErrInstanceNotInitialised
 	}
-	return i.wrapped.Set(ctx, name, v.val)
+	return i.wrapped.Set(ctx, name, unwrapAny(v))
 }
 
-// Get reads a global Python variable by name, converting it with the same rules
-// as Eval. It resolves the name directly rather than compiling it as an
-// expression, and raises NameError if the name is unbound.
+// Get reads a Python global without evaluating an expression.
+// It returns a Python NameError if the name is unbound.
 func (i *Instance) Get(ctx context.Context, name string) (Value, error) {
 	if i.wrapped == nil {
 		return Value{}, ErrInstanceNotInitialised
@@ -112,17 +103,9 @@ func (i *Instance) Get(ctx context.Context, name string) (Value, error) {
 	return wrapValue(out), nil
 }
 
-// Resolve reads the value behind an object handle, the form anything with no Go
-// equivalent takes. Most objects resolve to themselves, but a container that is
-// reachable from itself crosses as a handle rather than a copy, and this is what
-// reads it:
-//
-//	in.Exec(ctx, "a = [1]\na.append(a)\n")
-//	got, _ := in.Eval(ctx, "a")       // [1, [...]]
-//	items, _ := got.AsList()
-//	same, _ := in.Resolve(ctx, items[1]) // [1, [...]] again, the same list
-//
-// The value comes back one level deep, so a cycle inside it is a handle again.
+// Resolve reads an object handle using the same conversion rules as Eval.
+// Containers are copied; cyclic or deeply nested parts remain handles.
+// Other objects return another handle to the same object.
 func (i *Instance) Resolve(ctx context.Context, v Value) (Value, error) {
 	if i.wrapped == nil {
 		return Value{}, ErrInstanceNotInitialised
@@ -141,25 +124,37 @@ func (i *Instance) Resolve(ctx context.Context, v Value) (Value, error) {
 	return wrapValue(out), nil
 }
 
-// DefineFunction binds a Go function to a global Python name, letting the guest
-// call back into the host.
+// Release unpins guest objects, including handles nested in containers.
+// It invalidates all handles to each object, even separately acquired ones.
+// Non-handles, already-released handles, and foreign handles are ignored.
 //
-// Arguments arrive already converted to native Go values, following the same
-// rules as the Type Conversion table in reverse; a []any holds a Python list or
-// tuple, and a map[any]any holds a dict. The returned value is converted back
-// using those same rules, so a Value built with Of, Tuple, Str and friends
-// controls the Python type precisely.
-//
-// Returning an error raises an exception at the Python call site: HostError
-// carrying the error's text, or a specific builtin class if the error came from
-// Raise. HostError subclasses RuntimeError, so guest code can catch host-side
-// failures specifically with "except HostError" while a general
-// "except RuntimeError" still sees them. A panic inside fn is recovered and
-// raised the same way rather than unwinding into the interpreter.
-//
-// The binding is part of interpreter state, so it persists for the life of the
-// Instance and is inherited by any Clone taken afterwards. Redefining a name
-// replaces it.
+// Release does not run GC or remove Python-owned references. It is optional:
+// Go cleanup also queues releases, applied by subsequent interpreter operations.
+func (i *Instance) Release(ctx context.Context, vals ...Value) error {
+	if i.wrapped == nil {
+		return ErrInstanceNotInitialised
+	}
+
+	var refs []*value.Ref
+	for _, val := range vals {
+		walk(val, func(v Value) bool {
+			if obj, err := v.AsObject(); err == nil {
+				refs = append(refs, obj.handle())
+			}
+			return true
+		})
+	}
+
+	if len(refs) == 0 {
+		return nil
+	}
+
+	return i.wrapped.Release(ctx, refs...)
+}
+
+// DefineFunction binds fn to a Python global, replacing any existing binding.
+// The binding persists across calls and is inherited by clones.
+// See [HostFunc] for callback behavior.
 func (i *Instance) DefineFunction(ctx context.Context, name string, fn HostFunc) error {
 	if i.wrapped == nil {
 		return ErrInstanceNotInitialised
@@ -172,6 +167,10 @@ func (i *Instance) DefineFunction(ctx context.Context, name string, fn HostFunc)
 // result is unwrapped here rather than encoded as the Value wrapper, which the
 // codec would otherwise take for an ordinary Go struct.
 func hostFunc(fn HostFunc) host.HostFunc {
+	if fn == nil {
+		return nil
+	}
+
 	return func(ctx context.Context, args []value.Value) (value.Value, error) {
 		result, err := fn(ctx, wrapValues(args))
 		if err != nil {
@@ -182,16 +181,9 @@ func hostFunc(fn HostFunc) host.HostFunc {
 	}
 }
 
-// Cancel interrupts any Python execution currently in flight on this instance.
-// The running code receives a KeyboardInterrupt.
-//
-// Safe from any goroutine. Cancelling an idle interpreter is also safe but does
-// nothing: the request is cleared when the next call begins, so it cannot make
-// a later call fail.
-//
-// It is best effort. The request lands at the next VM hook, so a guest inside
-// one long C-level operation -- a regex match, a big-int multiply, a sort --
-// does not stop until that finishes.
+// Cancel requests a KeyboardInterrupt in the current Python execution.
+// It is safe from any goroutine and does not affect the next operation.
+// Interruption is best effort: long C-level operations may delay it.
 func (i *Instance) Cancel() error {
 	if i.wrapped == nil {
 		return ErrInstanceNotInitialised
@@ -200,16 +192,8 @@ func (i *Instance) Cancel() error {
 	return nil
 }
 
-// func (i *Instance) Context() context.Context {
-// 	// context.WithC
-// 	i.wrapped
-// }
-
-// Call invokes a Python global function by name, passing the provided arguments,
-// and returns its result translated into a native Go value.
-//
-// Because the Instance is stateful, the Python function may interact with or mutate
-// globals that persist after the Call returns.
+// Call invokes a Python global function. Arguments may be Go values or [Value]
+// builders; the result is a Value. Python state changes persist after the call.
 func (i *Instance) Call(ctx context.Context, name string, args ...any) (Value, error) {
 	if i.wrapped == nil {
 		return Value{}, ErrInstanceNotInitialised
@@ -223,11 +207,9 @@ func (i *Instance) Call(ctx context.Context, name string, args ...any) (Value, e
 	return wrapValue(out), nil
 }
 
-// Clone captures a snapshot of the interpreter's current memory and returns a completely
-// independent Instance starting from that exact state.
-//
-// Cloning momentarily locks the underlying interpreter while the memory is copied,
-// meaning no other calls can execute until the clone is complete.
+// Clone copies the current Python state into a new, caller-owned Instance.
+// It briefly locks the source. Go callback closures and output writers are shared;
+// guest handles cannot be transferred between instances.
 func (i *Instance) Clone(ctx context.Context) (*Instance, error) {
 	if i.wrapped == nil {
 		return nil, ErrInstanceNotInitialised
@@ -241,10 +223,8 @@ func (i *Instance) Clone(ctx context.Context) (*Instance, error) {
 	return fromSnapshot(snap)
 }
 
-// Close gracefully tears down the instance, interrupting any currently executing
-// logic and freeing the underlying WebAssembly memory.
-//
-// Subsequent operations on this Instance will return ErrClosed.
+// Close interrupts active execution and closes the interpreter.
+// Later execution attempts return [ErrClosed].
 func (i *Instance) Close() error {
 	if i.wrapped == nil {
 		return ErrInstanceNotInitialised
@@ -252,10 +232,8 @@ func (i *Instance) Close() error {
 	return i.wrapped.Close()
 }
 
-// Eval evaluates a single Python expression (e.g., "1 + 1" or "my_dict['key']")
-// and returns the resulting native Go value.
-//
-// Unlike Exec, Eval cannot execute multi-line statements or variable assignments.
+// Eval evaluates a Python expression and returns its Value.
+// Use [Instance.Exec] for statements and assignments.
 func (i *Instance) Eval(ctx context.Context, expr string) (Value, error) {
 	if i.wrapped == nil {
 		return Value{}, ErrInstanceNotInitialised
@@ -269,11 +247,8 @@ func (i *Instance) Eval(ctx context.Context, expr string) (Value, error) {
 	return wrapValue(out), nil
 }
 
-// Exec runs arbitrary Python source code as a script. Anything the script
-// prints is captured the default writer passed to WithStdout, if there is one.
-//
-// Variables, imports, and functions defined during Exec will remain available
-// in the Instance for future calls to Eval, Exec, or Call.
+// Exec runs Python statements, preserving their state changes.
+// Output goes to [WithStdout], or is discarded by default.
 func (i *Instance) Exec(ctx context.Context, src string) error {
 	if i.wrapped == nil {
 		return ErrInstanceNotInitialised
@@ -281,11 +256,7 @@ func (i *Instance) Exec(ctx context.Context, src string) error {
 	return i.wrapped.Exec(ctx, src)
 }
 
-// Err reports whether the interpreter is in an unrecoverable state.
-//
-// It returns nil if the instance is healthy. If the WebAssembly VM experienced
-// a fatal trap (like memory corruption) or the instance was explicitly Closed,
-// this returns the corresponding error.
+// Err returns the interpreter's fatal error or [ErrClosed], or nil if healthy.
 func (i *Instance) Err() error {
 	if i.wrapped == nil {
 		return ErrInstanceNotInitialised
@@ -306,8 +277,4 @@ func (i *Instance) restore(s *api.Snapshot) error {
 		return ErrInstanceNotInitialised
 	}
 	return i.wrapped.Restore(context.Background(), s)
-}
-
-func (i *Instance) Int(n int64) value.Int {
-	return value.Int(n)
 }

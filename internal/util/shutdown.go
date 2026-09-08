@@ -6,9 +6,8 @@ import (
 )
 
 type Signaller struct {
-	ch       chan struct{}
-	stopOnce sync.Once
-	mu       sync.RWMutex
+	mu sync.RWMutex
+	ch chan struct{}
 }
 
 func NewSignaller() *Signaller {
@@ -18,39 +17,45 @@ func NewSignaller() *Signaller {
 }
 
 func (s *Signaller) Trigger() {
-	s.stopOnce.Do(func() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	select {
+	case <-s.ch:
+	default:
 		close(s.ch)
-	})
+	}
 }
 
-// func (s *Signaller) Reset() {
-// 	s.mu.Lock()
-// 	defer s.mu.Unlock()
+func (s *Signaller) Reset() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
-// 	s.stopOnce = sync.Once{}
-// 	s.ch = make(chan struct{}, 1)
-// }
-
-// func (s *Signaller) TriggerInterrupt() {
-// 	select {
-// 	case s.ch <- struct{}{}:
-// 	default:
-// 	}
-// }
+	select {
+	case <-s.ch:
+		s.ch = make(chan struct{}, 1)
+	default:
+	}
+}
 
 func (s *Signaller) StopChan() <-chan struct{} {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
 	return s.ch
 }
 
 func (s *Signaller) Context(ctx context.Context) (context.Context, context.CancelFunc) {
-	var cancel context.CancelFunc
-	ctx, cancel = context.WithCancel(ctx)
+	ctx, cancel := context.WithCancel(ctx)
+	stop := s.StopChan()
+
 	go func() {
 		select {
 		case <-ctx.Done():
-		case <-s.ch:
+		case <-stop:
 		}
 		cancel()
 	}()
+
 	return ctx, cancel
 }

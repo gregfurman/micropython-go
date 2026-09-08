@@ -54,8 +54,7 @@ func (i *Module) dispatch(funcID, argsPtr, argsSize, outPtr, outCapacity int32) 
 		return fmt.Errorf("invalid callback argument tuple (max %d arguments)", maxHostArgs)
 	}
 
-	ctx, cancel :=
-		i.Context(context.Background())
+	ctx, cancel := i.Context(context.Background())
 	defer cancel()
 
 	out, err := fn(ctx, args)

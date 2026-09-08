@@ -37,7 +37,7 @@ func Example() {
 func ExampleValue() {
 	ctx := context.Background()
 
-	p, err := micropython.CompileSource(ctx, "def kind(v):\n    return type(v).__name__\n")
+	p, err := micropython.Compile(ctx, "def kind(v):\n    return type(v).__name__\n")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -47,8 +47,12 @@ func ExampleValue() {
 		[]any{1, 2},
 		micropython.Tuple(micropython.Int(1), micropython.Int(2)),
 	} {
-		got, err := p.Call(ctx, "kind", v)
-		if err != nil {
+		var got micropython.Value
+		if err := p.Run(ctx, func(ctx context.Context, in *micropython.OwnedInstance) error {
+			v, err := in.Call(ctx, "kind", v)
+			got = v
+			return err
+		}); err != nil {
 			log.Fatal(err)
 		}
 		fmt.Println(got)
@@ -64,7 +68,7 @@ func ExampleValue() {
 func ExampleWithGlobals() {
 	ctx := context.Background()
 
-	p, err := micropython.CompileSource(ctx, `
+	p, err := micropython.Compile(ctx, `
 def describe():
     return "%s allows %d retries" % (NAME, LIMITS["retries"])
 `, micropython.WithGlobals(micropython.Globals{
@@ -76,8 +80,12 @@ def describe():
 	}
 	defer p.Close()
 
-	got, err := p.Call(ctx, "describe")
-	if err != nil {
+	var got micropython.Value
+	if err := p.Run(ctx, func(ctx context.Context, in *micropython.OwnedInstance) error {
+		v, err := in.Call(ctx, "describe")
+		got = v
+		return err
+	}); err != nil {
 		log.Fatal(err)
 	}
 	fmt.Println(got)
@@ -134,19 +142,27 @@ func ExampleInstance_DefineFunction() {
 func ExamplePythonError() {
 	ctx := context.Background()
 
-	p, err := micropython.CompileSource(ctx, "def lookup(key):\n    return {\"a\": 1}[key]\n")
+	p, err := micropython.Compile(ctx, "def lookup(key):\n    return {\"a\": 1}[key]\n")
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer p.Close()
 
 	var exc *micropython.PythonError
-	if _, err := p.Call(ctx, "lookup", "missing"); errors.As(err, &exc) {
+	err = p.Run(ctx, func(ctx context.Context, in *micropython.OwnedInstance) error {
+		_, err := in.Call(ctx, "lookup", "missing")
+		return err
+	})
+	if errors.As(err, &exc) {
 		fmt.Println(exc.Type(), "/", exc.Message())
 	}
 
-	got, err := p.Call(ctx, "lookup", "a")
-	if err != nil {
+	var got micropython.Value
+	if err := p.Run(ctx, func(ctx context.Context, in *micropython.OwnedInstance) error {
+		v, err := in.Call(ctx, "lookup", "a")
+		got = v
+		return err
+	}); err != nil {
 		log.Fatal(err)
 	}
 	fmt.Println(got)

@@ -61,7 +61,7 @@ func (i *Instance) Call(ctx context.Context, name string, args ...any) (out valu
 	return out, err
 }
 
-func (i *Instance) Set(ctx context.Context, name string, v value.Value) error {
+func (i *Instance) Set(ctx context.Context, name string, v any) error {
 	return i.run(ctx, func(rt *host.Module) error { return rt.Set(name, v) })
 }
 
@@ -79,6 +79,13 @@ func (i *Instance) Resolve(ctx context.Context, obj value.Object) (out value.Val
 		return err
 	})
 	return out, err
+}
+
+func (i *Instance) Release(ctx context.Context, refs ...*value.Ref) error {
+	return i.run(ctx, func(rt *host.Module) error {
+		rt.Release(refs...)
+		return nil
+	})
 }
 
 // NextGenerator advances a guest generator while holding the instance lock.

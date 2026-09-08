@@ -24,7 +24,7 @@ def score(row):
 func main() {
 	ctx := context.Background()
 
-	p, err := micropython.CompileSource(ctx, src, micropython.WithPoolSize(4))
+	p, err := micropython.Compile(ctx, src, micropython.WithMaxIdle(4))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -39,12 +39,21 @@ func main() {
 		wg.Go(func() {
 			row := map[string]any{"id": fmt.Sprintf("r-%d", i), "a": i, "b": 1}
 
-			got, err := p.Call(ctx, "score", row)
-			if err != nil {
+			// Run borrows a pooled interpreter for the duration of the
+			// callback. Copy out what is needed before it returns: the
+			// interpreter is rewound to the compiled state afterwards.
+			var out map[string]any
+			if err := p.Run(ctx, func(ctx context.Context, in *micropython.OwnedInstance) error {
+				got, err := in.Call(ctx, "score", row)
+				if err != nil {
+					return err
+				}
+				out = got.Export().(map[string]any)
+				return nil
+			}); err != nil {
 				log.Fatal(err)
 			}
 
-			out := got.Export().(map[string]any)
 			mu.Lock()
 			defer mu.Unlock()
 			// calls is always 1: every call starts from the compiled state, so

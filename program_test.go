@@ -53,7 +53,7 @@ def double(n):
 
 func newProgram(t *testing.T) *Program {
 	t.Helper()
-	p, err := CompileSource(t.Context(), handlerSrc)
+	p, err := Compile(t.Context(), handlerSrc)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -64,7 +64,7 @@ func newProgram(t *testing.T) *Program {
 func TestProgramCall(t *testing.T) {
 	p := newProgram(t)
 
-	got, err := p.Call(t.Context(), "score", map[string]any{"id": "r-1", "a": 4, "b": 5})
+	got, err := progCall(t.Context(), p, "score", map[string]any{"id": "r-1", "a": 4, "b": 5})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -78,13 +78,13 @@ func TestProgramError(t *testing.T) {
 	p := newProgram(t)
 
 	var exc *PythonError
-	if _, err := p.Call(t.Context(), "boom"); !errors.As(err, &exc) {
+	if _, err := progCall(t.Context(), p, "boom"); !errors.As(err, &exc) {
 		t.Fatalf("got %v (%T), want *Exception", err, err)
 	} else if exc.Type() != "ValueError" {
 		t.Errorf("Type = %q, want ValueError", exc.Type())
 	}
 
-	if _, err := p.Call(t.Context(), "score", map[string]any{"id": "x", "a": 1, "b": 1}); err != nil {
+	if _, err := progCall(t.Context(), p, "score", map[string]any{"id": "x", "a": 1, "b": 1}); err != nil {
 		t.Errorf("after error: %v", err)
 	}
 }
@@ -101,7 +101,7 @@ func TestProgramConcurrent(t *testing.T) {
 		wg.Go(func() {
 			for i := range each {
 				row := map[string]any{"id": "r", "a": int64(g), "b": int64(i)}
-				got, err := p.Call(t.Context(), "score", row)
+				got, err := progCall(t.Context(), p, "score", row)
 				if err != nil {
 					errs <- err
 					return
@@ -127,20 +127,20 @@ func TestProgramConcurrent(t *testing.T) {
 }
 
 func TestProgramClose(t *testing.T) {
-	p, err := CompileSource(t.Context(), handlerSrc)
+	p, err := Compile(t.Context(), handlerSrc)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if err := p.Close(); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := p.Call(t.Context(), "score", map[string]any{"id": "x", "a": 1, "b": 1}); !errors.Is(err, ErrClosed) {
+	if _, err := progCall(t.Context(), p, "score", map[string]any{"id": "x", "a": 1, "b": 1}); !errors.Is(err, ErrClosed) {
 		t.Errorf("after Close: %v, want ErrClosed", err)
 	}
 }
 
 func TestPoolBounded(t *testing.T) {
-	p, err := CompileSource(t.Context(), "def f(n):\n    return n\n", WithPoolSize(12))
+	p, err := Compile(t.Context(), "def f(n):\n    return n\n", WithMaxIdle(12))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -155,7 +155,7 @@ func TestPoolBounded(t *testing.T) {
 	for i := range burst {
 		wg.Go(func() {
 			<-start // all in flight at once, forcing the pool to grow
-			if _, err := p.Call(t.Context(), "f", int64(i)); err != nil {
+			if _, err := progCall(t.Context(), p, "f", int64(i)); err != nil {
 				t.Error(err)
 			}
 		})
@@ -172,13 +172,13 @@ func TestPoolBounded(t *testing.T) {
 		t.Errorf("pool kept %d idle interpreters, want at most %d", idle, max)
 	}
 
-	if got, err := p.Call(t.Context(), "f", int64(7)); err != nil || got.Export() != int64(7) {
+	if got, err := progCall(t.Context(), p, "f", int64(7)); err != nil || got.Export() != int64(7) {
 		t.Errorf("after burst: %#v, %v", got, err)
 	}
 }
 
 func TestProgramCallsDoNotLeakState(t *testing.T) {
-	p, err := CompileSource(t.Context(), `
+	p, err := Compile(t.Context(), `
 counter = 0
 
 def bump():
@@ -200,7 +200,7 @@ def peek():
 	defer p.Close()
 
 	for i := range 5 {
-		got, err := p.Call(t.Context(), "bump")
+		got, err := progCall(t.Context(), p, "bump")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -209,10 +209,10 @@ def peek():
 		}
 	}
 
-	if _, err := p.Call(t.Context(), "stash", "dirty"); err != nil {
+	if _, err := progCall(t.Context(), p, "stash", "dirty"); err != nil {
 		t.Fatal(err)
 	}
-	got, err := p.Call(t.Context(), "peek")
+	got, err := progCall(t.Context(), p, "peek")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -226,7 +226,7 @@ func TestProgramsAreIndependent(t *testing.T) {
 
 	programs := make([]*Program, n)
 	for i := range programs {
-		p, err := CompileSource(t.Context(), fmt.Sprintf(counterSrc, fmt.Sprintf("p%d", i)))
+		p, err := Compile(t.Context(), fmt.Sprintf(counterSrc, fmt.Sprintf("p%d", i)))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -235,7 +235,7 @@ func TestProgramsAreIndependent(t *testing.T) {
 	}
 
 	for i, p := range programs {
-		got, err := p.Call(t.Context(), "name")
+		got, err := progCall(t.Context(), p, "name")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -244,22 +244,22 @@ func TestProgramsAreIndependent(t *testing.T) {
 		}
 	}
 
-	if _, err := programs[0].Call(t.Context(), "exec", "extra = 1"); err == nil {
+	if _, err := progCall(t.Context(), programs[0], "exec", "extra = 1"); err == nil {
 		t.Log("note: exec reachable as a global")
 	}
 	for i, p := range programs {
-		if _, err := p.Call(t.Context(), "no_such_function"); err == nil {
+		if _, err := progCall(t.Context(), p, "no_such_function"); err == nil {
 			t.Errorf("program %d resolved a name that does not exist", i)
 		}
 	}
 }
 
 func TestProgramCloseIsLocal(t *testing.T) {
-	a, err := CompileSource(t.Context(), fmt.Sprintf(counterSrc, "a"))
+	a, err := Compile(t.Context(), fmt.Sprintf(counterSrc, "a"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	b, err := CompileSource(t.Context(), fmt.Sprintf(counterSrc, "b"))
+	b, err := Compile(t.Context(), fmt.Sprintf(counterSrc, "b"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -268,11 +268,11 @@ func TestProgramCloseIsLocal(t *testing.T) {
 	if err := a.Close(); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := a.Call(t.Context(), "name"); err == nil {
+	if _, err := progCall(t.Context(), a, "name"); err == nil {
 		t.Error("a closed Program still served a call")
 	}
 
-	got, err := b.Call(t.Context(), "name")
+	got, err := progCall(t.Context(), b, "name")
 	if err != nil || got.Export() != "b" {
 		t.Errorf("after closing a: b.name() = %v, %v", got, err)
 	}
@@ -285,7 +285,7 @@ func TestProgramsConcurrentAcrossPrograms(t *testing.T) {
 	errs := make(chan error, programs*goroutines)
 
 	for i := range programs {
-		p, err := CompileSource(t.Context(), fmt.Sprintf(counterSrc, fmt.Sprintf("p%d", i)))
+		p, err := Compile(t.Context(), fmt.Sprintf(counterSrc, fmt.Sprintf("p%d", i)))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -297,7 +297,7 @@ func TestProgramsConcurrentAcrossPrograms(t *testing.T) {
 			go func(p *Program, want string) {
 				defer wg.Done()
 				for range calls {
-					got, err := p.Call(t.Context(), "name")
+					got, err := progCall(t.Context(), p, "name")
 					if err != nil {
 						errs <- err
 						return
@@ -319,14 +319,14 @@ func TestProgramsConcurrentAcrossPrograms(t *testing.T) {
 }
 
 func TestProgramRepeatedCalls(t *testing.T) {
-	p, err := CompileSource(t.Context(), fmt.Sprintf(counterSrc, "x"))
+	p, err := Compile(t.Context(), fmt.Sprintf(counterSrc, "x"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer p.Close()
 
 	for i := range 50 {
-		got, err := p.Call(t.Context(), "bump")
+		got, err := progCall(t.Context(), p, "bump")
 		if err != nil {
 			t.Fatalf("call %d: %v", i, err)
 		}
@@ -337,7 +337,7 @@ func TestProgramRepeatedCalls(t *testing.T) {
 }
 
 func TestProgramRealisticHandler(t *testing.T) {
-	p, err := CompileSource(t.Context(), `
+	p, err := Compile(t.Context(), `
 import json
 import re
 
@@ -374,7 +374,7 @@ def handle(request):
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := p.Call(t.Context(), "handle", map[string]any{"body": tt.body})
+			got, err := progCall(t.Context(), p, "handle", map[string]any{"body": tt.body})
 			if err != nil {
 				t.Fatalf("handle: %v", err)
 			}
@@ -388,7 +388,7 @@ def handle(request):
 		})
 	}
 
-	if _, err := p.Call(t.Context(), "handle", Of(map[string]any{"body": "{not json"})); err == nil {
+	if _, err := progCall(t.Context(), p, "handle", Of(map[string]any{"body": "{not json"})); err == nil {
 		t.Error("malformed JSON was accepted")
 	}
 }
@@ -406,13 +406,13 @@ func TestCompileRejects(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p, err := CompileSource(t.Context(), tt.src)
+			p, err := Compile(t.Context(), tt.src)
 			if err == nil {
 				p.Close()
 				t.Fatalf("Compile accepted %q", tt.src)
 			}
 			if !strings.Contains(err.Error(), tt.want) {
-				t.Errorf("CompileSource(%q) = %v, want it to mention %s", tt.src, err, tt.want)
+				t.Errorf("Compile(%q) = %v, want it to mention %s", tt.src, err, tt.want)
 			}
 		})
 	}
@@ -420,7 +420,7 @@ func TestCompileRejects(t *testing.T) {
 
 func spinner(t *testing.T) *Program {
 	t.Helper()
-	p, err := CompileSource(context.Background(), spinSrc)
+	p, err := Compile(context.Background(), spinSrc)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -435,7 +435,7 @@ func TestCancelDeadline(t *testing.T) {
 	defer cancel()
 
 	start := time.Now()
-	_, err := p.Call(ctx, "spin")
+	_, err := progCall(ctx, p, "spin")
 	elapsed := time.Since(start)
 
 	if !errors.Is(err, context.DeadlineExceeded) {
@@ -445,7 +445,7 @@ func TestCancelDeadline(t *testing.T) {
 		t.Errorf("took %v to stop, want promptly after the deadline", elapsed)
 	}
 
-	if got, err := p.Call(context.Background(), "double", int64(21)); err != nil || got.Export() != int64(42) {
+	if got, err := progCall(context.Background(), p, "double", int64(21)); err != nil || got.Export() != int64(42) {
 		t.Errorf("after cancellation: %#v, %v", got, err)
 	}
 }
@@ -456,10 +456,10 @@ func TestCancelBeforeCall(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	if _, err := p.Call(ctx, "spin"); !errors.Is(err, context.Canceled) {
+	if _, err := progCall(ctx, p, "spin"); !errors.Is(err, context.Canceled) {
 		t.Fatalf("spin() = %v, want Canceled", err)
 	}
-	if got, err := p.Call(context.Background(), "double", int64(1)); err != nil || got.Export() != int64(2) {
+	if got, err := progCall(context.Background(), p, "double", int64(1)); err != nil || got.Export() != int64(2) {
 		t.Errorf("after a pre-cancelled call: %#v, %v", got, err)
 	}
 }
@@ -472,7 +472,7 @@ func TestCancelIsNotSwallowedByBareExcept(t *testing.T) {
 
 	done := make(chan error, 1)
 	go func() {
-		_, err := p.Call(ctx, "spin_swallowing")
+		_, err := progCall(ctx, p, "spin_swallowing")
 		done <- err
 	}()
 
@@ -487,7 +487,7 @@ func TestCancelIsNotSwallowedByBareExcept(t *testing.T) {
 }
 
 func TestCancelIsPerCall(t *testing.T) {
-	p, err := CompileSource(context.Background(), `
+	p, err := Compile(context.Background(), `
 def work(n):
     total = 0
     for i in range(n):
@@ -505,7 +505,7 @@ def spin():
 
 	long := make(chan error, 1)
 	go func() {
-		_, err := p.Call(context.Background(), "work", int64(2_000_000))
+		_, err := progCall(context.Background(), p, "work", int64(2_000_000))
 		long <- err
 	}()
 
@@ -513,7 +513,7 @@ def spin():
 	time.Sleep(50 * time.Millisecond)
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
-	if _, err := p.Call(ctx, "spin"); !errors.Is(err, context.DeadlineExceeded) {
+	if _, err := progCall(ctx, p, "spin"); !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("spin() = %v, want DeadlineExceeded", err)
 	}
 
@@ -552,19 +552,19 @@ func TestProgramHostFunc(t *testing.T) {
 
 	// The pool holds one idle instance, so concurrent calls have to restore
 	// fresh ones from the snapshot. That is the path the binding must survive.
-	p, err := CompileSource(ctx, `
+	p, err := Compile(ctx, `
 def convert(code, amount):
     return round(usd(code, amount), 2)
 `,
 		WithHostFunc("usd", usd),
-		WithPoolSize(5),
+		WithMaxIdle(5),
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer p.Close()
 
-	got, err := p.Call(ctx, "convert", "EUR", 100)
+	got, err := progCall(ctx, p, "convert", "EUR", 100)
 	if err != nil {
 		t.Fatalf("convert: %v", err)
 	}
@@ -579,7 +579,7 @@ def convert(code, amount):
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			v, err := p.Call(ctx, "convert", "GBP", 10)
+			v, err := progCall(ctx, p, "convert", "GBP", 10)
 			if err != nil {
 				errs[i] = err
 				return
@@ -606,7 +606,7 @@ func TestProgramHostFuncAtModuleLevel(t *testing.T) {
 	ctx := context.Background()
 
 	var calls atomic.Int64
-	p, err := CompileSource(ctx, `
+	p, err := Compile(ctx, `
 LIMIT = fetch_limit()
 
 def within(n):
@@ -626,7 +626,7 @@ def within(n):
 		n    int
 		want bool
 	}{{3, true}, {5, true}, {6, false}} {
-		got, err := p.Call(ctx, "within", tc.n)
+		got, err := progCall(ctx, p, "within", tc.n)
 		if err != nil {
 			t.Fatalf("within(%d): %v", tc.n, err)
 		}
@@ -643,7 +643,7 @@ def within(n):
 func TestProgramHostFuncError(t *testing.T) {
 	ctx := context.Background()
 
-	p, err := CompileSource(ctx, `
+	p, err := Compile(ctx, `
 def lookup(code):
     try:
         return rate(code)
@@ -660,7 +660,7 @@ def lookup(code):
 	}
 	defer p.Close()
 
-	got, err := p.Call(ctx, "lookup", "ZAR")
+	got, err := progCall(ctx, p, "lookup", "ZAR")
 	if err != nil {
 		t.Fatalf("lookup: %v", err)
 	}
@@ -668,7 +668,7 @@ def lookup(code):
 		t.Fatalf("got %v, want nil", got)
 	}
 
-	if _, err := p.Call(ctx, "rate", "ZAR"); err == nil {
+	if _, err := progCall(ctx, p, "rate", "ZAR"); err == nil {
 		t.Fatal("want an error")
 	} else {
 		var exc *PythonError
@@ -680,7 +680,7 @@ def lookup(code):
 		}
 	}
 
-	if _, err := p.Call(ctx, "lookup", "ZAR"); err != nil {
+	if _, err := progCall(ctx, p, "lookup", "ZAR"); err != nil {
 		t.Fatalf("after error: %v", err)
 	}
 }
@@ -697,7 +697,7 @@ func TestProgramStdout(t *testing.T) {
 
 	out := new(bytes.Buffer)
 
-	p, err := CompileSource(t.Context(), `
+	p, err := Compile(t.Context(), `
 def handle():
 	while spin():
 		print("duck")
@@ -707,7 +707,7 @@ def handle():
 		t.Fatalf("compile: %v", err)
 	}
 
-	if _, err := p.Call(t.Context(), "handle"); err != nil {
+	if _, err := progCall(t.Context(), p, "handle"); err != nil {
 		t.Fatalf("call: %v", err)
 	}
 
@@ -739,8 +739,8 @@ func TestProgramStdoutConcurrent(t *testing.T) {
 	const workers = 8
 
 	out := new(syncBuffer)
-	p, err := CompileSource(t.Context(), "def handle(n):\n    print('n', n)\n",
-		WithStdout(out), WithPoolSize(workers))
+	p, err := Compile(t.Context(), "def handle(n):\n    print('n', n)\n",
+		WithStdout(out), WithMaxIdle(workers))
 	if err != nil {
 		t.Fatalf("compile: %v", err)
 	}
@@ -751,7 +751,7 @@ func TestProgramStdoutConcurrent(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			if _, err := p.Call(t.Context(), "handle", i); err != nil {
+			if _, err := progCall(t.Context(), p, "handle", i); err != nil {
 				t.Errorf("call %d: %v", i, err)
 			}
 		}()
@@ -769,5 +769,77 @@ func TestProgramStdoutConcurrent(t *testing.T) {
 		if want := fmt.Sprint(i); !strings.Contains(got, want) {
 			t.Errorf("output for call %d is missing entirely:\n%s", i, got)
 		}
+	}
+}
+
+// progCall runs one function call on a pooled interpreter, the shape
+// Program.Call used to have. Results carrying guest handles do not outlive the
+// run, so every caller here asks for plain data.
+func progCall(ctx context.Context, p *Program, name string, args ...any) (Value, error) {
+	var out Value
+	err := p.Run(ctx, func(ctx context.Context, in *OwnedInstance) error {
+		v, err := in.Call(ctx, name, args...)
+		if err != nil {
+			return err
+		}
+		out = v
+		return nil
+	})
+	return out, err
+}
+
+// The context a run hands its callback is the caller's with the borrow's
+// lifetime added. Cancelling it as the callback returns is what lets anything
+// the callback leaves running notice, rather than going on to use an
+// interpreter that by then belongs to another run.
+func TestRunContextEndsWithTheBorrow(t *testing.T) {
+	p, err := Compile(t.Context(), "def f():\n    return 1\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer p.Close()
+
+	var borrowed context.Context
+	err = p.Run(t.Context(), func(ctx context.Context, in *OwnedInstance) error {
+		borrowed = ctx
+		if err := ctx.Err(); err != nil {
+			t.Errorf("the callback context was already cancelled: %v", err)
+		}
+		_, err := in.Call(ctx, "f")
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := borrowed.Err(); !errors.Is(err, context.Canceled) {
+		t.Errorf("after Run the callback context reports %v, want it cancelled", err)
+	}
+}
+
+// A cancelled caller is reported rather than silently borrowing an interpreter,
+// and a nil callback is a mistake rather than a panic.
+func TestRunRejectsBadInput(t *testing.T) {
+	p, err := Compile(t.Context(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer p.Close()
+
+	if err := p.Run(t.Context(), nil); err == nil {
+		t.Error("Run accepted a nil callback")
+	}
+
+	cancelled, cancel := context.WithCancel(t.Context())
+	cancel()
+	ran := false
+	if err := p.Run(cancelled, func(context.Context, *OwnedInstance) error {
+		ran = true
+		return nil
+	}); !errors.Is(err, context.Canceled) {
+		t.Errorf("Run on a cancelled context = %v, want context.Canceled", err)
+	}
+	if ran {
+		t.Error("Run invoked the callback despite a cancelled context")
 	}
 }

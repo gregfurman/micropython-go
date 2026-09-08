@@ -24,11 +24,11 @@ type Module struct {
 func New(v0 Xenv) *Module {
 	m := new(Module)
 	m._env = v0
-	m.t0 = make([]any, 555)
+	m.t0 = make([]any, 552)
 	m.maxMem = 65536
 	m.memImp = v0.Xmemory()
 	m.memory = m.memImp.Slice()
-	m.elements = [][]any{{m._nlr_push_tail, m._value_from_mp_obj, m._pending_refs_clear, m._nlr_jump, m._pending_refs_commit, m._nlr_pop, m._m_free, m._mp_raise_ValueError, m._arena_alloc, m._mp_raise_msg, m._ref_release, m._ref_add, m._vstr_init_print, m._mp_obj_get_type_str, m._vstr_add_str, m._vstr_add_char, m._mp_obj_print_helper, m._mp_obj_print_exception, m._value_take_vstr, m._mp_lexer_new_from_str_len, m._mp_parse, m._mp_compile, m._mp_call_function_0, m._value_from_mp_obj_committed, m._output_arena_reset, m._value_from_mp_exception, m._generic_host_invoke, m._output_arena_init, m._ref_get, m._output_arena_status, m._qstr_from_strn, m._mp_load_global, m._mp_obj_is_callable, m._mp_raise_TypeError, m._obj_from_value, m._mp_call_function_n_kw, m._mp_iternext, m._mp_store_global, m._mp_builtin_open, m._go_ref_add, m._mp_obj_list_append, m._go_ref_free, m._mp_obj_exception_make_new, m._mp_obj_exception_print, m._mp_obj_exception_attr, m._mp_globals_locals_set_from_nlr_jump_callback, m._mp_builtin_compile, m._mp_builtin_eval, m._mp_builtin_exec, m._unregister_module_from_nlr_jump_callback, m._mp_builtin___import___default, m._c_del_stmt, m._compile_dotted_as_name, m._compile_funcdef_lambdef_param, m._compile_generic_all_nodes, m._compile_decorated, m._compile_funcdef, m._compile_expr_stmt, m._compile_generic_tuple, m._compile_del_stmt, m._compile_break_cont_stmt, m._compile_return_stmt, m._compile_yield_stmt, m._compile_raise_stmt, m._compile_import_name, m._compile_import_from, m._compile_global_nonlocal_stmt, m._compile_assert_stmt, m._compile_if_stmt, m._compile_while_stmt, m._compile_for_stmt, m._compile_try_stmt, m._compile_with_stmt, m._compile_namedexpr, m._compile_test_if_expr, m._compile_lambdef, m._compile_or_and_test, m._compile_not_test_2, m._compile_comparison, m._compile_star_expr, m._compile_binary_op, m._compile_term, m._compile_factor_2, m._compile_power, m._compile_atom_expr_normal, m._compile_atom_paren, m._compile_atom_bracket, m._compile_atom_brace, m._compile_trailer_paren, m._compile_trailer_bracket, m._compile_trailer_period, m._compile_subscript, m._compile_dictorsetmaker_item, m._compile_classdef, m._compile_yield_expr, m._compile_const_object, m._emit_get_cur_to_write_code_info, m._emit_get_cur_to_write_bytecode, m._mp_emit_bc_load_local, m._mp_emit_bc_load_global, m._mp_emit_bc_store_local, m._mp_emit_bc_store_global, m._mp_emit_bc_delete_local, m._mp_emit_bc_delete_global, m._mp_builtin___build_class__, m._mp_builtin_abs, m._mp_builtin_all, m._mp_builtin_any, m._mp_builtin_bin, m._mp_builtin_callable, m._mp_builtin_chr, m._mp_builtin_dir, m._mp_builtin_divmod, m._mp_builtin_hash, m._mp_builtin_hex, m._mp_builtin_iter, m._mp_builtin_max, m._mp_builtin_min, m._mp_builtin_next, m._mp_builtin_oct, m._mp_builtin_ord, m._mp_builtin_pow, m._mp_builtin_print, m._mp_builtin___repl_print__, m._mp_builtin_repr, m._mp_builtin_round, m._mp_builtin_sum, m._mp_builtin_sorted, m._mp_builtin_getattr, m._mp_builtin_setattr, m._mp_builtin_delattr, m._mp_builtin_hasattr, m._mp_builtin_globals, m._mp_builtin_locals, m._mp_obj_id, m._mp_obj_len, m._mp_obj_new_template, m._py_gc_collect, m._gc_disable, m._gc_enable, m._gc_isenabled, m._gc_mem_free, m._gc_mem_alloc, _iobase_make_new, m._iobase_read, m._iobase_write, m._iobase_ioctl, m._bufwriter_make_new, m._bufwriter_write, m._bufwriter_flush, _sqrt, m._pow, m._cos, m._sin, m._tan, m._acos, m._asin, m._atan, m._atan2, _copysign_func, m._mp_math_sqrt, m._mp_math_pow, m._mp_math_exp, m._mp_math_log, m._mp_math_cos, m._mp_math_sin, m._mp_math_tan, m._mp_math_acos, m._mp_math_asin, m._mp_math_atan, m._mp_math_atan2, m._mp_math_ceil, m._mp_math_copysign, m._mp_math_fabs, m._mp_math_floor, m._mp_math_fmod, m._mp_math_frexp, m._mp_math_ldexp, m._mp_math_modf, m._mp_math_isfinite, m._mp_math_isinf, m._mp_math_isnan, m._mp_math_trunc, m._mp_math_radians, m._mp_math_degrees, m._mp_micropython_opt_level, m._mp_micropython_heap_lock, m._mp_micropython_heap_unlock, m._struct_calcsize, m._struct_unpack_from, m._struct_pack, m._struct_pack_into, m._mp_sys_exit, m._mp_sys_print_exception, m._mp_sys_getsizeof, m._mp_call_function_1, m._mp_printf, m._mp_obj_ref_make_new, m._mp_obj_ref_call, m._ref___del__, m._mp_obj_finalize_attr, m._finalize_peek, m._finalize_detach, m._plat_print_strn, m._mp_obj_instance_call, _mp_identity, m._array_append, m._array_extend, m._array_make_new, m._array_print, m._array_iterator_new, m._array_unary_op, m._array_binary_op, m._array_subscr, m._array_get_buffer, m._bytearray_make_new, m._memoryview_make_new, m._memoryview_attr, m._array_it_iternext, m._mp_obj_attrtuple_print, m._mp_obj_tuple_unary_op, m._mp_obj_tuple_binary_op, m._mp_obj_attrtuple_attr, m._mp_obj_tuple_subscr, m._mp_obj_tuple_getiter, m._bool_make_new, m._bool_print, m._bool_unary_op, m._bool_binary_op, m._bound_meth_attr, m._bound_meth_call, m._bound_meth_unary_op, m._bound_meth_binary_op, m._mp_obj_closure_attr, m._closure_call, m._complex_make_new, m._complex_print, m._complex_unary_op, m._complex_binary_op, m._complex_attr, m._deque_it_iternext, m._deque_make_new, m._deque_unary_op, m._deque_subscr, m._mp_obj_new_deque_it, m._mp_obj_deque_append, m._mp_obj_deque_appendleft, m._mp_obj_deque_extend, m._deque_pop, m._deque_popleft, m._mp_obj_dict_make_new, m._mp_obj_str_binary_op, m._dict_print, m._dict_unary_op, m._dict_binary_op, m._dict_subscr, m._dict_getiter, m._dict_view_it_iternext, m._dict_clear, m._mp_obj_dict_copy, m._dict_get, m._dict_items, m._dict_keys, m._dict_pop, m._dict_popitem, m._dict_setdefault, m._dict_update, m._dict_values, m._dict_fromkeys, m._dict_view_print, m._dict_view_unary_op, m._dict_view_binary_op, m._dict_view_getiter, m._enumerate_make_new, m._enumerate_iternext, m._exc_add_strn, m._filter_make_new, m._filter_iternext, m._float_make_new, m._float_print, m._float_unary_op, m._float_binary_op, m._fun_builtin_0_call, m._fun_builtin_1_call, m._fun_builtin_2_call, m._fun_builtin_3_call, m._fun_builtin_var_call, m._fun_bc_make_new, m._fun_bc_print, m._mp_obj_fun_bc_attr, m._fun_bc_call, m._gen_wrap_call, m._gen_instance_print, m._gen_instance_iternext, m._gen_instance_close, m._gen_instance_send, m._gen_instance_throw, m._gen_instance_pend_throw, m._mp_call_method_n_kw, m._it_iternext, m._mp_obj_int_make_new, m._mp_obj_int_print, m._mp_obj_int_unary_op, m._mp_obj_int_binary_op, m._int_to_bytes, m._int_from_bytes, m._list_it_iternext, m._mp_obj_list_make_new, m._list_print, m._list_unary_op, m._list_binary_op, m._list_subscr, m._list_getiter, m._list_clear, m._list_copy, m._list_count, m._list_extend, m._list_index, m._list_insert, m._list_pop, m._mp_obj_list_remove, m._list_reverse, m._mp_obj_list_sort, m._map_make_new, m._map_iternext, m._module_print, m._module_attr, m._namedtuple_make_new, m._namedtuple_print, m._namedtuple_attr, m._namedtuple_asdict, m._new_namedtuple_type, m._none_print, m._object_make_new, _object___init__, m._object___setattr__, m._object___delattr__, m._object___new__, m._polymorph_it_iternext, m._property_make_new, m._property_getter, m._property_setter, m._property_deleter, m._range_make_new, m._range_binary_op, m._range_attr, m._range_print, m._range_unary_op, m._range_subscr, m._range_getiter, m._range_it_iternext, m._reversed_make_new, m._reversed_iternext, m._set_it_iternext, m._set_make_new, m._set_print, m._set_unary_op, m._set_binary_op, m._set_getiter, m._set_add, m._set_clear, m._set_copy, m._set_discard, m._set_diff, m._set_diff_update, m._set_intersect, m._set_intersect_update, m._set_isdisjoint, m._set_issubset, m._set_issuperset, m._set_pop, m._set_remove, m._set_symmetric_difference, m._set_symmetric_difference_update, m._set_union, m._set_update, m._singleton_print, _slice_unary_op, m._slice_attr, m._slice_print, m._slice_indices, _unichar_tolower, _unichar_toupper, m._str_it_iternext, m._bytes_it_iternext, m._str_join, m._mp_obj_str_split, m._str_splitlines, m._str_rsplit, m._str_find, m._str_rfind, m._str_index, m._str_rindex, m._str_startswith, m._str_endswith, m._str_strip, m._str_lstrip, m._str_rstrip, m._str_center, m._mp_obj_str_format, m._str_replace, m._str_count, m._str_partition, m._str_rpartition, m._str_lower, m._str_upper, m._str_isspace, m._str_isalpha, m._str_isdigit, m._str_isupper, m._str_islower, m._bytes_decode, m._str_encode, m._mp_obj_str_make_new, m._str_print, m._bytes_subscr, m._mp_obj_new_str_iterator, m._mp_obj_str_get_buffer, m._bytes_make_new, m._mp_obj_new_bytes_iterator, m._bytes_hex_as_str, m._mp_obj_bytes_fromhex, m._stringio_make_new, m._stringio_print, m._stringio_read, m._stringio_write, m._stringio_ioctl, m._stringio_getvalue, m._template_iter_iternext, m._mp_obj_template_make_new, m._mp_obj_template_print, m._mp_obj_template_binary_op, m._mp_obj_template_attr, m._mp_obj_template_iter, m._mp_obj_interpolation_make_new, m._mp_obj_interpolation_print, m._mp_obj_interpolation_attr, m._tuple_it_iternext, m._mp_obj_tuple_make_new, m._mp_obj_tuple_print, m._tuple_count, m._tuple_index, m._mp_obj_instance_make_new, m._instance_print, m._instance_unary_op, m._instance_binary_op, m._mp_obj_instance_attr, m._instance_subscr, m._mp_obj_instance_getiter, m._instance_get_buffer, m._native_base_init_wrapper, m._type_make_new, m._type_print, m._type_call, m._type_attr, m._super_make_new, m._super_print, m._super_attr, m._mp_builtin_issubclass, m._mp_builtin_isinstance, m._static_class_method_make_new, m._zip_make_new, m._zip_iternext, m._op_getitem, m._op_setitem, m._op_delitem, m._op_contains, m._mp_lexer_free, m._mp_call_function_1_from_nlr_jump_callback, m._mp_reader_mem_close, m._mp_reader_mem_readbyte, m._mp_cstack_check, m._mp_obj_get_type, m._type_get_iternext, m._mp_load_method_maybe, m._mp_obj_is_subclass_fast, m._mp_obj_exception_get_value, m._mp_stream_unbuffered_iter, m._checked_fun_call, m._stream_read, m._stream_write_method, m._stream_readinto, m._stream_unbuffered_readline, m._mp_stream_close, m._mp_stream___exit__, m._stream_seek, m._stream_tell, m._stream_flush, m._mp_make_raise_obj, m._mp_load_name, m._mp_load_attr, m._mp_load_method, m._mp_load_super_method, m._mp_load_build_class, m._mp_obj_subscr, m._mp_store_name, m._mp_store_attr, m._mp_delete_name, m._mp_delete_global, m._mp_obj_is_true, m._mp_getiter, m._mp_iternext_allow_raise, m._minimal_vm_poll, m._mp_handle_pending, m._mp_obj_new_tuple, m._mp_obj_new_list, m._mp_obj_new_dict, m._mp_obj_dict_store, m._mp_obj_new_set, m._build_slice_stack_allocated, m._mp_obj_new_slice, m._mp_obj_set_store, m._mp_unpack_sequence, m._mp_unpack_ex, m._mp_make_function_from_proto_fun, m._mp_make_closure_from_proto_fun, m._mp_call_method_n_kw_var, m._mp_resume, m._mp_obj_exception_match, m._mp_import_name, m._mp_import_from, m._mp_import_all, m._mp_obj_new_exception_msg, m._mp_unary_op, m._mp_binary_op, m._mp_decode_uint_value, m._mp_decode_uint_skip, m._mp_obj_exception_add_traceback, m._vstr_add_strn, m._mp_stream_write_adaptor, m._mod_json_dump, m._mod_json_dumps, m._mod_json_load, m._mod_json_loads, m._match_group, m._match_groups, m._match_span, m._match_start, m._match_end, m._re_match, m._re_search, m._re_split, m._re_sub_helper, m._mod_re_compile, m._re_print, m._match_print, m._time_sleep, m._time_sleep_ms, m._time_sleep_us, m._time_ticks_ms, m._time_ticks_us, m._time_ticks_cpu, _time_ticks_diff, m._time_ticks_add}}
+	m.elements = [][]any{{m._nlr_push_tail, m._value_from_mp_obj, m._pending_refs_clear, m._nlr_jump, m._pending_refs_commit, m._nlr_pop, m._m_free, m._mp_raise_ValueError, m._arena_alloc, m._mp_raise_msg, m._ref_release, m._ref_add, m._vstr_init_print, m._mp_obj_get_type_str, m._vstr_add_str, m._vstr_add_char, m._mp_obj_print_helper, m._mp_obj_print_exception, m._value_take_vstr, m._compile_and_run, m._value_from_mp_obj_committed, m._output_arena_reset, m._value_from_mp_exception, m._generic_host_invoke, m._output_arena_init, m._ref_get, m._output_arena_status, m._qstr_from_strn, m._mp_load_global, m._mp_obj_is_callable, m._mp_raise_TypeError, m._obj_from_value, m._mp_call_function_n_kw, m._mp_iternext, m._mp_store_global, m._mp_builtin_open, m._go_ref_add, m._mp_obj_list_append, m._go_ref_free, m._mp_obj_exception_make_new, m._mp_obj_exception_print, m._mp_obj_exception_attr, m._mp_globals_locals_set_from_nlr_jump_callback, m._mp_builtin_compile, m._mp_builtin_eval, m._mp_builtin_exec, m._unregister_module_from_nlr_jump_callback, m._mp_builtin___import___default, m._c_del_stmt, m._compile_dotted_as_name, m._compile_funcdef_lambdef_param, m._compile_generic_all_nodes, m._compile_decorated, m._compile_funcdef, m._compile_expr_stmt, m._compile_generic_tuple, m._compile_del_stmt, m._compile_break_cont_stmt, m._compile_return_stmt, m._compile_yield_stmt, m._compile_raise_stmt, m._compile_import_name, m._compile_import_from, m._compile_global_nonlocal_stmt, m._compile_assert_stmt, m._compile_if_stmt, m._compile_while_stmt, m._compile_for_stmt, m._compile_try_stmt, m._compile_with_stmt, m._compile_namedexpr, m._compile_test_if_expr, m._compile_lambdef, m._compile_or_and_test, m._compile_not_test_2, m._compile_comparison, m._compile_star_expr, m._compile_binary_op, m._compile_term, m._compile_factor_2, m._compile_power, m._compile_atom_expr_normal, m._compile_atom_paren, m._compile_atom_bracket, m._compile_atom_brace, m._compile_trailer_paren, m._compile_trailer_bracket, m._compile_trailer_period, m._compile_subscript, m._compile_dictorsetmaker_item, m._compile_classdef, m._compile_yield_expr, m._compile_const_object, m._emit_get_cur_to_write_code_info, m._emit_get_cur_to_write_bytecode, m._mp_emit_bc_load_local, m._mp_emit_bc_load_global, m._mp_emit_bc_store_local, m._mp_emit_bc_store_global, m._mp_emit_bc_delete_local, m._mp_emit_bc_delete_global, m._mp_builtin___build_class__, m._mp_builtin_abs, m._mp_builtin_all, m._mp_builtin_any, m._mp_builtin_bin, m._mp_builtin_callable, m._mp_builtin_chr, m._mp_builtin_dir, m._mp_builtin_divmod, m._mp_builtin_hash, m._mp_builtin_hex, m._mp_builtin_iter, m._mp_builtin_max, m._mp_builtin_min, m._mp_builtin_next, m._mp_builtin_oct, m._mp_builtin_ord, m._mp_builtin_pow, m._mp_builtin_print, m._mp_builtin___repl_print__, m._mp_builtin_repr, m._mp_builtin_round, m._mp_builtin_sum, m._mp_builtin_sorted, m._mp_builtin_getattr, m._mp_builtin_setattr, m._mp_builtin_delattr, m._mp_builtin_hasattr, m._mp_builtin_globals, m._mp_builtin_locals, m._mp_obj_id, m._mp_obj_len, m._mp_obj_new_template, m._py_gc_collect, m._gc_disable, m._gc_enable, m._gc_isenabled, m._gc_mem_free, m._gc_mem_alloc, _iobase_make_new, m._iobase_read, m._iobase_write, m._iobase_ioctl, m._bufwriter_make_new, m._bufwriter_write, m._bufwriter_flush, _sqrt, m._pow, m._cos, m._sin, m._tan, m._acos, m._asin, m._atan, m._atan2, _copysign_func, m._mp_math_sqrt, m._mp_math_pow, m._mp_math_exp, m._mp_math_log, m._mp_math_cos, m._mp_math_sin, m._mp_math_tan, m._mp_math_acos, m._mp_math_asin, m._mp_math_atan, m._mp_math_atan2, m._mp_math_ceil, m._mp_math_copysign, m._mp_math_fabs, m._mp_math_floor, m._mp_math_fmod, m._mp_math_frexp, m._mp_math_ldexp, m._mp_math_modf, m._mp_math_isfinite, m._mp_math_isinf, m._mp_math_isnan, m._mp_math_trunc, m._mp_math_radians, m._mp_math_degrees, m._mp_micropython_opt_level, m._mp_micropython_heap_lock, m._mp_micropython_heap_unlock, m._struct_calcsize, m._struct_unpack_from, m._struct_pack, m._struct_pack_into, m._mp_sys_exit, m._mp_sys_print_exception, m._mp_sys_getsizeof, m._mp_call_function_1, m._mp_printf, m._mp_obj_ref_make_new, m._mp_obj_ref_call, m._ref___del__, m._mp_obj_finalize_attr, m._finalize_peek, m._finalize_detach, m._plat_print_strn, m._mp_obj_instance_call, _mp_identity, m._array_append, m._array_extend, m._array_make_new, m._array_print, m._array_iterator_new, m._array_unary_op, m._array_binary_op, m._array_subscr, m._array_get_buffer, m._bytearray_make_new, m._memoryview_make_new, m._memoryview_attr, m._array_it_iternext, m._mp_obj_attrtuple_print, m._mp_obj_tuple_unary_op, m._mp_obj_tuple_binary_op, m._mp_obj_attrtuple_attr, m._mp_obj_tuple_subscr, m._mp_obj_tuple_getiter, m._bool_make_new, m._bool_print, m._bool_unary_op, m._bool_binary_op, m._bound_meth_attr, m._bound_meth_call, m._bound_meth_unary_op, m._bound_meth_binary_op, m._mp_obj_closure_attr, m._closure_call, m._complex_make_new, m._complex_print, m._complex_unary_op, m._complex_binary_op, m._complex_attr, m._deque_it_iternext, m._deque_make_new, m._deque_unary_op, m._deque_subscr, m._mp_obj_new_deque_it, m._mp_obj_deque_append, m._mp_obj_deque_appendleft, m._mp_obj_deque_extend, m._deque_pop, m._deque_popleft, m._mp_obj_dict_make_new, m._mp_obj_str_binary_op, m._dict_print, m._dict_unary_op, m._dict_binary_op, m._dict_subscr, m._dict_getiter, m._dict_view_it_iternext, m._dict_clear, m._mp_obj_dict_copy, m._dict_get, m._dict_items, m._dict_keys, m._dict_pop, m._dict_popitem, m._dict_setdefault, m._dict_update, m._dict_values, m._dict_fromkeys, m._dict_view_print, m._dict_view_unary_op, m._dict_view_binary_op, m._dict_view_getiter, m._enumerate_make_new, m._enumerate_iternext, m._exc_add_strn, m._filter_make_new, m._filter_iternext, m._float_make_new, m._float_print, m._float_unary_op, m._float_binary_op, m._fun_builtin_0_call, m._fun_builtin_1_call, m._fun_builtin_2_call, m._fun_builtin_3_call, m._fun_builtin_var_call, m._fun_bc_make_new, m._fun_bc_print, m._mp_obj_fun_bc_attr, m._fun_bc_call, m._gen_wrap_call, m._gen_instance_print, m._gen_instance_iternext, m._gen_instance_close, m._gen_instance_send, m._gen_instance_throw, m._gen_instance_pend_throw, m._mp_call_method_n_kw, m._it_iternext, m._mp_obj_int_make_new, m._mp_obj_int_print, m._mp_obj_int_unary_op, m._mp_obj_int_binary_op, m._int_to_bytes, m._int_from_bytes, m._list_it_iternext, m._mp_obj_list_make_new, m._list_print, m._list_unary_op, m._list_binary_op, m._list_subscr, m._list_getiter, m._list_clear, m._list_copy, m._list_count, m._list_extend, m._list_index, m._list_insert, m._list_pop, m._mp_obj_list_remove, m._list_reverse, m._mp_obj_list_sort, m._map_make_new, m._map_iternext, m._module_print, m._module_attr, m._namedtuple_make_new, m._namedtuple_print, m._namedtuple_attr, m._namedtuple_asdict, m._new_namedtuple_type, m._none_print, m._object_make_new, _object___init__, m._object___setattr__, m._object___delattr__, m._object___new__, m._polymorph_it_iternext, m._property_make_new, m._property_getter, m._property_setter, m._property_deleter, m._range_make_new, m._range_binary_op, m._range_attr, m._range_print, m._range_unary_op, m._range_subscr, m._range_getiter, m._range_it_iternext, m._reversed_make_new, m._reversed_iternext, m._set_it_iternext, m._set_make_new, m._set_print, m._set_unary_op, m._set_binary_op, m._set_getiter, m._set_add, m._set_clear, m._set_copy, m._set_discard, m._set_diff, m._set_diff_update, m._set_intersect, m._set_intersect_update, m._set_isdisjoint, m._set_issubset, m._set_issuperset, m._set_pop, m._set_remove, m._set_symmetric_difference, m._set_symmetric_difference_update, m._set_union, m._set_update, m._singleton_print, _slice_unary_op, m._slice_attr, m._slice_print, m._slice_indices, _unichar_tolower, _unichar_toupper, m._str_it_iternext, m._bytes_it_iternext, m._str_join, m._mp_obj_str_split, m._str_splitlines, m._str_rsplit, m._str_find, m._str_rfind, m._str_index, m._str_rindex, m._str_startswith, m._str_endswith, m._str_strip, m._str_lstrip, m._str_rstrip, m._str_center, m._mp_obj_str_format, m._str_replace, m._str_count, m._str_partition, m._str_rpartition, m._str_lower, m._str_upper, m._str_isspace, m._str_isalpha, m._str_isdigit, m._str_isupper, m._str_islower, m._bytes_decode, m._str_encode, m._mp_obj_str_make_new, m._str_print, m._bytes_subscr, m._mp_obj_new_str_iterator, m._mp_obj_str_get_buffer, m._bytes_make_new, m._mp_obj_new_bytes_iterator, m._bytes_hex_as_str, m._mp_obj_bytes_fromhex, m._stringio_make_new, m._stringio_print, m._stringio_read, m._stringio_write, m._stringio_ioctl, m._stringio_getvalue, m._template_iter_iternext, m._mp_obj_template_make_new, m._mp_obj_template_print, m._mp_obj_template_binary_op, m._mp_obj_template_attr, m._mp_obj_template_iter, m._mp_obj_interpolation_make_new, m._mp_obj_interpolation_print, m._mp_obj_interpolation_attr, m._tuple_it_iternext, m._mp_obj_tuple_make_new, m._mp_obj_tuple_print, m._tuple_count, m._tuple_index, m._mp_obj_instance_make_new, m._instance_print, m._instance_unary_op, m._instance_binary_op, m._mp_obj_instance_attr, m._instance_subscr, m._mp_obj_instance_getiter, m._instance_get_buffer, m._native_base_init_wrapper, m._type_make_new, m._type_print, m._type_call, m._type_attr, m._super_make_new, m._super_print, m._super_attr, m._mp_builtin_issubclass, m._mp_builtin_isinstance, m._static_class_method_make_new, m._zip_make_new, m._zip_iternext, m._op_getitem, m._op_setitem, m._op_delitem, m._op_contains, m._mp_lexer_free, m._mp_call_function_1_from_nlr_jump_callback, m._mp_reader_mem_close, m._mp_reader_mem_readbyte, m._mp_cstack_check, m._mp_obj_get_type, m._type_get_iternext, m._mp_load_method_maybe, m._mp_obj_is_subclass_fast, m._mp_obj_exception_get_value, m._mp_stream_unbuffered_iter, m._checked_fun_call, m._stream_read, m._stream_write_method, m._stream_readinto, m._stream_unbuffered_readline, m._mp_stream_close, m._mp_stream___exit__, m._stream_seek, m._stream_tell, m._stream_flush, m._mp_make_raise_obj, m._mp_load_name, m._mp_load_attr, m._mp_load_method, m._mp_load_super_method, m._mp_load_build_class, m._mp_obj_subscr, m._mp_store_name, m._mp_store_attr, m._mp_delete_name, m._mp_delete_global, m._mp_obj_is_true, m._mp_getiter, m._mp_iternext_allow_raise, m._minimal_vm_poll, m._mp_handle_pending, m._mp_obj_new_tuple, m._mp_obj_new_list, m._mp_obj_new_dict, m._mp_obj_dict_store, m._mp_obj_new_set, m._build_slice_stack_allocated, m._mp_obj_new_slice, m._mp_obj_set_store, m._mp_unpack_sequence, m._mp_unpack_ex, m._mp_make_function_from_proto_fun, m._mp_make_closure_from_proto_fun, m._mp_call_method_n_kw_var, m._mp_resume, m._mp_obj_exception_match, m._mp_import_name, m._mp_import_from, m._mp_import_all, m._mp_obj_new_exception_msg, m._mp_unary_op, m._mp_binary_op, m._mp_decode_uint_value, m._mp_decode_uint_skip, m._mp_obj_exception_add_traceback, m._vstr_add_strn, m._mp_stream_write_adaptor, m._mod_json_dump, m._mod_json_dumps, m._mod_json_load, m._mod_json_loads, m._match_group, m._match_groups, m._match_span, m._match_start, m._match_end, m._re_match, m._re_search, m._re_split, m._re_sub_helper, m._mod_re_compile, m._re_print, m._match_print, m._time_sleep, m._time_sleep_ms, m._time_sleep_us, m._time_ticks_ms, m._time_ticks_us, m._time_ticks_cpu, _time_ticks_diff, m._time_ticks_add}}
 	table_init(m.t0, m.elements[0], i32(1), 0, len(m.elements[0]))
 	m.elements[0] = nil
 	memory_init(*m.memory, data[0:22154], uint32(i32(0x30000)), 0, len(data[0:22154]))
@@ -3442,7 +3442,8 @@ l1:
 	m._vstr_clear(v3)
 	m.___stack_pointer = v5 + i32(32)
 }
-func (m *Module) _execute_python(v0, v1, v2, v3, v4 int32) {
+func (m *Module) _eval_python(v0, v1, v2, v3 int32) {
+	var v4 int32
 	var v5 int32
 	var v6 int32
 	var v7 int32
@@ -3486,641 +3487,807 @@ func (m *Module) _execute_python(v0, v1, v2, v3, v4 int32) {
 	var v45 int32
 	var v46 int32
 	var v47 int32
-	var v48 int32
-	var v49 int32
-	var v50 int32
-	var v51 int32
-	var v52 int32
-	var v53 int32
-	var v54 int32
-	var v55 int32
-	var v56 int32
-	var v57 int32
-	var v58 int32
-	var v59 int32
-	var v60 int32
-	var v61 int32
-	var v62 int32
-	var v63 int32
-	var v64 int32
-	var v65 int32
-	var v66 int32
-	var v67 int32
-	var v68 int32
-	var v69 int32
 	t0 := m.___stack_pointer
-	v11 = t0 - i32(48)
-	m.___stack_pointer = v11
+	v9 = t0 - i32(48)
+	m.___stack_pointer = v9
 	t1 := m.___stack_pointer
-	v5 = t1 - i32(64)
-	m.___stack_pointer = v5
+	v4 = t1 - i32(48)
+	m.___stack_pointer = v4
 	store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-	v12 = i32(1)
-	v13 = v5 + i32(24)
-	store32((*m.memory)[uint32(v11):], uint32(v0))
-	store32((*m.memory)[int64(uint32(v11))+4:], uint32(v1))
-	store32((*m.memory)[int64(uint32(v11))+8:], uint32(v2))
-	store32((*m.memory)[int64(uint32(v11))+12:], uint32(v3))
-	store32((*m.memory)[int64(uint32(v11))+16:], uint32(v4))
-	store32((*m.memory)[int64(uint32(v11))+20:], uint32(v5))
-	_ = m._invoke_ii(v12, v13)
+	v10 = i32(1)
+	v11 = v4 + i32(8)
+	store32((*m.memory)[uint32(v9):], uint32(v0))
+	store32((*m.memory)[int64(uint32(v9))+4:], uint32(v1))
+	store32((*m.memory)[int64(uint32(v9))+8:], uint32(v2))
+	store32((*m.memory)[int64(uint32(v9))+12:], uint32(v3))
+	store32((*m.memory)[int64(uint32(v9))+16:], uint32(v4))
+	_ = m._invoke_ii(v10, v11)
 	t3 := int32(load32((*m.memory)[int64(uint32(i32(0)))+218776:]))
-	v6 = t3
+	v5 = t3
 	store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-	v7 = i32(-1)
+	v6 = i32(-1)
 	{
 		{
-			if v6 == 0 {
+			if v5 == 0 {
 				goto l0
 			}
 			t4 := int32(load32((*m.memory)[int64(uint32(i32(0)))+218780:]))
-			v8 = t4
-			if v8 == 0 {
+			v7 = t4
+			if v7 == 0 {
 				goto l0
 			}
-			v14 = v6
-			v15 = v5 + i32(12)
-			store32((*m.memory)[uint32(v11):], uint32(v0))
-			store32((*m.memory)[int64(uint32(v11))+4:], uint32(v1))
-			store32((*m.memory)[int64(uint32(v11))+8:], uint32(v2))
-			store32((*m.memory)[int64(uint32(v11))+12:], uint32(v3))
-			store32((*m.memory)[int64(uint32(v11))+16:], uint32(v4))
-			store32((*m.memory)[int64(uint32(v11))+20:], uint32(v5))
-			store32((*m.memory)[int64(uint32(v11))+24:], uint32(v6))
-			store32((*m.memory)[int64(uint32(v11))+32:], uint32(v8))
-			t5 := m.___wasm_setjmp_test(v14, v15)
-			v7 = t5
-			if v7 == 0 {
+			v12 = v5
+			v13 = v4 + i32(4)
+			store32((*m.memory)[uint32(v9):], uint32(v0))
+			store32((*m.memory)[int64(uint32(v9))+4:], uint32(v1))
+			store32((*m.memory)[int64(uint32(v9))+8:], uint32(v2))
+			store32((*m.memory)[int64(uint32(v9))+12:], uint32(v3))
+			store32((*m.memory)[int64(uint32(v9))+16:], uint32(v4))
+			store32((*m.memory)[int64(uint32(v9))+20:], uint32(v5))
+			store32((*m.memory)[int64(uint32(v9))+28:], uint32(v7))
+			t5 := m.___wasm_setjmp_test(v12, v13)
+			v6 = t5
+			if v6 == 0 {
 				goto l1
 			}
-			v16 = v8
-			store32((*m.memory)[uint32(v11):], uint32(v0))
-			store32((*m.memory)[int64(uint32(v11))+4:], uint32(v1))
-			store32((*m.memory)[int64(uint32(v11))+8:], uint32(v2))
-			store32((*m.memory)[int64(uint32(v11))+12:], uint32(v3))
-			store32((*m.memory)[int64(uint32(v11))+16:], uint32(v4))
-			store32((*m.memory)[int64(uint32(v11))+20:], uint32(v5))
-			store32((*m.memory)[int64(uint32(v11))+28:], uint32(v7))
-			m._setTempRet0(v16)
+			v14 = v7
+			store32((*m.memory)[uint32(v9):], uint32(v0))
+			store32((*m.memory)[int64(uint32(v9))+4:], uint32(v1))
+			store32((*m.memory)[int64(uint32(v9))+8:], uint32(v2))
+			store32((*m.memory)[int64(uint32(v9))+12:], uint32(v3))
+			store32((*m.memory)[int64(uint32(v9))+16:], uint32(v4))
+			store32((*m.memory)[int64(uint32(v9))+24:], uint32(v6))
+			m._setTempRet0(v14)
 		}
 	l0:
-		store32((*m.memory)[uint32(v11):], uint32(v0))
-		store32((*m.memory)[int64(uint32(v11))+4:], uint32(v1))
-		store32((*m.memory)[int64(uint32(v11))+8:], uint32(v2))
-		store32((*m.memory)[int64(uint32(v11))+12:], uint32(v3))
-		store32((*m.memory)[int64(uint32(v11))+16:], uint32(v4))
-		store32((*m.memory)[int64(uint32(v11))+20:], uint32(v5))
-		store32((*m.memory)[int64(uint32(v11))+28:], uint32(v7))
+		store32((*m.memory)[uint32(v9):], uint32(v0))
+		store32((*m.memory)[int64(uint32(v9))+4:], uint32(v1))
+		store32((*m.memory)[int64(uint32(v9))+8:], uint32(v2))
+		store32((*m.memory)[int64(uint32(v9))+12:], uint32(v3))
+		store32((*m.memory)[int64(uint32(v9))+16:], uint32(v4))
+		store32((*m.memory)[int64(uint32(v9))+24:], uint32(v6))
 		t6 := m._getTempRet0()
-		v6 = t6
-		if v7 == i32(1) {
+		v5 = t6
+		if v6 == i32(1) {
 			goto l5
 		}
-		v17 = v5 + i32(32)
-		v18 = i32(1)
-		v19 = v5 + i32(12)
-		store32((*m.memory)[uint32(v11):], uint32(v0))
-		store32((*m.memory)[int64(uint32(v11))+4:], uint32(v1))
-		store32((*m.memory)[int64(uint32(v11))+8:], uint32(v2))
-		store32((*m.memory)[int64(uint32(v11))+12:], uint32(v3))
-		store32((*m.memory)[int64(uint32(v11))+16:], uint32(v4))
-		store32((*m.memory)[int64(uint32(v11))+20:], uint32(v5))
-		m.___wasm_setjmp(v17, v18, v19)
-		v6 = i32(0)
+		v15 = v4 + i32(16)
+		v16 = i32(1)
+		v17 = v4 + i32(4)
+		store32((*m.memory)[uint32(v9):], uint32(v0))
+		store32((*m.memory)[int64(uint32(v9))+4:], uint32(v1))
+		store32((*m.memory)[int64(uint32(v9))+8:], uint32(v2))
+		store32((*m.memory)[int64(uint32(v9))+12:], uint32(v3))
+		store32((*m.memory)[int64(uint32(v9))+16:], uint32(v4))
+		m.___wasm_setjmp(v15, v16, v17)
+		v5 = i32(0)
 	l5:
 		{
 			{
-				if v6 != 0 {
+				if v5 != 0 {
 					goto l3
 				}
 				store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-				v20 = i32(20)
-				v21 = i32(232)
-				v22 = v0
-				v23 = v1
-				v24 = i32(0)
-				store32((*m.memory)[uint32(v11):], uint32(v0))
-				store32((*m.memory)[int64(uint32(v11))+4:], uint32(v1))
-				store32((*m.memory)[int64(uint32(v11))+8:], uint32(v2))
-				store32((*m.memory)[int64(uint32(v11))+12:], uint32(v3))
-				store32((*m.memory)[int64(uint32(v11))+16:], uint32(v4))
-				store32((*m.memory)[int64(uint32(v11))+20:], uint32(v5))
-				t7 := m._invoke_iiiii(v20, v21, v22, v23, v24)
-				v9 = t7
+				v18 = i32(20)
+				v19 = v0
+				v20 = v1
+				v21 = i32(2)
+				store32((*m.memory)[uint32(v9):], uint32(v0))
+				store32((*m.memory)[int64(uint32(v9))+4:], uint32(v1))
+				store32((*m.memory)[int64(uint32(v9))+8:], uint32(v2))
+				store32((*m.memory)[int64(uint32(v9))+12:], uint32(v3))
+				store32((*m.memory)[int64(uint32(v9))+16:], uint32(v4))
+				t7 := m._invoke_iiii(v18, v19, v20, v21)
+				v8 = t7
 				t8 := int32(load32((*m.memory)[int64(uint32(i32(0)))+218776:]))
-				v6 = t8
+				v5 = t8
 				store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-				v7 = i32(-1)
+				v6 = i32(-1)
 				{
-					if v6 == 0 {
+					if v5 == 0 {
 						goto l4
 					}
 					t9 := int32(load32((*m.memory)[int64(uint32(i32(0)))+218780:]))
-					v8 = t9
-					if v8 == 0 {
+					v7 = t9
+					if v7 == 0 {
 						goto l4
 					}
-					v25 = v6
-					v26 = v5 + i32(12)
-					store32((*m.memory)[uint32(v11):], uint32(v0))
-					store32((*m.memory)[int64(uint32(v11))+4:], uint32(v1))
-					store32((*m.memory)[int64(uint32(v11))+8:], uint32(v2))
-					store32((*m.memory)[int64(uint32(v11))+12:], uint32(v3))
-					store32((*m.memory)[int64(uint32(v11))+16:], uint32(v4))
-					store32((*m.memory)[int64(uint32(v11))+20:], uint32(v5))
-					store32((*m.memory)[int64(uint32(v11))+24:], uint32(v6))
-					store32((*m.memory)[int64(uint32(v11))+32:], uint32(v8))
-					store32((*m.memory)[int64(uint32(v11))+36:], uint32(v9))
-					t10 := m.___wasm_setjmp_test(v25, v26)
-					v7 = t10
-					if v7 == 0 {
+					v22 = v5
+					v23 = v4 + i32(4)
+					store32((*m.memory)[uint32(v9):], uint32(v0))
+					store32((*m.memory)[int64(uint32(v9))+4:], uint32(v1))
+					store32((*m.memory)[int64(uint32(v9))+8:], uint32(v2))
+					store32((*m.memory)[int64(uint32(v9))+12:], uint32(v3))
+					store32((*m.memory)[int64(uint32(v9))+16:], uint32(v4))
+					store32((*m.memory)[int64(uint32(v9))+20:], uint32(v5))
+					store32((*m.memory)[int64(uint32(v9))+28:], uint32(v7))
+					store32((*m.memory)[int64(uint32(v9))+32:], uint32(v8))
+					t10 := m.___wasm_setjmp_test(v22, v23)
+					v6 = t10
+					if v6 == 0 {
 						goto l1
 					}
-					v27 = v8
-					store32((*m.memory)[uint32(v11):], uint32(v0))
-					store32((*m.memory)[int64(uint32(v11))+4:], uint32(v1))
-					store32((*m.memory)[int64(uint32(v11))+8:], uint32(v2))
-					store32((*m.memory)[int64(uint32(v11))+12:], uint32(v3))
-					store32((*m.memory)[int64(uint32(v11))+16:], uint32(v4))
-					store32((*m.memory)[int64(uint32(v11))+20:], uint32(v5))
-					store32((*m.memory)[int64(uint32(v11))+28:], uint32(v7))
-					store32((*m.memory)[int64(uint32(v11))+36:], uint32(v9))
-					m._setTempRet0(v27)
+					v24 = v7
+					store32((*m.memory)[uint32(v9):], uint32(v0))
+					store32((*m.memory)[int64(uint32(v9))+4:], uint32(v1))
+					store32((*m.memory)[int64(uint32(v9))+8:], uint32(v2))
+					store32((*m.memory)[int64(uint32(v9))+12:], uint32(v3))
+					store32((*m.memory)[int64(uint32(v9))+16:], uint32(v4))
+					store32((*m.memory)[int64(uint32(v9))+24:], uint32(v6))
+					store32((*m.memory)[int64(uint32(v9))+32:], uint32(v8))
+					m._setTempRet0(v24)
 				}
 			l4:
-				store32((*m.memory)[uint32(v11):], uint32(v0))
-				store32((*m.memory)[int64(uint32(v11))+4:], uint32(v1))
-				store32((*m.memory)[int64(uint32(v11))+8:], uint32(v2))
-				store32((*m.memory)[int64(uint32(v11))+12:], uint32(v3))
-				store32((*m.memory)[int64(uint32(v11))+16:], uint32(v4))
-				store32((*m.memory)[int64(uint32(v11))+20:], uint32(v5))
-				store32((*m.memory)[int64(uint32(v11))+28:], uint32(v7))
-				store32((*m.memory)[int64(uint32(v11))+36:], uint32(v9))
+				store32((*m.memory)[uint32(v9):], uint32(v0))
+				store32((*m.memory)[int64(uint32(v9))+4:], uint32(v1))
+				store32((*m.memory)[int64(uint32(v9))+8:], uint32(v2))
+				store32((*m.memory)[int64(uint32(v9))+12:], uint32(v3))
+				store32((*m.memory)[int64(uint32(v9))+16:], uint32(v4))
+				store32((*m.memory)[int64(uint32(v9))+24:], uint32(v6))
+				store32((*m.memory)[int64(uint32(v9))+32:], uint32(v8))
 				t11 := m._getTempRet0()
-				v6 = t11
-				if v7 == i32(1) {
+				v5 = t11
+				if v6 == i32(1) {
 					goto l5
 				}
-				t12 := int32(load32((*m.memory)[uint32(v9):]))
-				v10 = t12
 				store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-				v28 = i32(21)
-				v29 = v5 + i32(16)
-				v30 = v9
-				v31 = v2
-				store32((*m.memory)[uint32(v11):], uint32(v0))
-				store32((*m.memory)[int64(uint32(v11))+4:], uint32(v1))
-				store32((*m.memory)[int64(uint32(v11))+8:], uint32(v2))
-				store32((*m.memory)[int64(uint32(v11))+12:], uint32(v3))
-				store32((*m.memory)[int64(uint32(v11))+16:], uint32(v4))
-				store32((*m.memory)[int64(uint32(v11))+20:], uint32(v5))
-				store32((*m.memory)[int64(uint32(v11))+40:], uint32(v10))
-				m._invoke_viii(v28, v29, v30, v31)
-				t13 := int32(load32((*m.memory)[int64(uint32(i32(0)))+218776:]))
-				v6 = t13
+				v25 = i32(21)
+				v26 = v2
+				v27 = v8
+				v28 = v3
+				store32((*m.memory)[uint32(v9):], uint32(v0))
+				store32((*m.memory)[int64(uint32(v9))+4:], uint32(v1))
+				store32((*m.memory)[int64(uint32(v9))+8:], uint32(v2))
+				store32((*m.memory)[int64(uint32(v9))+12:], uint32(v3))
+				store32((*m.memory)[int64(uint32(v9))+16:], uint32(v4))
+				m._invoke_viii(v25, v26, v27, v28)
+				t12 := int32(load32((*m.memory)[int64(uint32(i32(0)))+218776:]))
+				v5 = t12
 				store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-				v7 = i32(-1)
+				v6 = i32(-1)
 				{
-					if v6 == 0 {
+					if v5 == 0 {
 						goto l6
 					}
-					t14 := int32(load32((*m.memory)[int64(uint32(i32(0)))+218780:]))
-					v8 = t14
-					if v8 == 0 {
-						goto l6
-					}
-					v32 = v6
-					v33 = v5 + i32(12)
-					store32((*m.memory)[uint32(v11):], uint32(v0))
-					store32((*m.memory)[int64(uint32(v11))+4:], uint32(v1))
-					store32((*m.memory)[int64(uint32(v11))+8:], uint32(v2))
-					store32((*m.memory)[int64(uint32(v11))+12:], uint32(v3))
-					store32((*m.memory)[int64(uint32(v11))+16:], uint32(v4))
-					store32((*m.memory)[int64(uint32(v11))+20:], uint32(v5))
-					store32((*m.memory)[int64(uint32(v11))+24:], uint32(v6))
-					store32((*m.memory)[int64(uint32(v11))+32:], uint32(v8))
-					store32((*m.memory)[int64(uint32(v11))+40:], uint32(v10))
-					t15 := m.___wasm_setjmp_test(v32, v33)
-					v7 = t15
+					t13 := int32(load32((*m.memory)[int64(uint32(i32(0)))+218780:]))
+					v7 = t13
 					if v7 == 0 {
+						goto l6
+					}
+					v29 = v5
+					v30 = v4 + i32(4)
+					store32((*m.memory)[uint32(v9):], uint32(v0))
+					store32((*m.memory)[int64(uint32(v9))+4:], uint32(v1))
+					store32((*m.memory)[int64(uint32(v9))+8:], uint32(v2))
+					store32((*m.memory)[int64(uint32(v9))+12:], uint32(v3))
+					store32((*m.memory)[int64(uint32(v9))+16:], uint32(v4))
+					store32((*m.memory)[int64(uint32(v9))+20:], uint32(v5))
+					store32((*m.memory)[int64(uint32(v9))+28:], uint32(v7))
+					t14 := m.___wasm_setjmp_test(v29, v30)
+					v6 = t14
+					if v6 == 0 {
 						goto l1
 					}
-					v34 = v8
-					store32((*m.memory)[uint32(v11):], uint32(v0))
-					store32((*m.memory)[int64(uint32(v11))+4:], uint32(v1))
-					store32((*m.memory)[int64(uint32(v11))+8:], uint32(v2))
-					store32((*m.memory)[int64(uint32(v11))+12:], uint32(v3))
-					store32((*m.memory)[int64(uint32(v11))+16:], uint32(v4))
-					store32((*m.memory)[int64(uint32(v11))+20:], uint32(v5))
-					store32((*m.memory)[int64(uint32(v11))+28:], uint32(v7))
-					store32((*m.memory)[int64(uint32(v11))+40:], uint32(v10))
-					m._setTempRet0(v34)
+					v31 = v7
+					store32((*m.memory)[uint32(v9):], uint32(v0))
+					store32((*m.memory)[int64(uint32(v9))+4:], uint32(v1))
+					store32((*m.memory)[int64(uint32(v9))+8:], uint32(v2))
+					store32((*m.memory)[int64(uint32(v9))+12:], uint32(v3))
+					store32((*m.memory)[int64(uint32(v9))+16:], uint32(v4))
+					store32((*m.memory)[int64(uint32(v9))+24:], uint32(v6))
+					m._setTempRet0(v31)
 				}
 			l6:
-				store32((*m.memory)[uint32(v11):], uint32(v0))
-				store32((*m.memory)[int64(uint32(v11))+4:], uint32(v1))
-				store32((*m.memory)[int64(uint32(v11))+8:], uint32(v2))
-				store32((*m.memory)[int64(uint32(v11))+12:], uint32(v3))
-				store32((*m.memory)[int64(uint32(v11))+16:], uint32(v4))
-				store32((*m.memory)[int64(uint32(v11))+20:], uint32(v5))
-				store32((*m.memory)[int64(uint32(v11))+28:], uint32(v7))
-				store32((*m.memory)[int64(uint32(v11))+40:], uint32(v10))
-				t16 := m._getTempRet0()
-				v6 = t16
-				if v7 == i32(1) {
+				store32((*m.memory)[uint32(v9):], uint32(v0))
+				store32((*m.memory)[int64(uint32(v9))+4:], uint32(v1))
+				store32((*m.memory)[int64(uint32(v9))+8:], uint32(v2))
+				store32((*m.memory)[int64(uint32(v9))+12:], uint32(v3))
+				store32((*m.memory)[int64(uint32(v9))+16:], uint32(v4))
+				store32((*m.memory)[int64(uint32(v9))+24:], uint32(v6))
+				t15 := m._getTempRet0()
+				v5 = t15
+				if v6 == i32(1) {
 					goto l5
 				}
 				store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-				v35 = i32(22)
-				v36 = v5 + i32(16)
-				v37 = v10
-				v38 = i32(0)
-				store32((*m.memory)[uint32(v11):], uint32(v0))
-				store32((*m.memory)[int64(uint32(v11))+4:], uint32(v1))
-				store32((*m.memory)[int64(uint32(v11))+8:], uint32(v2))
-				store32((*m.memory)[int64(uint32(v11))+12:], uint32(v3))
-				store32((*m.memory)[int64(uint32(v11))+16:], uint32(v4))
-				store32((*m.memory)[int64(uint32(v11))+20:], uint32(v5))
-				t17 := m._invoke_iiii(v35, v36, v37, v38)
-				v9 = t17
-				t18 := int32(load32((*m.memory)[int64(uint32(i32(0)))+218776:]))
-				v6 = t18
+				v32 = i32(6)
+				store32((*m.memory)[uint32(v9):], uint32(v0))
+				store32((*m.memory)[int64(uint32(v9))+4:], uint32(v1))
+				store32((*m.memory)[int64(uint32(v9))+8:], uint32(v2))
+				store32((*m.memory)[int64(uint32(v9))+12:], uint32(v3))
+				store32((*m.memory)[int64(uint32(v9))+16:], uint32(v4))
+				m._invoke_v(v32)
+				t16 := int32(load32((*m.memory)[int64(uint32(i32(0)))+218776:]))
+				v5 = t16
 				store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-				v7 = i32(-1)
+				v6 = i32(-1)
 				{
-					if v6 == 0 {
+					if v5 == 0 {
 						goto l7
 					}
-					t19 := int32(load32((*m.memory)[int64(uint32(i32(0)))+218780:]))
-					v8 = t19
-					if v8 == 0 {
-						goto l7
-					}
-					v39 = v6
-					v40 = v5 + i32(12)
-					store32((*m.memory)[uint32(v11):], uint32(v0))
-					store32((*m.memory)[int64(uint32(v11))+4:], uint32(v1))
-					store32((*m.memory)[int64(uint32(v11))+8:], uint32(v2))
-					store32((*m.memory)[int64(uint32(v11))+12:], uint32(v3))
-					store32((*m.memory)[int64(uint32(v11))+16:], uint32(v4))
-					store32((*m.memory)[int64(uint32(v11))+20:], uint32(v5))
-					store32((*m.memory)[int64(uint32(v11))+24:], uint32(v6))
-					store32((*m.memory)[int64(uint32(v11))+32:], uint32(v8))
-					store32((*m.memory)[int64(uint32(v11))+36:], uint32(v9))
-					t20 := m.___wasm_setjmp_test(v39, v40)
-					v7 = t20
+					t17 := int32(load32((*m.memory)[int64(uint32(i32(0)))+218780:]))
+					v7 = t17
 					if v7 == 0 {
+						goto l7
+					}
+					v33 = v5
+					v34 = v4 + i32(4)
+					store32((*m.memory)[uint32(v9):], uint32(v0))
+					store32((*m.memory)[int64(uint32(v9))+4:], uint32(v1))
+					store32((*m.memory)[int64(uint32(v9))+8:], uint32(v2))
+					store32((*m.memory)[int64(uint32(v9))+12:], uint32(v3))
+					store32((*m.memory)[int64(uint32(v9))+16:], uint32(v4))
+					store32((*m.memory)[int64(uint32(v9))+20:], uint32(v5))
+					store32((*m.memory)[int64(uint32(v9))+28:], uint32(v7))
+					t18 := m.___wasm_setjmp_test(v33, v34)
+					v6 = t18
+					if v6 == 0 {
 						goto l1
 					}
-					v41 = v8
-					store32((*m.memory)[uint32(v11):], uint32(v0))
-					store32((*m.memory)[int64(uint32(v11))+4:], uint32(v1))
-					store32((*m.memory)[int64(uint32(v11))+8:], uint32(v2))
-					store32((*m.memory)[int64(uint32(v11))+12:], uint32(v3))
-					store32((*m.memory)[int64(uint32(v11))+16:], uint32(v4))
-					store32((*m.memory)[int64(uint32(v11))+20:], uint32(v5))
-					store32((*m.memory)[int64(uint32(v11))+28:], uint32(v7))
-					store32((*m.memory)[int64(uint32(v11))+36:], uint32(v9))
-					m._setTempRet0(v41)
+					v35 = v7
+					store32((*m.memory)[uint32(v9):], uint32(v0))
+					store32((*m.memory)[int64(uint32(v9))+4:], uint32(v1))
+					store32((*m.memory)[int64(uint32(v9))+8:], uint32(v2))
+					store32((*m.memory)[int64(uint32(v9))+12:], uint32(v3))
+					store32((*m.memory)[int64(uint32(v9))+16:], uint32(v4))
+					store32((*m.memory)[int64(uint32(v9))+24:], uint32(v6))
+					m._setTempRet0(v35)
 				}
 			l7:
-				store32((*m.memory)[uint32(v11):], uint32(v0))
-				store32((*m.memory)[int64(uint32(v11))+4:], uint32(v1))
-				store32((*m.memory)[int64(uint32(v11))+8:], uint32(v2))
-				store32((*m.memory)[int64(uint32(v11))+12:], uint32(v3))
-				store32((*m.memory)[int64(uint32(v11))+16:], uint32(v4))
-				store32((*m.memory)[int64(uint32(v11))+20:], uint32(v5))
-				store32((*m.memory)[int64(uint32(v11))+28:], uint32(v7))
-				store32((*m.memory)[int64(uint32(v11))+36:], uint32(v9))
-				t21 := m._getTempRet0()
-				v6 = t21
-				if v7 == i32(1) {
+				store32((*m.memory)[uint32(v9):], uint32(v0))
+				store32((*m.memory)[int64(uint32(v9))+4:], uint32(v1))
+				store32((*m.memory)[int64(uint32(v9))+8:], uint32(v2))
+				store32((*m.memory)[int64(uint32(v9))+12:], uint32(v3))
+				store32((*m.memory)[int64(uint32(v9))+16:], uint32(v4))
+				store32((*m.memory)[int64(uint32(v9))+24:], uint32(v6))
+				t19 := m._getTempRet0()
+				v5 = t19
+				if v6 == i32(1) {
 					goto l5
 				}
-				store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-				v42 = i32(23)
-				v43 = v9
-				store32((*m.memory)[uint32(v11):], uint32(v0))
-				store32((*m.memory)[int64(uint32(v11))+4:], uint32(v1))
-				store32((*m.memory)[int64(uint32(v11))+8:], uint32(v2))
-				store32((*m.memory)[int64(uint32(v11))+12:], uint32(v3))
-				store32((*m.memory)[int64(uint32(v11))+16:], uint32(v4))
-				store32((*m.memory)[int64(uint32(v11))+20:], uint32(v5))
-				t22 := m._invoke_ii(v42, v43)
-				v9 = t22
-				t23 := int32(load32((*m.memory)[int64(uint32(i32(0)))+218776:]))
-				v6 = t23
-				store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-				v7 = i32(-1)
-				{
-					if v6 == 0 {
-						goto l8
-					}
-					t24 := int32(load32((*m.memory)[int64(uint32(i32(0)))+218780:]))
-					v8 = t24
-					if v8 == 0 {
-						goto l8
-					}
-					v44 = v6
-					v45 = v5 + i32(12)
-					store32((*m.memory)[uint32(v11):], uint32(v0))
-					store32((*m.memory)[int64(uint32(v11))+4:], uint32(v1))
-					store32((*m.memory)[int64(uint32(v11))+8:], uint32(v2))
-					store32((*m.memory)[int64(uint32(v11))+12:], uint32(v3))
-					store32((*m.memory)[int64(uint32(v11))+16:], uint32(v4))
-					store32((*m.memory)[int64(uint32(v11))+20:], uint32(v5))
-					store32((*m.memory)[int64(uint32(v11))+24:], uint32(v6))
-					store32((*m.memory)[int64(uint32(v11))+32:], uint32(v8))
-					store32((*m.memory)[int64(uint32(v11))+36:], uint32(v9))
-					t25 := m.___wasm_setjmp_test(v44, v45)
-					v7 = t25
-					if v7 == 0 {
-						goto l1
-					}
-					v46 = v8
-					store32((*m.memory)[uint32(v11):], uint32(v0))
-					store32((*m.memory)[int64(uint32(v11))+4:], uint32(v1))
-					store32((*m.memory)[int64(uint32(v11))+8:], uint32(v2))
-					store32((*m.memory)[int64(uint32(v11))+12:], uint32(v3))
-					store32((*m.memory)[int64(uint32(v11))+16:], uint32(v4))
-					store32((*m.memory)[int64(uint32(v11))+20:], uint32(v5))
-					store32((*m.memory)[int64(uint32(v11))+28:], uint32(v7))
-					store32((*m.memory)[int64(uint32(v11))+36:], uint32(v9))
-					m._setTempRet0(v46)
-				}
-			l8:
-				store32((*m.memory)[uint32(v11):], uint32(v0))
-				store32((*m.memory)[int64(uint32(v11))+4:], uint32(v1))
-				store32((*m.memory)[int64(uint32(v11))+8:], uint32(v2))
-				store32((*m.memory)[int64(uint32(v11))+12:], uint32(v3))
-				store32((*m.memory)[int64(uint32(v11))+16:], uint32(v4))
-				store32((*m.memory)[int64(uint32(v11))+20:], uint32(v5))
-				store32((*m.memory)[int64(uint32(v11))+28:], uint32(v7))
-				store32((*m.memory)[int64(uint32(v11))+36:], uint32(v9))
-				t26 := m._getTempRet0()
-				v6 = t26
-				if v7 == i32(1) {
-					goto l5
-				}
-				store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-				v47 = i32(24)
-				v48 = v3
-				v49 = v9
-				v50 = v4
-				store32((*m.memory)[uint32(v11):], uint32(v0))
-				store32((*m.memory)[int64(uint32(v11))+4:], uint32(v1))
-				store32((*m.memory)[int64(uint32(v11))+8:], uint32(v2))
-				store32((*m.memory)[int64(uint32(v11))+12:], uint32(v3))
-				store32((*m.memory)[int64(uint32(v11))+16:], uint32(v4))
-				store32((*m.memory)[int64(uint32(v11))+20:], uint32(v5))
-				m._invoke_viii(v47, v48, v49, v50)
-				t27 := int32(load32((*m.memory)[int64(uint32(i32(0)))+218776:]))
-				v6 = t27
-				store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-				v7 = i32(-1)
-				{
-					if v6 == 0 {
-						goto l9
-					}
-					t28 := int32(load32((*m.memory)[int64(uint32(i32(0)))+218780:]))
-					v8 = t28
-					if v8 == 0 {
-						goto l9
-					}
-					v51 = v6
-					v52 = v5 + i32(12)
-					store32((*m.memory)[uint32(v11):], uint32(v0))
-					store32((*m.memory)[int64(uint32(v11))+4:], uint32(v1))
-					store32((*m.memory)[int64(uint32(v11))+8:], uint32(v2))
-					store32((*m.memory)[int64(uint32(v11))+12:], uint32(v3))
-					store32((*m.memory)[int64(uint32(v11))+16:], uint32(v4))
-					store32((*m.memory)[int64(uint32(v11))+20:], uint32(v5))
-					store32((*m.memory)[int64(uint32(v11))+24:], uint32(v6))
-					store32((*m.memory)[int64(uint32(v11))+32:], uint32(v8))
-					t29 := m.___wasm_setjmp_test(v51, v52)
-					v7 = t29
-					if v7 == 0 {
-						goto l1
-					}
-					v53 = v8
-					store32((*m.memory)[uint32(v11):], uint32(v0))
-					store32((*m.memory)[int64(uint32(v11))+4:], uint32(v1))
-					store32((*m.memory)[int64(uint32(v11))+8:], uint32(v2))
-					store32((*m.memory)[int64(uint32(v11))+12:], uint32(v3))
-					store32((*m.memory)[int64(uint32(v11))+16:], uint32(v4))
-					store32((*m.memory)[int64(uint32(v11))+20:], uint32(v5))
-					store32((*m.memory)[int64(uint32(v11))+28:], uint32(v7))
-					m._setTempRet0(v53)
-				}
-			l9:
-				store32((*m.memory)[uint32(v11):], uint32(v0))
-				store32((*m.memory)[int64(uint32(v11))+4:], uint32(v1))
-				store32((*m.memory)[int64(uint32(v11))+8:], uint32(v2))
-				store32((*m.memory)[int64(uint32(v11))+12:], uint32(v3))
-				store32((*m.memory)[int64(uint32(v11))+16:], uint32(v4))
-				store32((*m.memory)[int64(uint32(v11))+20:], uint32(v5))
-				store32((*m.memory)[int64(uint32(v11))+28:], uint32(v7))
-				t30 := m._getTempRet0()
-				v6 = t30
-				if v7 == i32(1) {
-					goto l5
-				}
-				store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-				v54 = i32(6)
-				store32((*m.memory)[uint32(v11):], uint32(v0))
-				store32((*m.memory)[int64(uint32(v11))+4:], uint32(v1))
-				store32((*m.memory)[int64(uint32(v11))+8:], uint32(v2))
-				store32((*m.memory)[int64(uint32(v11))+12:], uint32(v3))
-				store32((*m.memory)[int64(uint32(v11))+16:], uint32(v4))
-				store32((*m.memory)[int64(uint32(v11))+20:], uint32(v5))
-				m._invoke_v(v54)
-				t31 := int32(load32((*m.memory)[int64(uint32(i32(0)))+218776:]))
-				v6 = t31
-				store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-				v7 = i32(-1)
-				{
-					if v6 == 0 {
-						goto l10
-					}
-					t32 := int32(load32((*m.memory)[int64(uint32(i32(0)))+218780:]))
-					v8 = t32
-					if v8 == 0 {
-						goto l10
-					}
-					v55 = v6
-					v56 = v5 + i32(12)
-					store32((*m.memory)[uint32(v11):], uint32(v0))
-					store32((*m.memory)[int64(uint32(v11))+4:], uint32(v1))
-					store32((*m.memory)[int64(uint32(v11))+8:], uint32(v2))
-					store32((*m.memory)[int64(uint32(v11))+12:], uint32(v3))
-					store32((*m.memory)[int64(uint32(v11))+16:], uint32(v4))
-					store32((*m.memory)[int64(uint32(v11))+20:], uint32(v5))
-					store32((*m.memory)[int64(uint32(v11))+24:], uint32(v6))
-					store32((*m.memory)[int64(uint32(v11))+32:], uint32(v8))
-					t33 := m.___wasm_setjmp_test(v55, v56)
-					v7 = t33
-					if v7 == 0 {
-						goto l1
-					}
-					v57 = v8
-					store32((*m.memory)[uint32(v11):], uint32(v0))
-					store32((*m.memory)[int64(uint32(v11))+4:], uint32(v1))
-					store32((*m.memory)[int64(uint32(v11))+8:], uint32(v2))
-					store32((*m.memory)[int64(uint32(v11))+12:], uint32(v3))
-					store32((*m.memory)[int64(uint32(v11))+16:], uint32(v4))
-					store32((*m.memory)[int64(uint32(v11))+20:], uint32(v5))
-					store32((*m.memory)[int64(uint32(v11))+28:], uint32(v7))
-					m._setTempRet0(v57)
-				}
-			l10:
-				store32((*m.memory)[uint32(v11):], uint32(v0))
-				store32((*m.memory)[int64(uint32(v11))+4:], uint32(v1))
-				store32((*m.memory)[int64(uint32(v11))+8:], uint32(v2))
-				store32((*m.memory)[int64(uint32(v11))+12:], uint32(v3))
-				store32((*m.memory)[int64(uint32(v11))+16:], uint32(v4))
-				store32((*m.memory)[int64(uint32(v11))+20:], uint32(v5))
-				store32((*m.memory)[int64(uint32(v11))+28:], uint32(v7))
-				t34 := m._getTempRet0()
-				v6 = t34
-				if v7 == i32(1) {
-					goto l5
-				}
-				goto l11
+				goto l8
 			}
 		l3:
 			store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-			v58 = i32(25)
-			v59 = v3
-			store32((*m.memory)[uint32(v11):], uint32(v0))
-			store32((*m.memory)[int64(uint32(v11))+4:], uint32(v1))
-			store32((*m.memory)[int64(uint32(v11))+8:], uint32(v2))
-			store32((*m.memory)[int64(uint32(v11))+12:], uint32(v3))
-			store32((*m.memory)[int64(uint32(v11))+16:], uint32(v4))
-			store32((*m.memory)[int64(uint32(v11))+20:], uint32(v5))
-			m._invoke_vi(v58, v59)
-			t35 := int32(load32((*m.memory)[int64(uint32(i32(0)))+218776:]))
-			v6 = t35
+			v36 = i32(22)
+			v37 = v2
+			store32((*m.memory)[uint32(v9):], uint32(v0))
+			store32((*m.memory)[int64(uint32(v9))+4:], uint32(v1))
+			store32((*m.memory)[int64(uint32(v9))+8:], uint32(v2))
+			store32((*m.memory)[int64(uint32(v9))+12:], uint32(v3))
+			store32((*m.memory)[int64(uint32(v9))+16:], uint32(v4))
+			m._invoke_vi(v36, v37)
+			t20 := int32(load32((*m.memory)[int64(uint32(i32(0)))+218776:]))
+			v5 = t20
 			store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-			v7 = i32(-1)
+			v6 = i32(-1)
 			{
-				if v6 == 0 {
-					goto l12
+				if v5 == 0 {
+					goto l9
 				}
-				t36 := int32(load32((*m.memory)[int64(uint32(i32(0)))+218780:]))
-				v8 = t36
-				if v8 == 0 {
-					goto l12
-				}
-				v60 = v6
-				v61 = v5 + i32(12)
-				store32((*m.memory)[uint32(v11):], uint32(v0))
-				store32((*m.memory)[int64(uint32(v11))+4:], uint32(v1))
-				store32((*m.memory)[int64(uint32(v11))+8:], uint32(v2))
-				store32((*m.memory)[int64(uint32(v11))+12:], uint32(v3))
-				store32((*m.memory)[int64(uint32(v11))+16:], uint32(v4))
-				store32((*m.memory)[int64(uint32(v11))+20:], uint32(v5))
-				store32((*m.memory)[int64(uint32(v11))+24:], uint32(v6))
-				store32((*m.memory)[int64(uint32(v11))+32:], uint32(v8))
-				t37 := m.___wasm_setjmp_test(v60, v61)
-				v7 = t37
+				t21 := int32(load32((*m.memory)[int64(uint32(i32(0)))+218780:]))
+				v7 = t21
 				if v7 == 0 {
+					goto l9
+				}
+				v38 = v5
+				v39 = v4 + i32(4)
+				store32((*m.memory)[uint32(v9):], uint32(v0))
+				store32((*m.memory)[int64(uint32(v9))+4:], uint32(v1))
+				store32((*m.memory)[int64(uint32(v9))+8:], uint32(v2))
+				store32((*m.memory)[int64(uint32(v9))+12:], uint32(v3))
+				store32((*m.memory)[int64(uint32(v9))+16:], uint32(v4))
+				store32((*m.memory)[int64(uint32(v9))+20:], uint32(v5))
+				store32((*m.memory)[int64(uint32(v9))+28:], uint32(v7))
+				t22 := m.___wasm_setjmp_test(v38, v39)
+				v6 = t22
+				if v6 == 0 {
 					goto l1
 				}
-				v62 = v8
-				store32((*m.memory)[uint32(v11):], uint32(v0))
-				store32((*m.memory)[int64(uint32(v11))+4:], uint32(v1))
-				store32((*m.memory)[int64(uint32(v11))+8:], uint32(v2))
-				store32((*m.memory)[int64(uint32(v11))+12:], uint32(v3))
-				store32((*m.memory)[int64(uint32(v11))+16:], uint32(v4))
-				store32((*m.memory)[int64(uint32(v11))+20:], uint32(v5))
-				store32((*m.memory)[int64(uint32(v11))+28:], uint32(v7))
-				m._setTempRet0(v62)
+				v40 = v7
+				store32((*m.memory)[uint32(v9):], uint32(v0))
+				store32((*m.memory)[int64(uint32(v9))+4:], uint32(v1))
+				store32((*m.memory)[int64(uint32(v9))+8:], uint32(v2))
+				store32((*m.memory)[int64(uint32(v9))+12:], uint32(v3))
+				store32((*m.memory)[int64(uint32(v9))+16:], uint32(v4))
+				store32((*m.memory)[int64(uint32(v9))+24:], uint32(v6))
+				m._setTempRet0(v40)
 			}
-		l12:
-			store32((*m.memory)[uint32(v11):], uint32(v0))
-			store32((*m.memory)[int64(uint32(v11))+4:], uint32(v1))
-			store32((*m.memory)[int64(uint32(v11))+8:], uint32(v2))
-			store32((*m.memory)[int64(uint32(v11))+12:], uint32(v3))
-			store32((*m.memory)[int64(uint32(v11))+16:], uint32(v4))
-			store32((*m.memory)[int64(uint32(v11))+20:], uint32(v5))
-			store32((*m.memory)[int64(uint32(v11))+28:], uint32(v7))
-			t38 := m._getTempRet0()
-			v6 = t38
-			if v7 == i32(1) {
+		l9:
+			store32((*m.memory)[uint32(v9):], uint32(v0))
+			store32((*m.memory)[int64(uint32(v9))+4:], uint32(v1))
+			store32((*m.memory)[int64(uint32(v9))+8:], uint32(v2))
+			store32((*m.memory)[int64(uint32(v9))+12:], uint32(v3))
+			store32((*m.memory)[int64(uint32(v9))+16:], uint32(v4))
+			store32((*m.memory)[int64(uint32(v9))+24:], uint32(v6))
+			t23 := m._getTempRet0()
+			v5 = t23
+			if v6 == i32(1) {
 				goto l5
 			}
 			store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-			v63 = i32(26)
-			v64 = v3
-			t39 := int32(load32((*m.memory)[int64(uint32(v5))+28:]))
-			v65 = t39
-			v66 = v4
-			store32((*m.memory)[uint32(v11):], uint32(v0))
-			store32((*m.memory)[int64(uint32(v11))+4:], uint32(v1))
-			store32((*m.memory)[int64(uint32(v11))+8:], uint32(v2))
-			store32((*m.memory)[int64(uint32(v11))+12:], uint32(v3))
-			store32((*m.memory)[int64(uint32(v11))+16:], uint32(v4))
-			store32((*m.memory)[int64(uint32(v11))+20:], uint32(v5))
-			m._invoke_viii(v63, v64, v65, v66)
-			t40 := int32(load32((*m.memory)[int64(uint32(i32(0)))+218776:]))
-			v6 = t40
+			v41 = i32(23)
+			v42 = v2
+			t24 := int32(load32((*m.memory)[int64(uint32(v4))+12:]))
+			v43 = t24
+			v44 = v3
+			store32((*m.memory)[uint32(v9):], uint32(v0))
+			store32((*m.memory)[int64(uint32(v9))+4:], uint32(v1))
+			store32((*m.memory)[int64(uint32(v9))+8:], uint32(v2))
+			store32((*m.memory)[int64(uint32(v9))+12:], uint32(v3))
+			store32((*m.memory)[int64(uint32(v9))+16:], uint32(v4))
+			m._invoke_viii(v41, v42, v43, v44)
+			t25 := int32(load32((*m.memory)[int64(uint32(i32(0)))+218776:]))
+			v5 = t25
 			store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-			v7 = i32(-1)
+			v6 = i32(-1)
 			{
-				if v6 == 0 {
-					goto l13
+				if v5 == 0 {
+					goto l10
 				}
-				t41 := int32(load32((*m.memory)[int64(uint32(i32(0)))+218780:]))
-				v8 = t41
-				if v8 == 0 {
-					goto l13
-				}
-				v67 = v6
-				v68 = v5 + i32(12)
-				store32((*m.memory)[uint32(v11):], uint32(v0))
-				store32((*m.memory)[int64(uint32(v11))+4:], uint32(v1))
-				store32((*m.memory)[int64(uint32(v11))+8:], uint32(v2))
-				store32((*m.memory)[int64(uint32(v11))+12:], uint32(v3))
-				store32((*m.memory)[int64(uint32(v11))+16:], uint32(v4))
-				store32((*m.memory)[int64(uint32(v11))+20:], uint32(v5))
-				store32((*m.memory)[int64(uint32(v11))+24:], uint32(v6))
-				store32((*m.memory)[int64(uint32(v11))+32:], uint32(v8))
-				t42 := m.___wasm_setjmp_test(v67, v68)
-				v7 = t42
+				t26 := int32(load32((*m.memory)[int64(uint32(i32(0)))+218780:]))
+				v7 = t26
 				if v7 == 0 {
+					goto l10
+				}
+				v45 = v5
+				v46 = v4 + i32(4)
+				store32((*m.memory)[uint32(v9):], uint32(v0))
+				store32((*m.memory)[int64(uint32(v9))+4:], uint32(v1))
+				store32((*m.memory)[int64(uint32(v9))+8:], uint32(v2))
+				store32((*m.memory)[int64(uint32(v9))+12:], uint32(v3))
+				store32((*m.memory)[int64(uint32(v9))+16:], uint32(v4))
+				store32((*m.memory)[int64(uint32(v9))+20:], uint32(v5))
+				store32((*m.memory)[int64(uint32(v9))+28:], uint32(v7))
+				t27 := m.___wasm_setjmp_test(v45, v46)
+				v6 = t27
+				if v6 == 0 {
 					goto l1
 				}
-				v69 = v8
-				store32((*m.memory)[uint32(v11):], uint32(v0))
-				store32((*m.memory)[int64(uint32(v11))+4:], uint32(v1))
-				store32((*m.memory)[int64(uint32(v11))+8:], uint32(v2))
-				store32((*m.memory)[int64(uint32(v11))+12:], uint32(v3))
-				store32((*m.memory)[int64(uint32(v11))+16:], uint32(v4))
-				store32((*m.memory)[int64(uint32(v11))+20:], uint32(v5))
-				store32((*m.memory)[int64(uint32(v11))+28:], uint32(v7))
-				m._setTempRet0(v69)
+				v47 = v7
+				store32((*m.memory)[uint32(v9):], uint32(v0))
+				store32((*m.memory)[int64(uint32(v9))+4:], uint32(v1))
+				store32((*m.memory)[int64(uint32(v9))+8:], uint32(v2))
+				store32((*m.memory)[int64(uint32(v9))+12:], uint32(v3))
+				store32((*m.memory)[int64(uint32(v9))+16:], uint32(v4))
+				store32((*m.memory)[int64(uint32(v9))+24:], uint32(v6))
+				m._setTempRet0(v47)
 			}
-		l13:
-			store32((*m.memory)[uint32(v11):], uint32(v0))
-			store32((*m.memory)[int64(uint32(v11))+4:], uint32(v1))
-			store32((*m.memory)[int64(uint32(v11))+8:], uint32(v2))
-			store32((*m.memory)[int64(uint32(v11))+12:], uint32(v3))
-			store32((*m.memory)[int64(uint32(v11))+16:], uint32(v4))
-			store32((*m.memory)[int64(uint32(v11))+20:], uint32(v5))
-			store32((*m.memory)[int64(uint32(v11))+28:], uint32(v7))
-			t43 := m._getTempRet0()
-			v6 = t43
-			if v7 == i32(1) {
+		l10:
+			store32((*m.memory)[uint32(v9):], uint32(v0))
+			store32((*m.memory)[int64(uint32(v9))+4:], uint32(v1))
+			store32((*m.memory)[int64(uint32(v9))+8:], uint32(v2))
+			store32((*m.memory)[int64(uint32(v9))+12:], uint32(v3))
+			store32((*m.memory)[int64(uint32(v9))+16:], uint32(v4))
+			store32((*m.memory)[int64(uint32(v9))+24:], uint32(v6))
+			t28 := m._getTempRet0()
+			v5 = t28
+			if v6 == i32(1) {
 				goto l5
 			}
 		}
-	l11:
-		m.___stack_pointer = v5 + i32(64)
-		m.___stack_pointer = v11 + i32(48)
+	l8:
+		m.___stack_pointer = v4 + i32(48)
+		m.___stack_pointer = v9 + i32(48)
 		return
 	}
 l1:
-	m._emscripten_longjmp(v6, v8)
+	m._emscripten_longjmp(v5, v7)
+	panic("unreachable")
+}
+func (m *Module) _compile_and_run(v0, v1, v2 int32) int32 {
+	var v3 int32
+	var v4 int32
+	var v5 int32
+	var v6 int32
+	var v7 int32
+	var v8 int32
+	var v9 int32
+	var v10 int32
+	var v11 int32
+	var v12 int32
+	var v13 int32
+	var v14 int32
+	var v15 int32
+	var v16 int32
+	t0 := m.___stack_pointer
+	v4 = t0 - i32(16)
+	m.___stack_pointer = v4
+	t1 := m.___stack_pointer
+	v3 = t1 - i32(16)
+	m.___stack_pointer = v3
+	v12 = i32(232)
+	v13 = v0
+	v14 = v1
+	v15 = i32(0)
+	store32((*m.memory)[int64(uint32(v4))+8:], uint32(v2))
+	store32((*m.memory)[int64(uint32(v4))+12:], uint32(v3))
+	t2 := m._mp_lexer_new_from_str_len(v12, v13, v14, v15)
+	v1 = t2
+	t3 := int32(load32((*m.memory)[uint32(v1):]))
+	v0 = t3
+	v9 = v3 + i32(8)
+	v10 = v1
+	v11 = v2
+	store32((*m.memory)[uint32(v4):], uint32(v0))
+	store32((*m.memory)[int64(uint32(v4))+12:], uint32(v3))
+	m._mp_parse(v9, v10, v11)
+	v6 = v3 + i32(8)
+	v7 = v0
+	v8 = i32(0)
+	store32((*m.memory)[int64(uint32(v4))+12:], uint32(v3))
+	t4 := m._mp_compile(v6, v7, v8)
+	v5 = t4
+	store32((*m.memory)[int64(uint32(v4))+12:], uint32(v3))
+	t5 := m._mp_call_function_0(v5)
+	v1 = t5
+	m.___stack_pointer = v3 + i32(16)
+	v16 = v1
+	m.___stack_pointer = v4 + i32(16)
+	return v16
+}
+func (m *Module) _exec_python(v0, v1, v2, v3 int32) {
+	var v4 int32
+	var v5 int32
+	var v6 int32
+	var v7 int32
+	var v8 int32
+	var v9 int32
+	var v10 int32
+	var v11 int32
+	var v12 int32
+	var v13 int32
+	var v14 int32
+	var v15 int32
+	var v16 int32
+	var v17 int32
+	var v18 int32
+	var v19 int32
+	var v20 int32
+	var v21 int32
+	var v22 int32
+	var v23 int32
+	var v24 int32
+	var v25 int32
+	var v26 int32
+	var v27 int32
+	var v28 int32
+	var v29 int32
+	var v30 int32
+	var v31 int32
+	var v32 int32
+	var v33 int32
+	var v34 int32
+	var v35 int32
+	var v36 int32
+	var v37 int32
+	var v38 int32
+	var v39 int32
+	t0 := m.___stack_pointer
+	v8 = t0 - i32(32)
+	m.___stack_pointer = v8
+	t1 := m.___stack_pointer
+	v4 = t1 - i32(48)
+	m.___stack_pointer = v4
+	store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
+	v9 = i32(1)
+	v10 = v4 + i32(8)
+	store32((*m.memory)[uint32(v8):], uint32(v0))
+	store32((*m.memory)[int64(uint32(v8))+4:], uint32(v1))
+	store32((*m.memory)[int64(uint32(v8))+8:], uint32(v2))
+	store32((*m.memory)[int64(uint32(v8))+12:], uint32(v3))
+	store32((*m.memory)[int64(uint32(v8))+16:], uint32(v4))
+	_ = m._invoke_ii(v9, v10)
+	t3 := int32(load32((*m.memory)[int64(uint32(i32(0)))+218776:]))
+	v5 = t3
+	store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
+	v6 = i32(-1)
+	{
+		{
+			if v5 == 0 {
+				goto l0
+			}
+			t4 := int32(load32((*m.memory)[int64(uint32(i32(0)))+218780:]))
+			v7 = t4
+			if v7 == 0 {
+				goto l0
+			}
+			v11 = v5
+			v12 = v4 + i32(4)
+			store32((*m.memory)[uint32(v8):], uint32(v0))
+			store32((*m.memory)[int64(uint32(v8))+4:], uint32(v1))
+			store32((*m.memory)[int64(uint32(v8))+8:], uint32(v2))
+			store32((*m.memory)[int64(uint32(v8))+12:], uint32(v3))
+			store32((*m.memory)[int64(uint32(v8))+16:], uint32(v4))
+			store32((*m.memory)[int64(uint32(v8))+20:], uint32(v5))
+			store32((*m.memory)[int64(uint32(v8))+28:], uint32(v7))
+			t5 := m.___wasm_setjmp_test(v11, v12)
+			v6 = t5
+			if v6 == 0 {
+				goto l1
+			}
+			v13 = v7
+			store32((*m.memory)[uint32(v8):], uint32(v0))
+			store32((*m.memory)[int64(uint32(v8))+4:], uint32(v1))
+			store32((*m.memory)[int64(uint32(v8))+8:], uint32(v2))
+			store32((*m.memory)[int64(uint32(v8))+12:], uint32(v3))
+			store32((*m.memory)[int64(uint32(v8))+16:], uint32(v4))
+			store32((*m.memory)[int64(uint32(v8))+24:], uint32(v6))
+			m._setTempRet0(v13)
+		}
+	l0:
+		store32((*m.memory)[uint32(v8):], uint32(v0))
+		store32((*m.memory)[int64(uint32(v8))+4:], uint32(v1))
+		store32((*m.memory)[int64(uint32(v8))+8:], uint32(v2))
+		store32((*m.memory)[int64(uint32(v8))+12:], uint32(v3))
+		store32((*m.memory)[int64(uint32(v8))+16:], uint32(v4))
+		store32((*m.memory)[int64(uint32(v8))+24:], uint32(v6))
+		t6 := m._getTempRet0()
+		v5 = t6
+		if v6 == i32(1) {
+			goto l5
+		}
+		v14 = v4 + i32(16)
+		v15 = i32(1)
+		v16 = v4 + i32(4)
+		store32((*m.memory)[uint32(v8):], uint32(v0))
+		store32((*m.memory)[int64(uint32(v8))+4:], uint32(v1))
+		store32((*m.memory)[int64(uint32(v8))+8:], uint32(v2))
+		store32((*m.memory)[int64(uint32(v8))+12:], uint32(v3))
+		store32((*m.memory)[int64(uint32(v8))+16:], uint32(v4))
+		m.___wasm_setjmp(v14, v15, v16)
+		v5 = i32(0)
+	l5:
+		{
+			{
+				if v5 != 0 {
+					goto l3
+				}
+				store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
+				v17 = i32(20)
+				v18 = v0
+				v19 = v1
+				v20 = i32(1)
+				store32((*m.memory)[uint32(v8):], uint32(v0))
+				store32((*m.memory)[int64(uint32(v8))+4:], uint32(v1))
+				store32((*m.memory)[int64(uint32(v8))+8:], uint32(v2))
+				store32((*m.memory)[int64(uint32(v8))+12:], uint32(v3))
+				store32((*m.memory)[int64(uint32(v8))+16:], uint32(v4))
+				_ = m._invoke_iiii(v17, v18, v19, v20)
+				t8 := int32(load32((*m.memory)[int64(uint32(i32(0)))+218776:]))
+				v5 = t8
+				store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
+				v6 = i32(-1)
+				{
+					if v5 == 0 {
+						goto l4
+					}
+					t9 := int32(load32((*m.memory)[int64(uint32(i32(0)))+218780:]))
+					v7 = t9
+					if v7 == 0 {
+						goto l4
+					}
+					v21 = v5
+					v22 = v4 + i32(4)
+					store32((*m.memory)[uint32(v8):], uint32(v0))
+					store32((*m.memory)[int64(uint32(v8))+4:], uint32(v1))
+					store32((*m.memory)[int64(uint32(v8))+8:], uint32(v2))
+					store32((*m.memory)[int64(uint32(v8))+12:], uint32(v3))
+					store32((*m.memory)[int64(uint32(v8))+16:], uint32(v4))
+					store32((*m.memory)[int64(uint32(v8))+20:], uint32(v5))
+					store32((*m.memory)[int64(uint32(v8))+28:], uint32(v7))
+					t10 := m.___wasm_setjmp_test(v21, v22)
+					v6 = t10
+					if v6 == 0 {
+						goto l1
+					}
+					v23 = v7
+					store32((*m.memory)[uint32(v8):], uint32(v0))
+					store32((*m.memory)[int64(uint32(v8))+4:], uint32(v1))
+					store32((*m.memory)[int64(uint32(v8))+8:], uint32(v2))
+					store32((*m.memory)[int64(uint32(v8))+12:], uint32(v3))
+					store32((*m.memory)[int64(uint32(v8))+16:], uint32(v4))
+					store32((*m.memory)[int64(uint32(v8))+24:], uint32(v6))
+					m._setTempRet0(v23)
+				}
+			l4:
+				store32((*m.memory)[uint32(v8):], uint32(v0))
+				store32((*m.memory)[int64(uint32(v8))+4:], uint32(v1))
+				store32((*m.memory)[int64(uint32(v8))+8:], uint32(v2))
+				store32((*m.memory)[int64(uint32(v8))+12:], uint32(v3))
+				store32((*m.memory)[int64(uint32(v8))+16:], uint32(v4))
+				store32((*m.memory)[int64(uint32(v8))+24:], uint32(v6))
+				t11 := m._getTempRet0()
+				v5 = t11
+				if v6 == i32(1) {
+					goto l5
+				}
+				store64((*m.memory)[uint32(v3):], uint64(i64(2)))
+				store32((*m.memory)[int64(uint32(v3))+8:], uint32(i32(0)))
+				store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
+				v24 = i32(6)
+				store32((*m.memory)[uint32(v8):], uint32(v0))
+				store32((*m.memory)[int64(uint32(v8))+4:], uint32(v1))
+				store32((*m.memory)[int64(uint32(v8))+8:], uint32(v2))
+				store32((*m.memory)[int64(uint32(v8))+12:], uint32(v3))
+				store32((*m.memory)[int64(uint32(v8))+16:], uint32(v4))
+				m._invoke_v(v24)
+				t12 := int32(load32((*m.memory)[int64(uint32(i32(0)))+218776:]))
+				v5 = t12
+				store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
+				v6 = i32(-1)
+				{
+					if v5 == 0 {
+						goto l6
+					}
+					t13 := int32(load32((*m.memory)[int64(uint32(i32(0)))+218780:]))
+					v7 = t13
+					if v7 == 0 {
+						goto l6
+					}
+					v25 = v5
+					v26 = v4 + i32(4)
+					store32((*m.memory)[uint32(v8):], uint32(v0))
+					store32((*m.memory)[int64(uint32(v8))+4:], uint32(v1))
+					store32((*m.memory)[int64(uint32(v8))+8:], uint32(v2))
+					store32((*m.memory)[int64(uint32(v8))+12:], uint32(v3))
+					store32((*m.memory)[int64(uint32(v8))+16:], uint32(v4))
+					store32((*m.memory)[int64(uint32(v8))+20:], uint32(v5))
+					store32((*m.memory)[int64(uint32(v8))+28:], uint32(v7))
+					t14 := m.___wasm_setjmp_test(v25, v26)
+					v6 = t14
+					if v6 == 0 {
+						goto l1
+					}
+					v27 = v7
+					store32((*m.memory)[uint32(v8):], uint32(v0))
+					store32((*m.memory)[int64(uint32(v8))+4:], uint32(v1))
+					store32((*m.memory)[int64(uint32(v8))+8:], uint32(v2))
+					store32((*m.memory)[int64(uint32(v8))+12:], uint32(v3))
+					store32((*m.memory)[int64(uint32(v8))+16:], uint32(v4))
+					store32((*m.memory)[int64(uint32(v8))+24:], uint32(v6))
+					m._setTempRet0(v27)
+				}
+			l6:
+				store32((*m.memory)[uint32(v8):], uint32(v0))
+				store32((*m.memory)[int64(uint32(v8))+4:], uint32(v1))
+				store32((*m.memory)[int64(uint32(v8))+8:], uint32(v2))
+				store32((*m.memory)[int64(uint32(v8))+12:], uint32(v3))
+				store32((*m.memory)[int64(uint32(v8))+16:], uint32(v4))
+				store32((*m.memory)[int64(uint32(v8))+24:], uint32(v6))
+				t15 := m._getTempRet0()
+				v5 = t15
+				if v6 == i32(1) {
+					goto l5
+				}
+				goto l7
+			}
+		l3:
+			store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
+			v28 = i32(22)
+			v29 = v2
+			store32((*m.memory)[uint32(v8):], uint32(v0))
+			store32((*m.memory)[int64(uint32(v8))+4:], uint32(v1))
+			store32((*m.memory)[int64(uint32(v8))+8:], uint32(v2))
+			store32((*m.memory)[int64(uint32(v8))+12:], uint32(v3))
+			store32((*m.memory)[int64(uint32(v8))+16:], uint32(v4))
+			m._invoke_vi(v28, v29)
+			t16 := int32(load32((*m.memory)[int64(uint32(i32(0)))+218776:]))
+			v5 = t16
+			store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
+			v6 = i32(-1)
+			{
+				if v5 == 0 {
+					goto l8
+				}
+				t17 := int32(load32((*m.memory)[int64(uint32(i32(0)))+218780:]))
+				v7 = t17
+				if v7 == 0 {
+					goto l8
+				}
+				v30 = v5
+				v31 = v4 + i32(4)
+				store32((*m.memory)[uint32(v8):], uint32(v0))
+				store32((*m.memory)[int64(uint32(v8))+4:], uint32(v1))
+				store32((*m.memory)[int64(uint32(v8))+8:], uint32(v2))
+				store32((*m.memory)[int64(uint32(v8))+12:], uint32(v3))
+				store32((*m.memory)[int64(uint32(v8))+16:], uint32(v4))
+				store32((*m.memory)[int64(uint32(v8))+20:], uint32(v5))
+				store32((*m.memory)[int64(uint32(v8))+28:], uint32(v7))
+				t18 := m.___wasm_setjmp_test(v30, v31)
+				v6 = t18
+				if v6 == 0 {
+					goto l1
+				}
+				v32 = v7
+				store32((*m.memory)[uint32(v8):], uint32(v0))
+				store32((*m.memory)[int64(uint32(v8))+4:], uint32(v1))
+				store32((*m.memory)[int64(uint32(v8))+8:], uint32(v2))
+				store32((*m.memory)[int64(uint32(v8))+12:], uint32(v3))
+				store32((*m.memory)[int64(uint32(v8))+16:], uint32(v4))
+				store32((*m.memory)[int64(uint32(v8))+24:], uint32(v6))
+				m._setTempRet0(v32)
+			}
+		l8:
+			store32((*m.memory)[uint32(v8):], uint32(v0))
+			store32((*m.memory)[int64(uint32(v8))+4:], uint32(v1))
+			store32((*m.memory)[int64(uint32(v8))+8:], uint32(v2))
+			store32((*m.memory)[int64(uint32(v8))+12:], uint32(v3))
+			store32((*m.memory)[int64(uint32(v8))+16:], uint32(v4))
+			store32((*m.memory)[int64(uint32(v8))+24:], uint32(v6))
+			t19 := m._getTempRet0()
+			v5 = t19
+			if v6 == i32(1) {
+				goto l5
+			}
+			store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
+			v33 = i32(23)
+			v34 = v2
+			t20 := int32(load32((*m.memory)[int64(uint32(v4))+12:]))
+			v35 = t20
+			v36 = v3
+			store32((*m.memory)[uint32(v8):], uint32(v0))
+			store32((*m.memory)[int64(uint32(v8))+4:], uint32(v1))
+			store32((*m.memory)[int64(uint32(v8))+8:], uint32(v2))
+			store32((*m.memory)[int64(uint32(v8))+12:], uint32(v3))
+			store32((*m.memory)[int64(uint32(v8))+16:], uint32(v4))
+			m._invoke_viii(v33, v34, v35, v36)
+			t21 := int32(load32((*m.memory)[int64(uint32(i32(0)))+218776:]))
+			v5 = t21
+			store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
+			v6 = i32(-1)
+			{
+				if v5 == 0 {
+					goto l9
+				}
+				t22 := int32(load32((*m.memory)[int64(uint32(i32(0)))+218780:]))
+				v7 = t22
+				if v7 == 0 {
+					goto l9
+				}
+				v37 = v5
+				v38 = v4 + i32(4)
+				store32((*m.memory)[uint32(v8):], uint32(v0))
+				store32((*m.memory)[int64(uint32(v8))+4:], uint32(v1))
+				store32((*m.memory)[int64(uint32(v8))+8:], uint32(v2))
+				store32((*m.memory)[int64(uint32(v8))+12:], uint32(v3))
+				store32((*m.memory)[int64(uint32(v8))+16:], uint32(v4))
+				store32((*m.memory)[int64(uint32(v8))+20:], uint32(v5))
+				store32((*m.memory)[int64(uint32(v8))+28:], uint32(v7))
+				t23 := m.___wasm_setjmp_test(v37, v38)
+				v6 = t23
+				if v6 == 0 {
+					goto l1
+				}
+				v39 = v7
+				store32((*m.memory)[uint32(v8):], uint32(v0))
+				store32((*m.memory)[int64(uint32(v8))+4:], uint32(v1))
+				store32((*m.memory)[int64(uint32(v8))+8:], uint32(v2))
+				store32((*m.memory)[int64(uint32(v8))+12:], uint32(v3))
+				store32((*m.memory)[int64(uint32(v8))+16:], uint32(v4))
+				store32((*m.memory)[int64(uint32(v8))+24:], uint32(v6))
+				m._setTempRet0(v39)
+			}
+		l9:
+			store32((*m.memory)[uint32(v8):], uint32(v0))
+			store32((*m.memory)[int64(uint32(v8))+4:], uint32(v1))
+			store32((*m.memory)[int64(uint32(v8))+8:], uint32(v2))
+			store32((*m.memory)[int64(uint32(v8))+12:], uint32(v3))
+			store32((*m.memory)[int64(uint32(v8))+16:], uint32(v4))
+			store32((*m.memory)[int64(uint32(v8))+24:], uint32(v6))
+			t24 := m._getTempRet0()
+			v5 = t24
+			if v6 == i32(1) {
+				goto l5
+			}
+		}
+	l7:
+		m.___stack_pointer = v4 + i32(48)
+		m.___stack_pointer = v8 + i32(32)
+		return
+	}
+l1:
+	m._emscripten_longjmp(v5, v7)
 	panic("unreachable")
 }
 func (m *Module) _gc_collect_init(v0 int32) {
@@ -4295,6 +4462,9 @@ func (m *Module) Xdefine_function(v0, v1 int32) {
 	t0 := m.___stack_pointer
 	v2 = t0 - i32(16)
 	m.___stack_pointer = v2
+	store32((*m.memory)[uint32(v2):], uint32(v0))
+	store32((*m.memory)[int64(uint32(v2))+4:], uint32(v1))
+	m._vm_enter()
 	v4 = v1
 	store32((*m.memory)[uint32(v2):], uint32(v0))
 	t1 := m._new_host_function(v4)
@@ -4308,6 +4478,21 @@ func (m *Module) Xdefine_function(v0, v1 int32) {
 	m.___stack_pointer = v2 + i32(16)
 }
 func (m *Module) Xref_to_value(v0, v1, v2 int32) int32 {
+	var v3 int32
+	var v4 int32
+	t0 := m.___stack_pointer
+	v3 = t0 - i32(16)
+	m.___stack_pointer = v3
+	store32((*m.memory)[uint32(v3):], uint32(v0))
+	store32((*m.memory)[int64(uint32(v3))+4:], uint32(v1))
+	store32((*m.memory)[int64(uint32(v3))+8:], uint32(v2))
+	m._vm_enter()
+	t1 := m._ref_to_value_body(v0, v1, v2)
+	v4 = t1
+	m.___stack_pointer = v3 + i32(16)
+	return v4
+}
+func (m *Module) _ref_to_value_body(v0, v1, v2 int32) int32 {
 	var v3 int32
 	var v4 int32
 	var v5 int32
@@ -4376,7 +4561,7 @@ func (m *Module) Xref_to_value(v0, v1, v2 int32) int32 {
 	v3 = t1 - i32(80)
 	m.___stack_pointer = v3
 	store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-	v9 = i32(28)
+	v9 = i32(25)
 	v10 = v3 + i32(56)
 	v11 = v1
 	v12 = v2
@@ -4502,7 +4687,7 @@ func (m *Module) Xref_to_value(v0, v1, v2 int32) int32 {
 						goto l5
 					}
 					store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-					v24 = i32(29)
+					v24 = i32(26)
 					v25 = v0
 					store32((*m.memory)[uint32(v8):], uint32(v0))
 					store32((*m.memory)[int64(uint32(v8))+4:], uint32(v1))
@@ -4557,7 +4742,7 @@ func (m *Module) Xref_to_value(v0, v1, v2 int32) int32 {
 					{
 						if v7 != 0 {
 							store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-							v34 = i32(24)
+							v34 = i32(21)
 							v35 = v3 + i32(56)
 							v36 = v7
 							v37 = v1
@@ -4704,7 +4889,7 @@ func (m *Module) Xref_to_value(v0, v1, v2 int32) int32 {
 				}
 			l5:
 				store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-				v45 = i32(25)
+				v45 = i32(22)
 				v46 = v3 + i32(56)
 				store32((*m.memory)[uint32(v8):], uint32(v0))
 				store32((*m.memory)[int64(uint32(v8))+4:], uint32(v1))
@@ -4753,7 +4938,7 @@ func (m *Module) Xref_to_value(v0, v1, v2 int32) int32 {
 					goto l7
 				}
 				store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-				v50 = i32(26)
+				v50 = i32(23)
 				v51 = v3 + i32(56)
 				t33 := int32(load32((*m.memory)[int64(uint32(v3))+20:]))
 				v52 = t33
@@ -4807,7 +4992,7 @@ func (m *Module) Xref_to_value(v0, v1, v2 int32) int32 {
 			}
 		l12:
 			store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-			v57 = i32(30)
+			v57 = i32(27)
 			v58 = v3 + i32(56)
 			store32((*m.memory)[uint32(v8):], uint32(v0))
 			store32((*m.memory)[int64(uint32(v8))+4:], uint32(v1))
@@ -4883,13 +5068,18 @@ func (m *Module) Xeval(v0, v1, v2, v3 int32) int32 {
 	var v13 int32
 	var v14 int32
 	var v15 int32
-	var v16 int32
 	t0 := m.___stack_pointer
 	v6 = t0 - i32(32)
 	m.___stack_pointer = v6
 	t1 := m.___stack_pointer
 	v4 = t1 - i32(32)
 	m.___stack_pointer = v4
+	store32((*m.memory)[uint32(v6):], uint32(v0))
+	store32((*m.memory)[int64(uint32(v6))+4:], uint32(v1))
+	store32((*m.memory)[int64(uint32(v6))+8:], uint32(v2))
+	store32((*m.memory)[int64(uint32(v6))+12:], uint32(v3))
+	store32((*m.memory)[int64(uint32(v6))+16:], uint32(v4))
+	m._vm_enter()
 	v5 = i32(-1)
 	{
 		v7 = v4 + i32(8)
@@ -4906,11 +5096,10 @@ func (m *Module) Xeval(v0, v1, v2, v3 int32) int32 {
 		}
 		v11 = v0
 		v12 = v1
-		v13 = i32(2)
-		v14 = v4 + i32(8)
-		v15 = v2
+		v13 = v4 + i32(8)
+		v14 = v2
 		store32((*m.memory)[int64(uint32(v6))+16:], uint32(v4))
-		m._execute_python(v11, v12, v13, v14, v15)
+		m._eval_python(v11, v12, v13, v14)
 		v10 = v4 + i32(8)
 		store32((*m.memory)[int64(uint32(v6))+16:], uint32(v4))
 		t3 := m._output_arena_status(v10)
@@ -4918,9 +5107,9 @@ func (m *Module) Xeval(v0, v1, v2, v3 int32) int32 {
 	}
 l0:
 	m.___stack_pointer = v4 + i32(32)
-	v16 = v5
+	v15 = v5
 	m.___stack_pointer = v6 + i32(32)
-	return v16
+	return v15
 }
 func (m *Module) Xexec(v0, v1, v2, v3 int32) int32 {
 	var v4 int32
@@ -4935,13 +5124,18 @@ func (m *Module) Xexec(v0, v1, v2, v3 int32) int32 {
 	var v13 int32
 	var v14 int32
 	var v15 int32
-	var v16 int32
 	t0 := m.___stack_pointer
 	v6 = t0 - i32(32)
 	m.___stack_pointer = v6
 	t1 := m.___stack_pointer
 	v4 = t1 - i32(32)
 	m.___stack_pointer = v4
+	store32((*m.memory)[uint32(v6):], uint32(v0))
+	store32((*m.memory)[int64(uint32(v6))+4:], uint32(v1))
+	store32((*m.memory)[int64(uint32(v6))+8:], uint32(v2))
+	store32((*m.memory)[int64(uint32(v6))+12:], uint32(v3))
+	store32((*m.memory)[int64(uint32(v6))+16:], uint32(v4))
+	m._vm_enter()
 	v5 = i32(-1)
 	{
 		v7 = v4 + i32(8)
@@ -4958,11 +5152,10 @@ func (m *Module) Xexec(v0, v1, v2, v3 int32) int32 {
 		}
 		v11 = v0
 		v12 = v1
-		v13 = i32(1)
-		v14 = v4 + i32(8)
-		v15 = v2
+		v13 = v4 + i32(8)
+		v14 = v2
 		store32((*m.memory)[int64(uint32(v6))+16:], uint32(v4))
-		m._execute_python(v11, v12, v13, v14, v15)
+		m._exec_python(v11, v12, v13, v14)
 		v10 = v4 + i32(8)
 		store32((*m.memory)[int64(uint32(v6))+16:], uint32(v4))
 		t3 := m._output_arena_status(v10)
@@ -4970,11 +5163,29 @@ func (m *Module) Xexec(v0, v1, v2, v3 int32) int32 {
 	}
 l0:
 	m.___stack_pointer = v4 + i32(32)
-	v16 = v5
+	v15 = v5
 	m.___stack_pointer = v6 + i32(32)
-	return v16
+	return v15
 }
 func (m *Module) Xcall(v0, v1, v2, v3, v4, v5 int32) int32 {
+	var v6 int32
+	var v7 int32
+	t0 := m.___stack_pointer
+	v6 = t0 - i32(32)
+	m.___stack_pointer = v6
+	store32((*m.memory)[uint32(v6):], uint32(v0))
+	store32((*m.memory)[int64(uint32(v6))+4:], uint32(v1))
+	store32((*m.memory)[int64(uint32(v6))+8:], uint32(v2))
+	store32((*m.memory)[int64(uint32(v6))+12:], uint32(v3))
+	store32((*m.memory)[int64(uint32(v6))+16:], uint32(v4))
+	store32((*m.memory)[int64(uint32(v6))+20:], uint32(v5))
+	m._vm_enter()
+	t1 := m._call_ext_body(v0, v1, v2, v3, v4, v5)
+	v7 = t1
+	m.___stack_pointer = v6 + i32(32)
+	return v7
+}
+func (m *Module) _call_ext_body(v0, v1, v2, v3, v4, v5 int32) int32 {
 	var v6 int32
 	var v7 int32
 	var v8 int32
@@ -5074,7 +5285,7 @@ func (m *Module) Xcall(v0, v1, v2, v3, v4, v5 int32) int32 {
 	v6 = t1 - i32(80)
 	m.___stack_pointer = v6
 	store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-	v19 = i32(28)
+	v19 = i32(25)
 	v7 = v6
 	v20 = v7 + i32(56)
 	v21 = v4
@@ -5237,7 +5448,7 @@ func (m *Module) Xcall(v0, v1, v2, v3, v4, v5 int32) int32 {
 				{
 					if v5 != 0 {
 						store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-						v78 = i32(25)
+						v78 = i32(22)
 						v79 = v7 + i32(56)
 						store32((*m.memory)[uint32(v18):], uint32(v0))
 						store32((*m.memory)[int64(uint32(v18))+4:], uint32(v1))
@@ -5306,7 +5517,7 @@ func (m *Module) Xcall(v0, v1, v2, v3, v4, v5 int32) int32 {
 							goto l7
 						}
 						store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-						v83 = i32(26)
+						v83 = i32(23)
 						v84 = v7 + i32(56)
 						t52 := int32(load32((*m.memory)[int64(uint32(v7))+20:]))
 						v85 = t52
@@ -5380,7 +5591,7 @@ func (m *Module) Xcall(v0, v1, v2, v3, v4, v5 int32) int32 {
 						goto l21
 					}
 					store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-					v34 = i32(31)
+					v34 = i32(28)
 					v35 = v0
 					v36 = v1
 					store32((*m.memory)[uint32(v18):], uint32(v0))
@@ -5454,7 +5665,7 @@ func (m *Module) Xcall(v0, v1, v2, v3, v4, v5 int32) int32 {
 						goto l7
 					}
 					store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-					v40 = i32(32)
+					v40 = i32(29)
 					v41 = v11
 					store32((*m.memory)[uint32(v18):], uint32(v0))
 					store32((*m.memory)[int64(uint32(v18))+4:], uint32(v1))
@@ -5527,7 +5738,7 @@ func (m *Module) Xcall(v0, v1, v2, v3, v4, v5 int32) int32 {
 						goto l7
 					}
 					store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-					v45 = i32(33)
+					v45 = i32(30)
 					v46 = v13
 					store32((*m.memory)[uint32(v18):], uint32(v0))
 					store32((*m.memory)[int64(uint32(v18))+4:], uint32(v1))
@@ -5618,7 +5829,7 @@ func (m *Module) Xcall(v0, v1, v2, v3, v4, v5 int32) int32 {
 						l14:
 							{
 								store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-								v55 = i32(35)
+								v55 = i32(32)
 								v56 = v9
 								store32((*m.memory)[uint32(v18):], uint32(v0))
 								store32((*m.memory)[int64(uint32(v18))+4:], uint32(v1))
@@ -5724,7 +5935,7 @@ func (m *Module) Xcall(v0, v1, v2, v3, v4, v5 int32) int32 {
 							}
 						l12:
 							store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-							v60 = i32(36)
+							v60 = i32(33)
 							v61 = v13
 							v62 = v3
 							v63 = i32(0)
@@ -5804,7 +6015,7 @@ func (m *Module) Xcall(v0, v1, v2, v3, v4, v5 int32) int32 {
 								goto l7
 							}
 							store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-							v68 = i32(24)
+							v68 = i32(21)
 							v69 = v7 + i32(56)
 							v70 = v11
 							v71 = v4
@@ -5923,7 +6134,7 @@ func (m *Module) Xcall(v0, v1, v2, v3, v4, v5 int32) int32 {
 							goto l1
 						}
 						store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-						v50 = i32(34)
+						v50 = i32(31)
 						v51 = i32(201510)
 						store32((*m.memory)[uint32(v18):], uint32(v0))
 						store32((*m.memory)[int64(uint32(v18))+4:], uint32(v1))
@@ -6020,7 +6231,7 @@ func (m *Module) Xcall(v0, v1, v2, v3, v4, v5 int32) int32 {
 			}
 		l21:
 			store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-			v91 = i32(30)
+			v91 = i32(27)
 			v92 = v7 + i32(56)
 			store32((*m.memory)[uint32(v18):], uint32(v0))
 			store32((*m.memory)[int64(uint32(v18))+4:], uint32(v1))
@@ -6104,6 +6315,23 @@ l1:
 	panic("unreachable")
 }
 func (m *Module) Xcall_ref(v0, v1, v2, v3, v4 int32) int32 {
+	var v5 int32
+	var v6 int32
+	t0 := m.___stack_pointer
+	v5 = t0 - i32(32)
+	m.___stack_pointer = v5
+	store32((*m.memory)[uint32(v5):], uint32(v0))
+	store32((*m.memory)[int64(uint32(v5))+4:], uint32(v1))
+	store32((*m.memory)[int64(uint32(v5))+8:], uint32(v2))
+	store32((*m.memory)[int64(uint32(v5))+12:], uint32(v3))
+	store32((*m.memory)[int64(uint32(v5))+16:], uint32(v4))
+	m._vm_enter()
+	t1 := m._call_ref_ext_body(v0, v1, v2, v3, v4)
+	v6 = t1
+	m.___stack_pointer = v5 + i32(32)
+	return v6
+}
+func (m *Module) _call_ref_ext_body(v0, v1, v2, v3, v4 int32) int32 {
 	var v5 int32
 	var v6 int32
 	var v7 int32
@@ -6201,7 +6429,7 @@ func (m *Module) Xcall_ref(v0, v1, v2, v3, v4 int32) int32 {
 	v5 = t1 - i32(80)
 	m.___stack_pointer = v5
 	store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-	v18 = i32(28)
+	v18 = i32(25)
 	v6 = v5
 	v19 = v6 + i32(56)
 	v20 = v3
@@ -6356,7 +6584,7 @@ func (m *Module) Xcall_ref(v0, v1, v2, v3, v4 int32) int32 {
 					{
 						if v4 != 0 {
 							store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-							v74 = i32(25)
+							v74 = i32(22)
 							v75 = v6 + i32(56)
 							store32((*m.memory)[uint32(v17):], uint32(v0))
 							store32((*m.memory)[int64(uint32(v17))+4:], uint32(v1))
@@ -6421,7 +6649,7 @@ func (m *Module) Xcall_ref(v0, v1, v2, v3, v4 int32) int32 {
 								goto l7
 							}
 							store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-							v79 = i32(26)
+							v79 = i32(23)
 							v80 = v6 + i32(56)
 							t49 := int32(load32((*m.memory)[int64(uint32(v6))+20:]))
 							v81 = t49
@@ -6491,7 +6719,7 @@ func (m *Module) Xcall_ref(v0, v1, v2, v3, v4 int32) int32 {
 							goto l22
 						}
 						store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-						v33 = i32(29)
+						v33 = i32(26)
 						v34 = v0
 						store32((*m.memory)[uint32(v17):], uint32(v0))
 						store32((*m.memory)[int64(uint32(v17))+4:], uint32(v1))
@@ -6562,7 +6790,7 @@ func (m *Module) Xcall_ref(v0, v1, v2, v3, v4 int32) int32 {
 						{
 							if v12 != 0 {
 								store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-								v42 = i32(33)
+								v42 = i32(30)
 								v43 = v12
 								store32((*m.memory)[uint32(v17):], uint32(v0))
 								store32((*m.memory)[int64(uint32(v17))+4:], uint32(v1))
@@ -6649,7 +6877,7 @@ func (m *Module) Xcall_ref(v0, v1, v2, v3, v4 int32) int32 {
 									l15:
 										{
 											store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-											v51 = i32(35)
+											v51 = i32(32)
 											v52 = v8
 											store32((*m.memory)[uint32(v17):], uint32(v0))
 											store32((*m.memory)[int64(uint32(v17))+4:], uint32(v1))
@@ -6751,7 +6979,7 @@ func (m *Module) Xcall_ref(v0, v1, v2, v3, v4 int32) int32 {
 										}
 									l13:
 										store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-										v56 = i32(36)
+										v56 = i32(33)
 										v57 = v12
 										v58 = v2
 										v59 = i32(0)
@@ -6827,7 +7055,7 @@ func (m *Module) Xcall_ref(v0, v1, v2, v3, v4 int32) int32 {
 											goto l7
 										}
 										store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-										v64 = i32(24)
+										v64 = i32(21)
 										v65 = v6 + i32(56)
 										v66 = v10
 										v67 = v3
@@ -6940,7 +7168,7 @@ func (m *Module) Xcall_ref(v0, v1, v2, v3, v4 int32) int32 {
 										goto l1
 									}
 									store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-									v47 = i32(34)
+									v47 = i32(31)
 									v48 = i32(201510)
 									store32((*m.memory)[uint32(v17):], uint32(v0))
 									store32((*m.memory)[int64(uint32(v17))+4:], uint32(v1))
@@ -7050,7 +7278,7 @@ func (m *Module) Xcall_ref(v0, v1, v2, v3, v4 int32) int32 {
 				}
 			l22:
 				store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-				v87 = i32(30)
+				v87 = i32(27)
 				v88 = v6 + i32(56)
 				store32((*m.memory)[uint32(v17):], uint32(v0))
 				store32((*m.memory)[int64(uint32(v17))+4:], uint32(v1))
@@ -7153,13 +7381,36 @@ l1:
 	panic("unreachable")
 }
 func (m *Module) Xrelease_ref(v0 int32) {
+	var v1 int32
+	t0 := m.___stack_pointer
+	v1 = t0 - i32(16)
+	m.___stack_pointer = v1
+	store32((*m.memory)[uint32(v1):], uint32(v0))
+	m._vm_enter()
 	m._refs_unpin(v0)
 	m._scrub_dead_stack()
+	m.___stack_pointer = v1 + i32(16)
 }
 func (m *Module) Xreset_refs() {
+	m._vm_enter()
 	m._refs_reset()
 }
 func (m *Module) Xiterator_next(v0, v1, v2 int32) int32 {
+	var v3 int32
+	var v4 int32
+	t0 := m.___stack_pointer
+	v3 = t0 - i32(16)
+	m.___stack_pointer = v3
+	store32((*m.memory)[uint32(v3):], uint32(v0))
+	store32((*m.memory)[int64(uint32(v3))+4:], uint32(v1))
+	store32((*m.memory)[int64(uint32(v3))+8:], uint32(v2))
+	m._vm_enter()
+	t1 := m._iterator_next_ext_body(v0, v1, v2)
+	v4 = t1
+	m.___stack_pointer = v3 + i32(16)
+	return v4
+}
+func (m *Module) _iterator_next_ext_body(v0, v1, v2 int32) int32 {
 	var v3 int32
 	var v4 int32
 	var v5 int32
@@ -7242,7 +7493,7 @@ func (m *Module) Xiterator_next(v0, v1, v2 int32) int32 {
 	v3 = t1 - i32(80)
 	m.___stack_pointer = v3
 	store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-	v9 = i32(28)
+	v9 = i32(25)
 	v10 = v3 + i32(56)
 	v11 = v1
 	v12 = v2
@@ -7367,7 +7618,7 @@ func (m *Module) Xiterator_next(v0, v1, v2 int32) int32 {
 					goto l5
 				}
 				store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-				v24 = i32(29)
+				v24 = i32(26)
 				v25 = v0
 				store32((*m.memory)[uint32(v8):], uint32(v0))
 				store32((*m.memory)[int64(uint32(v8))+4:], uint32(v1))
@@ -7422,7 +7673,7 @@ func (m *Module) Xiterator_next(v0, v1, v2 int32) int32 {
 				{
 					if v7 != 0 {
 						store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-						v34 = i32(37)
+						v34 = i32(34)
 						v35 = v7
 						store32((*m.memory)[uint32(v8):], uint32(v0))
 						store32((*m.memory)[int64(uint32(v8))+4:], uint32(v1))
@@ -7477,7 +7728,7 @@ func (m *Module) Xiterator_next(v0, v1, v2 int32) int32 {
 						{
 							if v7 != 0 {
 								store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-								v43 = i32(24)
+								v43 = i32(21)
 								v44 = v3 + i32(56)
 								v45 = v7
 								v46 = v1
@@ -7576,7 +7827,7 @@ func (m *Module) Xiterator_next(v0, v1, v2 int32) int32 {
 									goto l7
 								}
 								store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-								v54 = i32(30)
+								v54 = i32(27)
 								v55 = v3 + i32(56)
 								store32((*m.memory)[uint32(v8):], uint32(v0))
 								store32((*m.memory)[int64(uint32(v8))+4:], uint32(v1))
@@ -7729,7 +7980,7 @@ func (m *Module) Xiterator_next(v0, v1, v2 int32) int32 {
 			}
 		l5:
 			store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-			v59 = i32(25)
+			v59 = i32(22)
 			v60 = v3 + i32(56)
 			store32((*m.memory)[uint32(v8):], uint32(v0))
 			store32((*m.memory)[int64(uint32(v8))+4:], uint32(v1))
@@ -7778,7 +8029,7 @@ func (m *Module) Xiterator_next(v0, v1, v2 int32) int32 {
 				goto l7
 			}
 			store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-			v64 = i32(26)
+			v64 = i32(23)
 			v65 = v3 + i32(56)
 			t47 := int32(load32((*m.memory)[int64(uint32(v3))+20:]))
 			v66 = t47
@@ -7830,7 +8081,7 @@ func (m *Module) Xiterator_next(v0, v1, v2 int32) int32 {
 				goto l7
 			}
 			store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-			v71 = i32(30)
+			v71 = i32(27)
 			v72 = v3 + i32(56)
 			store32((*m.memory)[uint32(v8):], uint32(v0))
 			store32((*m.memory)[int64(uint32(v8))+4:], uint32(v1))
@@ -7894,6 +8145,22 @@ l1:
 	panic("unreachable")
 }
 func (m *Module) Xget_global(v0, v1, v2, v3 int32) int32 {
+	var v4 int32
+	var v5 int32
+	t0 := m.___stack_pointer
+	v4 = t0 - i32(16)
+	m.___stack_pointer = v4
+	store32((*m.memory)[uint32(v4):], uint32(v0))
+	store32((*m.memory)[int64(uint32(v4))+4:], uint32(v1))
+	store32((*m.memory)[int64(uint32(v4))+8:], uint32(v2))
+	store32((*m.memory)[int64(uint32(v4))+12:], uint32(v3))
+	m._vm_enter()
+	t1 := m._get_global_ext_body(v0, v1, v2, v3)
+	v5 = t1
+	m.___stack_pointer = v4 + i32(16)
+	return v5
+}
+func (m *Module) _get_global_ext_body(v0, v1, v2, v3 int32) int32 {
 	var v4 int32
 	var v5 int32
 	var v6 int32
@@ -7963,7 +8230,7 @@ func (m *Module) Xget_global(v0, v1, v2, v3 int32) int32 {
 	v4 = t1 - i32(80)
 	m.___stack_pointer = v4
 	store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-	v10 = i32(28)
+	v10 = i32(25)
 	v11 = v4 + i32(56)
 	v12 = v2
 	v13 = v3
@@ -8096,7 +8363,7 @@ func (m *Module) Xget_global(v0, v1, v2, v3 int32) int32 {
 				{
 					if v3 != 0 {
 						store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-						v46 = i32(25)
+						v46 = i32(22)
 						v47 = v4 + i32(56)
 						store32((*m.memory)[uint32(v9):], uint32(v0))
 						store32((*m.memory)[int64(uint32(v9))+4:], uint32(v1))
@@ -8149,7 +8416,7 @@ func (m *Module) Xget_global(v0, v1, v2, v3 int32) int32 {
 							goto l7
 						}
 						store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-						v51 = i32(26)
+						v51 = i32(23)
 						v52 = v4 + i32(56)
 						t33 := int32(load32((*m.memory)[int64(uint32(v4))+20:]))
 						v53 = t33
@@ -8207,7 +8474,7 @@ func (m *Module) Xget_global(v0, v1, v2, v3 int32) int32 {
 						goto l14
 					}
 					store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-					v25 = i32(31)
+					v25 = i32(28)
 					v26 = v0
 					v27 = v1
 					store32((*m.memory)[uint32(v9):], uint32(v0))
@@ -8265,7 +8532,7 @@ func (m *Module) Xget_global(v0, v1, v2, v3 int32) int32 {
 						goto l7
 					}
 					store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-					v31 = i32(32)
+					v31 = i32(29)
 					v32 = v8
 					store32((*m.memory)[uint32(v9):], uint32(v0))
 					store32((*m.memory)[int64(uint32(v9))+4:], uint32(v1))
@@ -8322,7 +8589,7 @@ func (m *Module) Xget_global(v0, v1, v2, v3 int32) int32 {
 						goto l7
 					}
 					store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-					v36 = i32(24)
+					v36 = i32(21)
 					v37 = v4 + i32(56)
 					v38 = v8
 					v39 = v2
@@ -8432,7 +8699,7 @@ func (m *Module) Xget_global(v0, v1, v2, v3 int32) int32 {
 			}
 		l14:
 			store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-			v59 = i32(30)
+			v59 = i32(27)
 			v60 = v4 + i32(56)
 			store32((*m.memory)[uint32(v9):], uint32(v0))
 			store32((*m.memory)[int64(uint32(v9))+4:], uint32(v1))
@@ -8502,6 +8769,23 @@ l1:
 func (m *Module) Xset_global(v0, v1, v2, v3, v4 int32) int32 {
 	var v5 int32
 	var v6 int32
+	t0 := m.___stack_pointer
+	v5 = t0 - i32(32)
+	m.___stack_pointer = v5
+	store32((*m.memory)[uint32(v5):], uint32(v0))
+	store32((*m.memory)[int64(uint32(v5))+4:], uint32(v1))
+	store32((*m.memory)[int64(uint32(v5))+8:], uint32(v2))
+	store32((*m.memory)[int64(uint32(v5))+12:], uint32(v3))
+	store32((*m.memory)[int64(uint32(v5))+16:], uint32(v4))
+	m._vm_enter()
+	t1 := m._set_global_ext_body(v0, v1, v2, v3, v4)
+	v6 = t1
+	m.___stack_pointer = v5 + i32(32)
+	return v6
+}
+func (m *Module) _set_global_ext_body(v0, v1, v2, v3, v4 int32) int32 {
+	var v5 int32
+	var v6 int32
 	var v7 int32
 	var v8 int32
 	var v9 int32
@@ -8560,13 +8844,6 @@ func (m *Module) Xset_global(v0, v1, v2, v3, v4 int32) int32 {
 	var v62 int32
 	var v63 int32
 	var v64 int32
-	var v65 int32
-	var v66 int32
-	var v67 int32
-	var v68 int32
-	var v69 int32
-	var v70 int32
-	var v71 int32
 	var _ int32
 	t0 := m.___stack_pointer
 	v10 = t0 - i32(48)
@@ -8575,7 +8852,7 @@ func (m *Module) Xset_global(v0, v1, v2, v3, v4 int32) int32 {
 	v5 = t1 - i32(80)
 	m.___stack_pointer = v5
 	store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-	v11 = i32(28)
+	v11 = i32(25)
 	v12 = v5 + i32(56)
 	v13 = v3
 	v14 = v4
@@ -8717,24 +8994,84 @@ func (m *Module) Xset_global(v0, v1, v2, v3, v4 int32) int32 {
 				{
 					if v4 != 0 {
 						store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-						v53 = i32(25)
-						v54 = v5 + i32(56)
+						v46 = i32(22)
+						v47 = v5 + i32(56)
 						store32((*m.memory)[uint32(v10):], uint32(v0))
 						store32((*m.memory)[int64(uint32(v10))+4:], uint32(v1))
 						store32((*m.memory)[int64(uint32(v10))+8:], uint32(v2))
 						store32((*m.memory)[int64(uint32(v10))+12:], uint32(v3))
 						store32((*m.memory)[int64(uint32(v10))+20:], uint32(v5))
-						m._invoke_vi(v53, v54)
-						t33 := int32(load32((*m.memory)[int64(uint32(i32(0)))+218776:]))
-						v4 = t33
+						m._invoke_vi(v46, v47)
+						t29 := int32(load32((*m.memory)[int64(uint32(i32(0)))+218776:]))
+						v4 = t29
+						store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
+						v7 = i32(-1)
+						{
+							if v4 == 0 {
+								goto l12
+							}
+							t30 := int32(load32((*m.memory)[int64(uint32(i32(0)))+218780:]))
+							v8 = t30
+							if v8 == 0 {
+								goto l12
+							}
+							v48 = v4
+							v49 = v5 + i32(12)
+							store32((*m.memory)[uint32(v10):], uint32(v0))
+							store32((*m.memory)[int64(uint32(v10))+4:], uint32(v1))
+							store32((*m.memory)[int64(uint32(v10))+8:], uint32(v2))
+							store32((*m.memory)[int64(uint32(v10))+12:], uint32(v3))
+							store32((*m.memory)[int64(uint32(v10))+16:], uint32(v4))
+							store32((*m.memory)[int64(uint32(v10))+20:], uint32(v5))
+							store32((*m.memory)[int64(uint32(v10))+32:], uint32(v8))
+							t31 := m.___wasm_setjmp_test(v48, v49)
+							v7 = t31
+							if v7 == 0 {
+								goto l1
+							}
+							v50 = v8
+							store32((*m.memory)[uint32(v10):], uint32(v0))
+							store32((*m.memory)[int64(uint32(v10))+4:], uint32(v1))
+							store32((*m.memory)[int64(uint32(v10))+8:], uint32(v2))
+							store32((*m.memory)[int64(uint32(v10))+12:], uint32(v3))
+							store32((*m.memory)[int64(uint32(v10))+20:], uint32(v5))
+							store32((*m.memory)[int64(uint32(v10))+28:], uint32(v7))
+							m._setTempRet0(v50)
+						}
+					l12:
+						store32((*m.memory)[uint32(v10):], uint32(v0))
+						store32((*m.memory)[int64(uint32(v10))+4:], uint32(v1))
+						store32((*m.memory)[int64(uint32(v10))+8:], uint32(v2))
+						store32((*m.memory)[int64(uint32(v10))+12:], uint32(v3))
+						store32((*m.memory)[int64(uint32(v10))+20:], uint32(v5))
+						store32((*m.memory)[int64(uint32(v10))+28:], uint32(v7))
+						t32 := m._getTempRet0()
+						v4 = t32
+						if v7 == i32(1) {
+							goto l7
+						}
+						store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
+						v51 = i32(23)
+						v52 = v5 + i32(56)
+						t33 := int32(load32((*m.memory)[int64(uint32(v5))+20:]))
+						v53 = t33
+						v54 = v3
+						store32((*m.memory)[uint32(v10):], uint32(v0))
+						store32((*m.memory)[int64(uint32(v10))+4:], uint32(v1))
+						store32((*m.memory)[int64(uint32(v10))+8:], uint32(v2))
+						store32((*m.memory)[int64(uint32(v10))+12:], uint32(v3))
+						store32((*m.memory)[int64(uint32(v10))+20:], uint32(v5))
+						m._invoke_viii(v51, v52, v53, v54)
+						t34 := int32(load32((*m.memory)[int64(uint32(i32(0)))+218776:]))
+						v4 = t34
 						store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
 						v7 = i32(-1)
 						{
 							if v4 == 0 {
 								goto l13
 							}
-							t34 := int32(load32((*m.memory)[int64(uint32(i32(0)))+218780:]))
-							v8 = t34
+							t35 := int32(load32((*m.memory)[int64(uint32(i32(0)))+218780:]))
+							v8 = t35
 							if v8 == 0 {
 								goto l13
 							}
@@ -8747,8 +9084,8 @@ func (m *Module) Xset_global(v0, v1, v2, v3, v4 int32) int32 {
 							store32((*m.memory)[int64(uint32(v10))+16:], uint32(v4))
 							store32((*m.memory)[int64(uint32(v10))+20:], uint32(v5))
 							store32((*m.memory)[int64(uint32(v10))+32:], uint32(v8))
-							t35 := m.___wasm_setjmp_test(v55, v56)
-							v7 = t35
+							t36 := m.___wasm_setjmp_test(v55, v56)
+							v7 = t36
 							if v7 == 0 {
 								goto l1
 							}
@@ -8768,75 +9105,15 @@ func (m *Module) Xset_global(v0, v1, v2, v3, v4 int32) int32 {
 						store32((*m.memory)[int64(uint32(v10))+12:], uint32(v3))
 						store32((*m.memory)[int64(uint32(v10))+20:], uint32(v5))
 						store32((*m.memory)[int64(uint32(v10))+28:], uint32(v7))
-						t36 := m._getTempRet0()
-						v4 = t36
+						t37 := m._getTempRet0()
+						v4 = t37
 						if v7 == i32(1) {
 							goto l7
 						}
-						store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-						v58 = i32(26)
-						v59 = v5 + i32(56)
-						t37 := int32(load32((*m.memory)[int64(uint32(v5))+20:]))
-						v60 = t37
-						v61 = v3
-						store32((*m.memory)[uint32(v10):], uint32(v0))
-						store32((*m.memory)[int64(uint32(v10))+4:], uint32(v1))
-						store32((*m.memory)[int64(uint32(v10))+8:], uint32(v2))
-						store32((*m.memory)[int64(uint32(v10))+12:], uint32(v3))
-						store32((*m.memory)[int64(uint32(v10))+20:], uint32(v5))
-						m._invoke_viii(v58, v59, v60, v61)
-						t38 := int32(load32((*m.memory)[int64(uint32(i32(0)))+218776:]))
-						v4 = t38
-						store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-						v7 = i32(-1)
-						{
-							if v4 == 0 {
-								goto l14
-							}
-							t39 := int32(load32((*m.memory)[int64(uint32(i32(0)))+218780:]))
-							v8 = t39
-							if v8 == 0 {
-								goto l14
-							}
-							v62 = v4
-							v63 = v5 + i32(12)
-							store32((*m.memory)[uint32(v10):], uint32(v0))
-							store32((*m.memory)[int64(uint32(v10))+4:], uint32(v1))
-							store32((*m.memory)[int64(uint32(v10))+8:], uint32(v2))
-							store32((*m.memory)[int64(uint32(v10))+12:], uint32(v3))
-							store32((*m.memory)[int64(uint32(v10))+16:], uint32(v4))
-							store32((*m.memory)[int64(uint32(v10))+20:], uint32(v5))
-							store32((*m.memory)[int64(uint32(v10))+32:], uint32(v8))
-							t40 := m.___wasm_setjmp_test(v62, v63)
-							v7 = t40
-							if v7 == 0 {
-								goto l1
-							}
-							v64 = v8
-							store32((*m.memory)[uint32(v10):], uint32(v0))
-							store32((*m.memory)[int64(uint32(v10))+4:], uint32(v1))
-							store32((*m.memory)[int64(uint32(v10))+8:], uint32(v2))
-							store32((*m.memory)[int64(uint32(v10))+12:], uint32(v3))
-							store32((*m.memory)[int64(uint32(v10))+20:], uint32(v5))
-							store32((*m.memory)[int64(uint32(v10))+28:], uint32(v7))
-							m._setTempRet0(v64)
-						}
-					l14:
-						store32((*m.memory)[uint32(v10):], uint32(v0))
-						store32((*m.memory)[int64(uint32(v10))+4:], uint32(v1))
-						store32((*m.memory)[int64(uint32(v10))+8:], uint32(v2))
-						store32((*m.memory)[int64(uint32(v10))+12:], uint32(v3))
-						store32((*m.memory)[int64(uint32(v10))+20:], uint32(v5))
-						store32((*m.memory)[int64(uint32(v10))+28:], uint32(v7))
-						t41 := m._getTempRet0()
-						v4 = t41
-						if v7 == i32(1) {
-							goto l7
-						}
-						goto l15
+						goto l14
 					}
 					store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-					v26 = i32(35)
+					v26 = i32(32)
 					v27 = v2
 					store32((*m.memory)[uint32(v10):], uint32(v0))
 					store32((*m.memory)[int64(uint32(v10))+4:], uint32(v1))
@@ -8897,7 +9174,7 @@ func (m *Module) Xset_global(v0, v1, v2, v3, v4 int32) int32 {
 						goto l7
 					}
 					store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-					v31 = i32(31)
+					v31 = i32(28)
 					v32 = v0
 					v33 = v1
 					store32((*m.memory)[uint32(v10):], uint32(v0))
@@ -8963,7 +9240,7 @@ func (m *Module) Xset_global(v0, v1, v2, v3, v4 int32) int32 {
 						goto l7
 					}
 					store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-					v37 = i32(38)
+					v37 = i32(35)
 					v38 = v6
 					v39 = v9
 					store32((*m.memory)[uint32(v10):], uint32(v0))
@@ -9020,87 +9297,30 @@ func (m *Module) Xset_global(v0, v1, v2, v3, v4 int32) int32 {
 					if v7 == i32(1) {
 						goto l7
 					}
+					store64((*m.memory)[uint32(v3):], uint64(i64(2)))
+					store32((*m.memory)[int64(uint32(v3))+8:], uint32(i32(0)))
 					store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-					v43 = i32(24)
-					v44 = v5 + i32(56)
-					v45 = i32(6)
-					v46 = v3
+					v43 = i32(6)
 					store32((*m.memory)[uint32(v10):], uint32(v0))
 					store32((*m.memory)[int64(uint32(v10))+4:], uint32(v1))
 					store32((*m.memory)[int64(uint32(v10))+8:], uint32(v2))
 					store32((*m.memory)[int64(uint32(v10))+12:], uint32(v3))
 					store32((*m.memory)[int64(uint32(v10))+20:], uint32(v5))
-					m._invoke_viii(v43, v44, v45, v46)
+					m._invoke_v(v43)
 					t26 := int32(load32((*m.memory)[int64(uint32(i32(0)))+218776:]))
 					v4 = t26
 					store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
 					v7 = i32(-1)
-					{
-						if v4 == 0 {
-							goto l10
-						}
-						t27 := int32(load32((*m.memory)[int64(uint32(i32(0)))+218780:]))
-						v8 = t27
-						if v8 == 0 {
-							goto l10
-						}
-						v47 = v4
-						v48 = v5 + i32(12)
-						store32((*m.memory)[uint32(v10):], uint32(v0))
-						store32((*m.memory)[int64(uint32(v10))+4:], uint32(v1))
-						store32((*m.memory)[int64(uint32(v10))+8:], uint32(v2))
-						store32((*m.memory)[int64(uint32(v10))+12:], uint32(v3))
-						store32((*m.memory)[int64(uint32(v10))+16:], uint32(v4))
-						store32((*m.memory)[int64(uint32(v10))+20:], uint32(v5))
-						store32((*m.memory)[int64(uint32(v10))+32:], uint32(v8))
-						t28 := m.___wasm_setjmp_test(v47, v48)
-						v7 = t28
-						if v7 == 0 {
-							goto l1
-						}
-						v49 = v8
-						store32((*m.memory)[uint32(v10):], uint32(v0))
-						store32((*m.memory)[int64(uint32(v10))+4:], uint32(v1))
-						store32((*m.memory)[int64(uint32(v10))+8:], uint32(v2))
-						store32((*m.memory)[int64(uint32(v10))+12:], uint32(v3))
-						store32((*m.memory)[int64(uint32(v10))+20:], uint32(v5))
-						store32((*m.memory)[int64(uint32(v10))+28:], uint32(v7))
-						m._setTempRet0(v49)
-					}
-				l10:
-					store32((*m.memory)[uint32(v10):], uint32(v0))
-					store32((*m.memory)[int64(uint32(v10))+4:], uint32(v1))
-					store32((*m.memory)[int64(uint32(v10))+8:], uint32(v2))
-					store32((*m.memory)[int64(uint32(v10))+12:], uint32(v3))
-					store32((*m.memory)[int64(uint32(v10))+20:], uint32(v5))
-					store32((*m.memory)[int64(uint32(v10))+28:], uint32(v7))
-					t29 := m._getTempRet0()
-					v4 = t29
-					if v7 == i32(1) {
-						goto l7
-					}
-					store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-					v50 = i32(6)
-					store32((*m.memory)[uint32(v10):], uint32(v0))
-					store32((*m.memory)[int64(uint32(v10))+4:], uint32(v1))
-					store32((*m.memory)[int64(uint32(v10))+8:], uint32(v2))
-					store32((*m.memory)[int64(uint32(v10))+12:], uint32(v3))
-					store32((*m.memory)[int64(uint32(v10))+20:], uint32(v5))
-					m._invoke_v(v50)
-					t30 := int32(load32((*m.memory)[int64(uint32(i32(0)))+218776:]))
-					v4 = t30
-					store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-					v7 = i32(-1)
 					if v4 == 0 {
-						goto l11
+						goto l10
 					}
-					t31 := int32(load32((*m.memory)[int64(uint32(i32(0)))+218780:]))
-					v8 = t31
+					t27 := int32(load32((*m.memory)[int64(uint32(i32(0)))+218780:]))
+					v8 = t27
 					if v8 == 0 {
-						goto l11
+						goto l10
 					}
-					v51 = v4
-					v52 = v5 + i32(12)
+					v44 = v4
+					v45 = v5 + i32(12)
 					store32((*m.memory)[uint32(v10):], uint32(v0))
 					store32((*m.memory)[int64(uint32(v10))+4:], uint32(v1))
 					store32((*m.memory)[int64(uint32(v10))+8:], uint32(v2))
@@ -9108,61 +9328,61 @@ func (m *Module) Xset_global(v0, v1, v2, v3, v4 int32) int32 {
 					store32((*m.memory)[int64(uint32(v10))+16:], uint32(v4))
 					store32((*m.memory)[int64(uint32(v10))+20:], uint32(v5))
 					store32((*m.memory)[int64(uint32(v10))+32:], uint32(v8))
-					t32 := m.___wasm_setjmp_test(v51, v52)
-					v7 = t32
+					t28 := m.___wasm_setjmp_test(v44, v45)
+					v7 = t28
 					if v7 != 0 {
-						goto l12
+						goto l11
 					}
 					goto l1
 				}
-			l12:
-				v65 = v8
-				store32((*m.memory)[uint32(v10):], uint32(v0))
-				store32((*m.memory)[int64(uint32(v10))+4:], uint32(v1))
-				store32((*m.memory)[int64(uint32(v10))+8:], uint32(v2))
-				store32((*m.memory)[int64(uint32(v10))+12:], uint32(v3))
-				store32((*m.memory)[int64(uint32(v10))+20:], uint32(v5))
-				store32((*m.memory)[int64(uint32(v10))+28:], uint32(v7))
-				m._setTempRet0(v65)
 			l11:
+				v58 = v8
 				store32((*m.memory)[uint32(v10):], uint32(v0))
 				store32((*m.memory)[int64(uint32(v10))+4:], uint32(v1))
 				store32((*m.memory)[int64(uint32(v10))+8:], uint32(v2))
 				store32((*m.memory)[int64(uint32(v10))+12:], uint32(v3))
 				store32((*m.memory)[int64(uint32(v10))+20:], uint32(v5))
 				store32((*m.memory)[int64(uint32(v10))+28:], uint32(v7))
-				t42 := m._getTempRet0()
-				v4 = t42
+				m._setTempRet0(v58)
+			l10:
+				store32((*m.memory)[uint32(v10):], uint32(v0))
+				store32((*m.memory)[int64(uint32(v10))+4:], uint32(v1))
+				store32((*m.memory)[int64(uint32(v10))+8:], uint32(v2))
+				store32((*m.memory)[int64(uint32(v10))+12:], uint32(v3))
+				store32((*m.memory)[int64(uint32(v10))+20:], uint32(v5))
+				store32((*m.memory)[int64(uint32(v10))+28:], uint32(v7))
+				t38 := m._getTempRet0()
+				v4 = t38
 				if v7 == i32(1) {
 					goto l7
 				}
 			}
-		l15:
+		l14:
 			store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-			v66 = i32(30)
-			v67 = v5 + i32(56)
+			v59 = i32(27)
+			v60 = v5 + i32(56)
 			store32((*m.memory)[uint32(v10):], uint32(v0))
 			store32((*m.memory)[int64(uint32(v10))+4:], uint32(v1))
 			store32((*m.memory)[int64(uint32(v10))+8:], uint32(v2))
 			store32((*m.memory)[int64(uint32(v10))+12:], uint32(v3))
 			store32((*m.memory)[int64(uint32(v10))+20:], uint32(v5))
-			t43 := m._invoke_ii(v66, v67)
-			v9 = t43
-			t44 := int32(load32((*m.memory)[int64(uint32(i32(0)))+218776:]))
-			v4 = t44
+			t39 := m._invoke_ii(v59, v60)
+			v9 = t39
+			t40 := int32(load32((*m.memory)[int64(uint32(i32(0)))+218776:]))
+			v4 = t40
 			store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
 			v7 = i32(-1)
 			{
 				if v4 == 0 {
-					goto l16
+					goto l15
 				}
-				t45 := int32(load32((*m.memory)[int64(uint32(i32(0)))+218780:]))
-				v8 = t45
+				t41 := int32(load32((*m.memory)[int64(uint32(i32(0)))+218780:]))
+				v8 = t41
 				if v8 == 0 {
-					goto l16
+					goto l15
 				}
-				v68 = v4
-				v69 = v5 + i32(12)
+				v61 = v4
+				v62 = v5 + i32(12)
 				store32((*m.memory)[uint32(v10):], uint32(v0))
 				store32((*m.memory)[int64(uint32(v10))+4:], uint32(v1))
 				store32((*m.memory)[int64(uint32(v10))+8:], uint32(v2))
@@ -9171,12 +9391,12 @@ func (m *Module) Xset_global(v0, v1, v2, v3, v4 int32) int32 {
 				store32((*m.memory)[int64(uint32(v10))+20:], uint32(v5))
 				store32((*m.memory)[int64(uint32(v10))+32:], uint32(v8))
 				store32((*m.memory)[int64(uint32(v10))+36:], uint32(v9))
-				t46 := m.___wasm_setjmp_test(v68, v69)
-				v7 = t46
+				t42 := m.___wasm_setjmp_test(v61, v62)
+				v7 = t42
 				if v7 == 0 {
 					goto l1
 				}
-				v70 = v8
+				v63 = v8
 				store32((*m.memory)[uint32(v10):], uint32(v0))
 				store32((*m.memory)[int64(uint32(v10))+4:], uint32(v1))
 				store32((*m.memory)[int64(uint32(v10))+8:], uint32(v2))
@@ -9184,9 +9404,9 @@ func (m *Module) Xset_global(v0, v1, v2, v3, v4 int32) int32 {
 				store32((*m.memory)[int64(uint32(v10))+20:], uint32(v5))
 				store32((*m.memory)[int64(uint32(v10))+28:], uint32(v7))
 				store32((*m.memory)[int64(uint32(v10))+36:], uint32(v9))
-				m._setTempRet0(v70)
+				m._setTempRet0(v63)
 			}
-		l16:
+		l15:
 			store32((*m.memory)[uint32(v10):], uint32(v0))
 			store32((*m.memory)[int64(uint32(v10))+4:], uint32(v1))
 			store32((*m.memory)[int64(uint32(v10))+8:], uint32(v2))
@@ -9194,17 +9414,17 @@ func (m *Module) Xset_global(v0, v1, v2, v3, v4 int32) int32 {
 			store32((*m.memory)[int64(uint32(v10))+20:], uint32(v5))
 			store32((*m.memory)[int64(uint32(v10))+28:], uint32(v7))
 			store32((*m.memory)[int64(uint32(v10))+36:], uint32(v9))
-			t47 := m._getTempRet0()
-			v4 = t47
+			t43 := m._getTempRet0()
+			v4 = t43
 			if v7 == i32(1) {
 				goto l7
 			}
 		}
 	l3:
 		m.___stack_pointer = v5 + i32(80)
-		v71 = v9
+		v64 = v9
 		m.___stack_pointer = v10 + i32(48)
-		return v71
+		return v64
 	}
 l1:
 	m._emscripten_longjmp(v4, v8)
@@ -9307,7 +9527,7 @@ func (m *Module) _ref_add(v0 int32) int32 {
 	v1 = t1 - i32(48)
 	m.___stack_pointer = v1
 	store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-	v8 = i32(40)
+	v8 = i32(37)
 	v9 = v0
 	store32((*m.memory)[uint32(v7):], uint32(v0))
 	store32((*m.memory)[int64(uint32(v7))+4:], uint32(v1))
@@ -9498,7 +9718,7 @@ func (m *Module) _ref_add(v0 int32) int32 {
 		{
 			if v3 != 0 {
 				store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-				v37 = i32(42)
+				v37 = i32(39)
 				v38 = v2
 				store32((*m.memory)[uint32(v7):], uint32(v0))
 				store32((*m.memory)[int64(uint32(v7))+4:], uint32(v1))
@@ -9609,7 +9829,7 @@ func (m *Module) _ref_add(v0 int32) int32 {
 			l12:
 				{
 					store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-					v27 = i32(41)
+					v27 = i32(38)
 					v28 = v3
 					v29 = i32(0)
 					store32((*m.memory)[uint32(v7):], uint32(v0))
@@ -9874,6 +10094,9 @@ l1:
 	v13 = v3
 	m.___stack_pointer = v4 + i32(16)
 	return v13
+}
+func (m *Module) _vm_enter() {
+	store16((*m.memory)[int64(uint32(i32(8)))+219284:], uint16(i32(0)))
 }
 func (m *Module) ___wasm_setjmp(v0, v1, v2 int32) {
 	store32((*m.memory)[int64(uint32(v0))+4:], uint32(v1))
@@ -14298,7 +14521,7 @@ l0:
 			store32((*m.memory)[int64(uint32(v3))+12:], uint32(v6))
 			store32((*m.memory)[int64(uint32(v3))+8:], uint32(v4))
 			v18 = v3
-			v19 = i32(46)
+			v19 = i32(43)
 			store32((*m.memory)[uint32(v11):], uint32(v0))
 			store32((*m.memory)[int64(uint32(v11))+12:], uint32(v3))
 			store32((*m.memory)[int64(uint32(v11))+20:], uint32(v5))
@@ -14936,7 +15159,7 @@ func (m *Module) _mp_builtin___import___default(v0, v1 int32) int32 {
 					v0 = t41
 					store32((*m.memory)[int64(uint32(v2))+28:], uint32(v9))
 					v67 = v2 + i32(20)
-					v68 = i32(50)
+					v68 = i32(47)
 					store32((*m.memory)[uint32(v12):], uint32(v0))
 					store32((*m.memory)[int64(uint32(v12))+4:], uint32(v1))
 					store32((*m.memory)[int64(uint32(v12))+8:], uint32(v2))
@@ -18294,7 +18517,7 @@ l0:
 }
 func (m *Module) _compile_del_stmt(v0, v1 int32) {
 	t0 := int32(load32((*m.memory)[int64(uint32(v1))+8:]))
-	m._apply_to_single_or_list(v0, t0, i32(153), i32(52))
+	m._apply_to_single_or_list(v0, t0, i32(153), i32(49))
 }
 func (m *Module) _c_del_stmt(v0, v1 int32) {
 	var v2 int32
@@ -18692,7 +18915,7 @@ l1:
 }
 func (m *Module) _compile_import_name(v0, v1 int32) {
 	t0 := int32(load32((*m.memory)[int64(uint32(v1))+8:]))
-	m._apply_to_single_or_list(v0, t0, i32(104), i32(53))
+	m._apply_to_single_or_list(v0, t0, i32(104), i32(50))
 }
 func (m *Module) _compile_dotted_as_name(v0, v1 int32) {
 	var v2 int32
@@ -21894,7 +22117,7 @@ func (m *Module) _compile_funcdef_lambdef(v0, v1, v2, v3 int32) {
 	v9 = v0
 	v10 = v2
 	v11 = v3
-	v12 = i32(54)
+	v12 = i32(51)
 	store32((*m.memory)[uint32(v8):], uint32(v0))
 	store32((*m.memory)[int64(uint32(v8))+4:], uint32(v1))
 	store32((*m.memory)[int64(uint32(v8))+16:], uint32(v4))
@@ -24440,7 +24663,7 @@ l6:
 	t41 := int32(load32((*m.memory)[int64(uint32(v0))+36:]))
 	store32((*m.memory)[int64(uint32(v0))+60:], uint32(t41))
 	v13 = v0
-	v14 = i32(97)
+	v14 = i32(94)
 	t42 := int32(load16((*m.memory)[int64(uint32(v2))+20:]))
 	v15 = t42
 	store32((*m.memory)[uint32(v12):], uint32(v0))
@@ -24487,7 +24710,7 @@ l6:
 			}
 		l11:
 			v16 = v0
-			v17 = i32(97)
+			v17 = i32(94)
 			v18 = v10
 			store32((*m.memory)[uint32(v12):], uint32(v0))
 			store32((*m.memory)[int64(uint32(v12))+8:], uint32(v2))
@@ -24849,7 +25072,7 @@ l0:
 	store32((*m.memory)[uint32(v3):], uint32(v0))
 	store32((*m.memory)[int64(uint32(v3))+4:], uint32(v1))
 	m._emit_write_bytecode_byte(v4, v5, v6)
-	m._mp_encode_uint(v0, i32(98), v1&i32(0xffff))
+	m._mp_encode_uint(v0, i32(95), v1&i32(0xffff))
 	m.___stack_pointer = v3 + i32(16)
 }
 func (m *Module) _emit_write_bytecode_byte(v0, v1, v2 int32) {
@@ -24958,7 +25181,7 @@ func (m *Module) _emit_write_bytecode_byte_obj(v0, v1 int32) {
 	store32((*m.memory)[uint32(v2):], uint32(v0))
 	store32((*m.memory)[int64(uint32(v2))+4:], uint32(v1))
 	m._emit_write_bytecode_byte(v3, v4, v5)
-	m._mp_encode_uint(v0, i32(98), v1)
+	m._mp_encode_uint(v0, i32(95), v1)
 	m.___stack_pointer = v2 + i32(16)
 }
 func (m *Module) _mp_emit_bc_load_const_small_int(v0, v1 int32) {
@@ -25094,7 +25317,7 @@ func (m *Module) _mp_emit_bc_load_const_str(v0, v1 int32) {
 	store32((*m.memory)[uint32(v2):], uint32(v0))
 	store32((*m.memory)[int64(uint32(v2))+4:], uint32(v1))
 	m._emit_write_bytecode_byte(v3, v4, v5)
-	m._mp_encode_uint(v0, i32(98), v1&i32(0xffff))
+	m._mp_encode_uint(v0, i32(95), v1&i32(0xffff))
 	m.___stack_pointer = v2 + i32(16)
 }
 func (m *Module) _mp_emit_bc_load_const_obj(v0, v1 int32) {
@@ -25127,7 +25350,7 @@ l0:
 	store32((*m.memory)[uint32(v4):], uint32(v0))
 	store32((*m.memory)[int64(uint32(v4))+8:], uint32(v2))
 	m._emit_write_bytecode_byte(v5, v6, v7)
-	m._mp_encode_uint(v0, i32(98), v2)
+	m._mp_encode_uint(v0, i32(95), v2)
 	m.___stack_pointer = v4 + i32(16)
 }
 func (m *Module) _mp_emit_bc_load_global(v0, v1, v2 int32) {
@@ -25144,7 +25367,7 @@ func (m *Module) _mp_emit_bc_load_global(v0, v1, v2 int32) {
 	store32((*m.memory)[uint32(v3):], uint32(v0))
 	store32((*m.memory)[int64(uint32(v3))+4:], uint32(v1))
 	m._emit_write_bytecode_byte(v4, v5, v6)
-	m._mp_encode_uint(v0, i32(98), v1&i32(0xffff))
+	m._mp_encode_uint(v0, i32(95), v1&i32(0xffff))
 	m.___stack_pointer = v3 + i32(16)
 }
 func (m *Module) _mp_emit_bc_load_method(v0, v1, v2 int32) {
@@ -25169,7 +25392,7 @@ func (m *Module) _mp_emit_bc_load_method(v0, v1, v2 int32) {
 	store32((*m.memory)[uint32(v3):], uint32(v0))
 	store32((*m.memory)[int64(uint32(v3))+4:], uint32(v1))
 	m._emit_write_bytecode_byte(v4, v5, v6)
-	m._mp_encode_uint(v0, i32(98), v1&i32(0xffff))
+	m._mp_encode_uint(v0, i32(95), v1&i32(0xffff))
 	m.___stack_pointer = v3 + i32(16)
 }
 func (m *Module) _mp_emit_bc_load_build_class(v0 int32) {
@@ -25260,7 +25483,7 @@ func (m *Module) _mp_emit_bc_attr(v0, v1, v2 int32) {
 		m._emit_write_bytecode_byte(v13, v14, v15)
 	}
 l3:
-	m._mp_encode_uint(v0, i32(98), v1&i32(0xffff))
+	m._mp_encode_uint(v0, i32(95), v1&i32(0xffff))
 	m.___stack_pointer = v3 + i32(16)
 }
 func (m *Module) _mp_emit_bc_rot_two(v0 int32) {
@@ -25290,7 +25513,7 @@ l0:
 	store32((*m.memory)[uint32(v4):], uint32(v0))
 	store32((*m.memory)[int64(uint32(v4))+8:], uint32(v2))
 	m._emit_write_bytecode_byte(v5, v6, v7)
-	m._mp_encode_uint(v0, i32(98), v2)
+	m._mp_encode_uint(v0, i32(95), v2)
 	m.___stack_pointer = v4 + i32(16)
 }
 func (m *Module) _mp_emit_bc_store_global(v0, v1, v2 int32) {
@@ -25307,7 +25530,7 @@ func (m *Module) _mp_emit_bc_store_global(v0, v1, v2 int32) {
 	store32((*m.memory)[uint32(v3):], uint32(v0))
 	store32((*m.memory)[int64(uint32(v3))+4:], uint32(v1))
 	m._emit_write_bytecode_byte(v4, v5, v6)
-	m._mp_encode_uint(v0, i32(98), v1&i32(0xffff))
+	m._mp_encode_uint(v0, i32(95), v1&i32(0xffff))
 	m.___stack_pointer = v3 + i32(16)
 }
 func (m *Module) _mp_emit_bc_delete_local(v0, v1, v2, v3 int32) {
@@ -25324,7 +25547,7 @@ func (m *Module) _mp_emit_bc_delete_local(v0, v1, v2, v3 int32) {
 	store32((*m.memory)[uint32(v4):], uint32(v0))
 	store32((*m.memory)[int64(uint32(v4))+8:], uint32(v2))
 	m._emit_write_bytecode_byte(v5, v6, v7)
-	m._mp_encode_uint(v0, i32(98), v2)
+	m._mp_encode_uint(v0, i32(95), v2)
 	m.___stack_pointer = v4 + i32(16)
 }
 func (m *Module) _mp_emit_bc_delete_global(v0, v1, v2 int32) {
@@ -25341,7 +25564,7 @@ func (m *Module) _mp_emit_bc_delete_global(v0, v1, v2 int32) {
 	store32((*m.memory)[uint32(v3):], uint32(v0))
 	store32((*m.memory)[int64(uint32(v3))+4:], uint32(v1))
 	m._emit_write_bytecode_byte(v4, v5, v6)
-	m._mp_encode_uint(v0, i32(98), v1&i32(0xffff))
+	m._mp_encode_uint(v0, i32(95), v1&i32(0xffff))
 	m.___stack_pointer = v3 + i32(16)
 }
 func (m *Module) _mp_emit_bc_dup_top(v0 int32) {
@@ -25812,7 +26035,7 @@ func (m *Module) _mp_emit_bc_build(v0, v1, v2 int32) {
 	store32((*m.memory)[uint32(v3):], uint32(v0))
 	store32((*m.memory)[int64(uint32(v3))+4:], uint32(v1))
 	m._emit_write_bytecode_byte(v4, v5, v6)
-	m._mp_encode_uint(v0, i32(98), v1)
+	m._mp_encode_uint(v0, i32(95), v1)
 	m.___stack_pointer = v3 + i32(16)
 }
 func (m *Module) _mp_emit_bc_store_map(v0 int32) {
@@ -25849,7 +26072,7 @@ l0:
 	store32((*m.memory)[int64(uint32(v5))+12:], uint32(v3))
 	store32((*m.memory)[int64(uint32(v5))+16:], uint32(v4))
 	m._emit_write_bytecode_byte(v6, v7, v8)
-	m._mp_encode_uint(v0, i32(98), (v3+v2)<<2|v4)
+	m._mp_encode_uint(v0, i32(95), (v3+v2)<<2|v4)
 	m.___stack_pointer = v5 + i32(32)
 }
 func (m *Module) _mp_emit_bc_unpack_sequence(v0, v1 int32) {
@@ -25866,7 +26089,7 @@ func (m *Module) _mp_emit_bc_unpack_sequence(v0, v1 int32) {
 	store32((*m.memory)[uint32(v2):], uint32(v0))
 	store32((*m.memory)[int64(uint32(v2))+4:], uint32(v1))
 	m._emit_write_bytecode_byte(v3, v4, v5)
-	m._mp_encode_uint(v0, i32(98), v1)
+	m._mp_encode_uint(v0, i32(95), v1)
 	m.___stack_pointer = v2 + i32(16)
 }
 func (m *Module) _mp_emit_bc_unpack_ex(v0, v1, v2 int32) {
@@ -25884,7 +26107,7 @@ func (m *Module) _mp_emit_bc_unpack_ex(v0, v1, v2 int32) {
 	store32((*m.memory)[int64(uint32(v3))+4:], uint32(v1))
 	store32((*m.memory)[int64(uint32(v3))+8:], uint32(v2))
 	m._emit_write_bytecode_byte(v4, v5, v6)
-	m._mp_encode_uint(v0, i32(98), v2<<8|v1)
+	m._mp_encode_uint(v0, i32(95), v2<<8|v1)
 	m.___stack_pointer = v3 + i32(16)
 }
 func (m *Module) _mp_emit_bc_make_function(v0, v1, v2, v3 int32) {
@@ -25934,7 +26157,7 @@ l1:
 	store32((*m.memory)[uint32(v6):], uint32(v0))
 	store32((*m.memory)[int64(uint32(v6))+20:], uint32(v5))
 	m._emit_write_bytecode_byte(v7, v8, v9)
-	m._mp_encode_uint(v0, i32(98), v5)
+	m._mp_encode_uint(v0, i32(95), v5)
 	m.___stack_pointer = v6 + i32(32)
 }
 func (m *Module) _mp_emit_bc_make_closure(v0, v1, v2, v3, v4 int32) {
@@ -26055,7 +26278,7 @@ l0:
 	store32((*m.memory)[int64(uint32(v7))+16:], uint32(v4))
 	m._emit_write_bytecode_byte(v11, v12, v13)
 l1:
-	m._mp_encode_uint(v0, i32(98), v4<<8|v3)
+	m._mp_encode_uint(v0, i32(95), v4<<8|v3)
 	m.___stack_pointer = v7 + i32(32)
 }
 func (m *Module) _mp_emit_bc_call_method(v0, v1, v2, v3 int32) {
@@ -34264,7 +34487,7 @@ l0:
 	return v9
 }
 func (m *Module) _mp_math_sqrt(v0 int32) int32 {
-	t0 := m._math_generic_1(v0, i32(151))
+	t0 := m._math_generic_1(v0, i32(148))
 	return t0
 }
 func (m *Module) _math_generic_1(v0, v1 int32) int32 {
@@ -34309,7 +34532,7 @@ func (m *Module) _math_error() {
 	panic("unreachable")
 }
 func (m *Module) _mp_math_pow(v0, v1 int32) int32 {
-	t0 := m._math_generic_2(v0, v1, i32(152))
+	t0 := m._math_generic_2(v0, v1, i32(149))
 	return t0
 }
 func (m *Module) _math_generic_2(v0, v1, v2 int32) int32 {
@@ -34451,31 +34674,31 @@ l0:
 	panic("unreachable")
 }
 func (m *Module) _mp_math_cos(v0 int32) int32 {
-	t0 := m._math_generic_1(v0, i32(153))
+	t0 := m._math_generic_1(v0, i32(150))
 	return t0
 }
 func (m *Module) _mp_math_sin(v0 int32) int32 {
-	t0 := m._math_generic_1(v0, i32(154))
+	t0 := m._math_generic_1(v0, i32(151))
 	return t0
 }
 func (m *Module) _mp_math_tan(v0 int32) int32 {
-	t0 := m._math_generic_1(v0, i32(155))
+	t0 := m._math_generic_1(v0, i32(152))
 	return t0
 }
 func (m *Module) _mp_math_acos(v0 int32) int32 {
-	t0 := m._math_generic_1(v0, i32(156))
+	t0 := m._math_generic_1(v0, i32(153))
 	return t0
 }
 func (m *Module) _mp_math_asin(v0 int32) int32 {
-	t0 := m._math_generic_1(v0, i32(157))
+	t0 := m._math_generic_1(v0, i32(154))
 	return t0
 }
 func (m *Module) _mp_math_atan(v0 int32) int32 {
-	t0 := m._math_generic_1(v0, i32(158))
+	t0 := m._math_generic_1(v0, i32(155))
 	return t0
 }
 func (m *Module) _mp_math_atan2(v0, v1 int32) int32 {
-	t0 := m._math_generic_2(v0, v1, i32(159))
+	t0 := m._math_generic_2(v0, v1, i32(156))
 	return t0
 }
 func (m *Module) _mp_math_ceil(v0 int32) int32 {
@@ -34484,7 +34707,7 @@ func (m *Module) _mp_math_ceil(v0 int32) int32 {
 	return t1
 }
 func (m *Module) _mp_math_copysign(v0, v1 int32) int32 {
-	t0 := m._math_generic_2(v0, v1, i32(160))
+	t0 := m._math_generic_2(v0, v1, i32(157))
 	return t0
 }
 func _copysign_func(v0, v1 float64) float64 {
@@ -35773,7 +35996,7 @@ func (m *Module) _gc_weakref_sweep() {
 						{
 							if v4 != 0 {
 								store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-								v34 = i32(197)
+								v34 = i32(194)
 								v35 = i32(208584)
 								v36 = i32(204621)
 								v37 = i32(0)
@@ -35893,7 +36116,7 @@ func (m *Module) _gc_weakref_sweep() {
 										goto l7
 									}
 									store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-									v16 = i32(196)
+									v16 = i32(193)
 									v17 = v4
 									v18 = v6
 									store32((*m.memory)[uint32(v7):], uint32(v0))
@@ -35950,7 +36173,7 @@ func (m *Module) _gc_weakref_sweep() {
 								}
 							l7:
 								store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-								v22 = i32(36)
+								v22 = i32(33)
 								v23 = v4
 								t21 := int32(load32((*m.memory)[int64(uint32(v6))+16:]))
 								v24 = t21
@@ -42140,7 +42363,7 @@ func (m *Module) _mp_obj_is_callable(v0 int32) int32 {
 			}
 			t3 := int32(load32((*m.memory)[uint32(v2+v3<<2+i32(16)):]))
 			v1 = t3
-			if v1 == i32(205) {
+			if v1 == i32(202) {
 				t5 := m._mp_obj_instance_is_callable(v0)
 				return t5
 			}
@@ -45721,7 +45944,7 @@ func (m *Module) _deque_subscr(v0, v1, v2 int32) int32 {
 }
 func (m *Module) _mp_obj_new_deque_it(v0, v1 int32) int32 {
 	store32((*m.memory)[int64(uint32(v1))+8:], uint32(v0))
-	store32((*m.memory)[int64(uint32(v1))+4:], uint32(i32(241)))
+	store32((*m.memory)[int64(uint32(v1))+4:], uint32(i32(238)))
 	store32((*m.memory)[uint32(v1):], uint32(i32(211912)))
 	t0 := int32(load32((*m.memory)[int64(uint32(v0))+8:]))
 	store32((*m.memory)[int64(uint32(v1))+12:], uint32(t0))
@@ -45940,7 +46163,7 @@ func (m *Module) _mp_obj_is_dict_or_ordereddict(v0 int32) int32 {
 		}
 		t2 := int32(load32((*m.memory)[uint32(v0+v2<<2+i32(16)):]))
 		var p3 int32
-		if t2 == i32(251) {
+		if t2 == i32(248) {
 			p3 = 1
 		}
 		v1 = p3
@@ -46102,7 +46325,7 @@ func (m *Module) _dict_update(v0, v1, v2 int32) int32 {
 					goto l2
 				}
 				t8 := int32(load32((*m.memory)[uint32(v4+v6<<2+i32(16)):]))
-				if t8 != i32(251) {
+				if t8 != i32(248) {
 					goto l2
 				}
 				t9 := int32(load32((*m.memory)[uint32(v1):]))
@@ -46581,7 +46804,7 @@ l1:
 						goto l5
 					}
 					t14 := int32(load32((*m.memory)[uint32(v10+v11<<2+i32(16)):]))
-					if t14 == i32(252) {
+					if t14 == i32(249) {
 						goto l4
 					}
 				}
@@ -47746,7 +47969,7 @@ func (m *Module) _mp_obj_is_native_exception_instance(v0 int32) int32 {
 			t5 := int32((*m.memory)[int64(uint32(t4))+8])
 			t6 := int32(load32((*m.memory)[uint32(t3+t5<<2+i32(16)):]))
 			var p7 int32
-			if t6 == i32(43) {
+			if t6 == i32(40) {
 				p7 = 1
 			}
 			v5 = p7
@@ -48328,7 +48551,7 @@ func (m *Module) _mp_obj_new_exception_msg_vlist(v0, v1, v2 int32) int32 {
 			store32((*m.memory)[int64(uint32(v3))+28:], uint32(v7))
 			store32((*m.memory)[int64(uint32(v3))+24:], uint32(i32(0)))
 			store32((*m.memory)[int64(uint32(v3))+20:], uint32(v6))
-			store32((*m.memory)[int64(uint32(v3))+12:], uint32(i32(276)))
+			store32((*m.memory)[int64(uint32(v3))+12:], uint32(i32(273)))
 			store32((*m.memory)[int64(uint32(v3))+8:], uint32(v3+i32(16)))
 			v16 = v3 + i32(8)
 			v17 = v1
@@ -48457,7 +48680,7 @@ func (m *Module) _mp_obj_is_exception_type(v0 int32) int32 {
 			goto l0
 		}
 		t2 := int32(load32((*m.memory)[uint32(v0+v1<<2+i32(16)):]))
-		if t2 != i32(43) {
+		if t2 != i32(40) {
 			goto l0
 		}
 		return i32(1)
@@ -50428,7 +50651,7 @@ func (m *Module) _it_iternext(v0 int32) int32 {
 				goto l5
 			}
 			store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-			v16 = i32(299)
+			v16 = i32(296)
 			v17 = i32(1)
 			v18 = i32(0)
 			v19 = v5
@@ -52068,7 +52291,7 @@ func (m *Module) _mp_obj_int_binary_op_extra_cases(v0, v1, v2 int32) int32 {
 						goto l4
 					}
 					t4 := int32(load32((*m.memory)[uint32(v0+v4<<2+i32(16)):]))
-					if t4 == i32(252) {
+					if t4 == i32(249) {
 						goto l3
 					}
 					if v0 == i32(213880) {
@@ -53716,7 +53939,7 @@ l3:
 func (m *Module) _list_getiter(v0, v1 int32) int32 {
 	store32((*m.memory)[int64(uint32(v1))+12:], uint32(i32(0)))
 	store32((*m.memory)[int64(uint32(v1))+8:], uint32(v0))
-	store32((*m.memory)[int64(uint32(v1))+4:], uint32(i32(307)))
+	store32((*m.memory)[int64(uint32(v1))+4:], uint32(i32(304)))
 	store32((*m.memory)[uint32(v1):], uint32(i32(211912)))
 	return v1
 }
@@ -54554,18 +54777,18 @@ l1:
 	store32((*m.memory)[int64(uint32(v3))+8:], uint32(v2))
 	t8 := m._mp_obj_new_namedtuple_base(v7, v8)
 	v1 = t8
-	store32((*m.memory)[int64(uint32(v1))+20:], uint32(i32(328)))
+	store32((*m.memory)[int64(uint32(v1))+20:], uint32(i32(325)))
 	store16((*m.memory)[int64(uint32(v1))+6:], uint16(v0))
 	store16((*m.memory)[int64(uint32(v1))+4:], uint16(i32(8)))
 	store32((*m.memory)[uint32(v1):], uint32(i32(214068)))
-	store32((*m.memory)[int64(uint32(v1))+24:], uint32(i32(329)))
+	store32((*m.memory)[int64(uint32(v1))+24:], uint32(i32(326)))
 	store16((*m.memory)[int64(uint32(v1))+8:], uint16(i32(513)))
-	store32((*m.memory)[int64(uint32(v1))+28:], uint32(i32(221)))
+	store32((*m.memory)[int64(uint32(v1))+28:], uint32(i32(218)))
 	(*m.memory)[int64(uint32(v1))+11] = byte(i32(3))
-	store32((*m.memory)[int64(uint32(v1))+32:], uint32(i32(222)))
-	store32((*m.memory)[int64(uint32(v1))+36:], uint32(i32(330)))
-	store32((*m.memory)[int64(uint32(v1))+40:], uint32(i32(224)))
-	store32((*m.memory)[int64(uint32(v1))+44:], uint32(i32(225)))
+	store32((*m.memory)[int64(uint32(v1))+32:], uint32(i32(219)))
+	store32((*m.memory)[int64(uint32(v1))+36:], uint32(i32(327)))
+	store32((*m.memory)[int64(uint32(v1))+40:], uint32(i32(221)))
+	store32((*m.memory)[int64(uint32(v1))+44:], uint32(i32(222)))
 	store32((*m.memory)[int64(uint32(v1))+12:], uint32(i32(117835012)))
 	store32((*m.memory)[int64(uint32(v1))+48:], uint32(i32(213880)))
 	(*m.memory)[int64(uint32(v1))+18] = byte(i32(8))
@@ -56602,7 +56825,7 @@ l3:
 l4:
 	store32((*m.memory)[int64(uint32(v3))+20:], uint32(i32(0)))
 	store32((*m.memory)[int64(uint32(v3))+16:], uint32(v0))
-	store32((*m.memory)[int64(uint32(v3))+12:], uint32(i32(354)))
+	store32((*m.memory)[int64(uint32(v3))+12:], uint32(i32(351)))
 	store32((*m.memory)[int64(uint32(v3))+8:], uint32(i32(211912)))
 	v5 = v1 + i32(4)
 l7:
@@ -56666,7 +56889,7 @@ l9:
 func (m *Module) _set_getiter(v0, v1 int32) int32 {
 	store32((*m.memory)[int64(uint32(v1))+12:], uint32(i32(0)))
 	store32((*m.memory)[int64(uint32(v1))+8:], uint32(v0))
-	store32((*m.memory)[int64(uint32(v1))+4:], uint32(i32(354)))
+	store32((*m.memory)[int64(uint32(v1))+4:], uint32(i32(351)))
 	store32((*m.memory)[uint32(v1):], uint32(i32(211912)))
 	return v1
 }
@@ -58521,7 +58744,7 @@ func (m *Module) _mp_obj_str_binary_op(v0, v1, v2 int32) int32 {
 					t5 := m._mp_obj_get_type(v20)
 					t6 := int32((*m.memory)[int64(uint32(t5))+15])
 					t7 := int32(load32((*m.memory)[uint32(t4+t6<<2+i32(16)):]))
-					if t7 != i32(225) {
+					if t7 != i32(222) {
 						goto l1
 					}
 					v4 = v2 + i32(8)
@@ -59343,7 +59566,7 @@ func (m *Module) _mp_obj_str_get_data(v0, v1 int32) int32 {
 				goto l1
 			}
 			t4 := int32(load32((*m.memory)[uint32(v3+v4<<2+i32(16)):]))
-			if t4 != i32(252) {
+			if t4 != i32(249) {
 				goto l1
 			}
 			v3 = v0 + i32(8)
@@ -63544,7 +63767,7 @@ func (m *Module) _str_rpartition(v0, v1 int32) int32 {
 	return t0
 }
 func (m *Module) _str_lower(v0 int32) int32 {
-	t0 := m._str_caseconv(i32(382), v0)
+	t0 := m._str_caseconv(i32(379), v0)
 	return t0
 }
 func (m *Module) _str_caseconv(v0, v1 int32) int32 {
@@ -63645,7 +63868,7 @@ l2:
 	return v16
 }
 func (m *Module) _str_upper(v0 int32) int32 {
-	t0 := m._str_caseconv(i32(383), v0)
+	t0 := m._str_caseconv(i32(380), v0)
 	return t0
 }
 func (m *Module) _str_isspace(v0 int32) int32 {
@@ -64539,7 +64762,7 @@ func (m *Module) _mp_obj_str_get_str(v0 int32) int32 {
 				goto l1
 			}
 			t4 := int32(load32((*m.memory)[uint32(v2+v3<<2+i32(16)):]))
-			if t4 != i32(252) {
+			if t4 != i32(249) {
 				goto l1
 			}
 			t5 := int32(load32((*m.memory)[int64(uint32(v0))+12:]))
@@ -65008,7 +65231,7 @@ l2:
 func (m *Module) _mp_obj_new_str_iterator(v0, v1 int32) int32 {
 	store32((*m.memory)[int64(uint32(v1))+12:], uint32(i32(0)))
 	store32((*m.memory)[int64(uint32(v1))+8:], uint32(v0))
-	store32((*m.memory)[int64(uint32(v1))+4:], uint32(i32(384)))
+	store32((*m.memory)[int64(uint32(v1))+4:], uint32(i32(381)))
 	store32((*m.memory)[uint32(v1):], uint32(i32(211912)))
 	return v1
 }
@@ -65082,7 +65305,7 @@ l2:
 func (m *Module) _mp_obj_new_bytes_iterator(v0, v1 int32) int32 {
 	store32((*m.memory)[int64(uint32(v1))+12:], uint32(i32(0)))
 	store32((*m.memory)[int64(uint32(v1))+8:], uint32(v0))
-	store32((*m.memory)[int64(uint32(v1))+4:], uint32(i32(385)))
+	store32((*m.memory)[int64(uint32(v1))+4:], uint32(i32(382)))
 	store32((*m.memory)[uint32(v1):], uint32(i32(211912)))
 	return v1
 }
@@ -65474,7 +65697,7 @@ func (m *Module) _stringio_make_new(v0, v1, v2, v3 int32) int32 {
 					goto l5
 				}
 				t12 := int32(load32((*m.memory)[uint32(v5+v1<<2+i32(16)):]))
-				if t12 != i32(252) {
+				if t12 != i32(249) {
 					goto l5
 				}
 			}
@@ -66699,7 +66922,7 @@ l0:
 func (m *Module) _mp_obj_template_iter(v0, v1 int32) int32 {
 	store32((*m.memory)[int64(uint32(v1))+12:], uint32(i32(0)))
 	store32((*m.memory)[int64(uint32(v1))+8:], uint32(v0))
-	store32((*m.memory)[int64(uint32(v1))+4:], uint32(i32(429)))
+	store32((*m.memory)[int64(uint32(v1))+4:], uint32(i32(426)))
 	store32((*m.memory)[uint32(v1):], uint32(i32(211912)))
 	return v1
 }
@@ -67427,7 +67650,7 @@ func (m *Module) _mp_obj_tuple_binary_op(v0, v1, v2 int32) int32 {
 					goto l12
 				}
 				t18 := int32(load32((*m.memory)[uint32(v5+v6<<2+i32(16)):]))
-				if t18 == i32(225) {
+				if t18 == i32(222) {
 					goto l13
 				}
 			}
@@ -67469,7 +67692,7 @@ l1:
 func (m *Module) _mp_obj_tuple_getiter(v0, v1 int32) int32 {
 	store32((*m.memory)[int64(uint32(v1))+12:], uint32(i32(0)))
 	store32((*m.memory)[int64(uint32(v1))+8:], uint32(v0))
-	store32((*m.memory)[int64(uint32(v1))+4:], uint32(i32(438)))
+	store32((*m.memory)[int64(uint32(v1))+4:], uint32(i32(435)))
 	store32((*m.memory)[uint32(v1):], uint32(i32(211912)))
 	return v1
 }
@@ -68485,19 +68708,19 @@ func (m *Module) _type_make_new(v0, v1, v2, v3 int32) int32 {
 		store32((*m.memory)[int64(uint32(v12))+36:], uint32(v9))
 		t18 := m._m_malloc0(v18)
 		v3 = t18
-		store32((*m.memory)[int64(uint32(v3))+20:], uint32(i32(443)))
+		store32((*m.memory)[int64(uint32(v3))+20:], uint32(i32(440)))
 		store16((*m.memory)[int64(uint32(v3))+6:], uint16(v5))
 		store16((*m.memory)[int64(uint32(v3))+4:], uint16(v8))
 		store32((*m.memory)[uint32(v3):], uint32(i32(214068)))
-		store32((*m.memory)[int64(uint32(v3))+24:], uint32(i32(444)))
-		store32((*m.memory)[int64(uint32(v3))+28:], uint32(i32(205)))
-		store32((*m.memory)[int64(uint32(v3))+32:], uint32(i32(445)))
-		store32((*m.memory)[int64(uint32(v3))+36:], uint32(i32(446)))
-		store32((*m.memory)[int64(uint32(v3))+40:], uint32(i32(447)))
-		store32((*m.memory)[int64(uint32(v3))+44:], uint32(i32(448)))
-		store32((*m.memory)[int64(uint32(v3))+48:], uint32(i32(449)))
+		store32((*m.memory)[int64(uint32(v3))+24:], uint32(i32(441)))
+		store32((*m.memory)[int64(uint32(v3))+28:], uint32(i32(202)))
+		store32((*m.memory)[int64(uint32(v3))+32:], uint32(i32(442)))
+		store32((*m.memory)[int64(uint32(v3))+36:], uint32(i32(443)))
+		store32((*m.memory)[int64(uint32(v3))+40:], uint32(i32(444)))
+		store32((*m.memory)[int64(uint32(v3))+44:], uint32(i32(445)))
+		store32((*m.memory)[int64(uint32(v3))+48:], uint32(i32(446)))
 		store64((*m.memory)[int64(uint32(v3))+8:], uint64(i64(0x807060504030201)))
-		store32((*m.memory)[int64(uint32(v3))+52:], uint32(i32(450)))
+		store32((*m.memory)[int64(uint32(v3))+52:], uint32(i32(447)))
 		(*m.memory)[int64(uint32(v3))+16] = byte(i32(9))
 		(*m.memory)[int64(uint32(v3))+19] = byte(i32(10))
 		store32((*m.memory)[int64(uint32(v3))+56:], uint32(v2))
@@ -71086,9 +71309,9 @@ func (m *Module) _mp_parse(v0, v1, v2 int32) {
 	v3 = t1 - i32(64)
 	m.___stack_pointer = v3
 	store32((*m.memory)[int64(uint32(v3))+60:], uint32(v1))
-	store32((*m.memory)[int64(uint32(v3))+56:], uint32(i32(468)))
+	store32((*m.memory)[int64(uint32(v3))+56:], uint32(i32(465)))
 	v20 = v3 + i32(48)
-	v21 = i32(469)
+	v21 = i32(466)
 	store32((*m.memory)[uint32(v13):], uint32(v0))
 	store32((*m.memory)[int64(uint32(v13))+4:], uint32(v1))
 	store32((*m.memory)[int64(uint32(v13))+8:], uint32(v2))
@@ -73841,8 +74064,8 @@ func (m *Module) _mp_reader_new_mem(v0, v1, v2, v3 int32) {
 	store32((*m.memory)[int64(uint32(v4))+8:], uint32(v1))
 	store32((*m.memory)[int64(uint32(v4))+4:], uint32(v1))
 	store32((*m.memory)[uint32(v4):], uint32(v3))
-	store32((*m.memory)[int64(uint32(v0))+8:], uint32(i32(470)))
-	store32((*m.memory)[int64(uint32(v0))+4:], uint32(i32(471)))
+	store32((*m.memory)[int64(uint32(v0))+8:], uint32(i32(467)))
+	store32((*m.memory)[int64(uint32(v0))+4:], uint32(i32(468)))
 	store32((*m.memory)[uint32(v0):], uint32(v4))
 	m.___stack_pointer = v5 + i32(32)
 }
@@ -74040,7 +74263,7 @@ func (m *Module) _mp_call_function_1_protected(v0, v1 int32) int32 {
 					goto l9
 				}
 				store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-				v16 = i32(196)
+				v16 = i32(193)
 				v17 = v0
 				v18 = v1
 				store32((*m.memory)[uint32(v7):], uint32(v0))
@@ -74462,7 +74685,7 @@ func (m *Module) _mp_unary_op(v0, v1 int32) int32 {
 									goto l11
 								}
 								t8 := int32(load32((*m.memory)[uint32(v3+v4<<2+i32(16)):]))
-								if t8 != i32(252) {
+								if t8 != i32(249) {
 									goto l11
 								}
 								t9 := int32(load32((*m.memory)[int64(uint32(v1))+4:]))
@@ -75228,7 +75451,7 @@ func (m *Module) _mp_getiter(v0, v1 int32) int32 {
 				}
 				{
 					t5 := int32(load32((*m.memory)[uint32(v3+v5<<2+i32(16)):]))
-					if t5 != i32(449) {
+					if t5 != i32(446) {
 						goto l4
 					}
 					v1 = i32(0)
@@ -75384,7 +75607,7 @@ func (m *Module) _mp_iternext(v0 int32) int32 {
 	v1 = t1 - i32(64)
 	m.___stack_pointer = v1
 	store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-	v7 = i32(472)
+	v7 = i32(469)
 	store32((*m.memory)[uint32(v6):], uint32(v0))
 	store32((*m.memory)[int64(uint32(v6))+4:], uint32(v1))
 	m._invoke_v(v7)
@@ -75430,7 +75653,7 @@ func (m *Module) _mp_iternext(v0 int32) int32 {
 				goto l14
 			}
 			store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-			v11 = i32(473)
+			v11 = i32(470)
 			v12 = v0
 			store32((*m.memory)[uint32(v6):], uint32(v0))
 			store32((*m.memory)[int64(uint32(v6))+4:], uint32(v1))
@@ -75485,7 +75708,7 @@ func (m *Module) _mp_iternext(v0 int32) int32 {
 				}
 				store32((*m.memory)[int64(uint32(i32(32)))+219284:], uint32(i32(0)))
 				store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-				v16 = i32(474)
+				v16 = i32(471)
 				v17 = v5
 				store32((*m.memory)[uint32(v6):], uint32(v0))
 				store32((*m.memory)[int64(uint32(v6))+4:], uint32(v1))
@@ -75582,7 +75805,7 @@ func (m *Module) _mp_iternext(v0 int32) int32 {
 			}
 		l4:
 			store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-			v26 = i32(475)
+			v26 = i32(472)
 			v27 = v0
 			v28 = i32(25)
 			v29 = v1 + i32(56)
@@ -75680,7 +75903,7 @@ func (m *Module) _mp_iternext(v0 int32) int32 {
 			}
 		l9:
 			store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-			v41 = i32(34)
+			v41 = i32(31)
 			v42 = i32(198772)
 			store32((*m.memory)[int64(uint32(v6))+4:], uint32(v1))
 			m._invoke_vi(v41, v42)
@@ -75722,7 +75945,7 @@ func (m *Module) _mp_iternext(v0 int32) int32 {
 					t50 := int32(load32((*m.memory)[uint32(t49):]))
 					v2 = t50
 					store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-					v57 = i32(476)
+					v57 = i32(473)
 					v58 = v2
 					v59 = i32(209936)
 					store32((*m.memory)[int64(uint32(v6))+4:], uint32(v1))
@@ -75808,7 +76031,7 @@ func (m *Module) _mp_iternext(v0 int32) int32 {
 							goto l14
 						}
 						store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-						v63 = i32(477)
+						v63 = i32(474)
 						v64 = v2
 						store32((*m.memory)[int64(uint32(v6))+4:], uint32(v1))
 						t57 := m._invoke_ii(v63, v64)
@@ -75858,7 +76081,7 @@ func (m *Module) _mp_iternext(v0 int32) int32 {
 					}
 				}
 				store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-				v46 = i32(36)
+				v46 = i32(33)
 				t36 := int32(load32((*m.memory)[int64(uint32(v1))+56:]))
 				v47 = t36
 				t37 := int32(load32((*m.memory)[int64(uint32(v1))+60:]))
@@ -76083,7 +76306,7 @@ func (m *Module) _type_get_iternext(v0 int32) int32 {
 			t2 := int32(load32((*m.memory)[uint32(v0+t1<<2+i32(16)):]))
 			return t2
 		}
-		return i32(478)
+		return i32(475)
 	}
 }
 func (m *Module) _mp_call_function_n_kw(v0, v1, v2, v3 int32) int32 {
@@ -77551,7 +77774,7 @@ func (m *Module) _mp_load_method_protected(v0, v1, v2, v3 int32) {
 				t16 := int32(load32((*m.memory)[uint32(t15):]))
 				v5 = t16
 				store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-				v29 = i32(476)
+				v29 = i32(473)
 				v30 = v5
 				v31 = i32(210116)
 				store32((*m.memory)[uint32(v9):], uint32(v0))
@@ -77669,7 +77892,7 @@ func (m *Module) _mp_load_method_protected(v0, v1, v2, v3 int32) {
 				goto l5
 			}
 			store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-			v18 = i32(475)
+			v18 = i32(472)
 			v19 = v0
 			v20 = v1
 			v21 = v2
@@ -78631,7 +78854,7 @@ func (m *Module) _mp_parse_compile_execute(v0, v1, v2, v3 int32) int32 {
 	store32((*m.memory)[int64(uint32(i32(12)))+219284:], uint32(v3))
 	store64((*m.memory)[int64(uint32(v4))+24:], uint64(i64_rotl(v5, i64(32))))
 	v18 = v4 + i32(16)
-	v19 = i32(46)
+	v19 = i32(43)
 	store32((*m.memory)[uint32(v6):], uint32(v0))
 	store32((*m.memory)[int64(uint32(v6))+4:], uint32(v1))
 	store32((*m.memory)[int64(uint32(v6))+16:], uint32(v4))
@@ -81187,7 +81410,7 @@ l265:
 							t15 := int32(load32((*m.memory)[int64(uint32(v2))+60:]))
 							v1 = t15
 							store32((*m.memory)[int64(uint32(v2))+60:], uint32(i32(0)))
-							v28 = i32(489)
+							v28 = i32(486)
 							v29 = v1
 							store32((*m.memory)[uint32(v19):], uint32(v0))
 							store32((*m.memory)[int64(uint32(v19))+8:], uint32(v2))
@@ -81355,7 +81578,7 @@ l265:
 																		t563 := int32(load32((*m.memory)[uint32(v11):]))
 																		v11 = t563
 																		store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-																		v416 = i32(520)
+																		v416 = i32(517)
 																		v417 = v10
 																		v418 = v11
 																		v419 = v7
@@ -81447,7 +81670,7 @@ l265:
 																		t571 := int32(load32((*m.memory)[uint32(v11):]))
 																		v7 = t571
 																		store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-																		v423 = i32(521)
+																		v423 = i32(518)
 																		v424 = v7
 																		v425 = v10
 																		store32((*m.memory)[uint32(v19):], uint32(v0))
@@ -81546,7 +81769,7 @@ l265:
 																		t429 := int32((*m.memory)[uint32(v10+i32(-1))])
 																		v1 = t429
 																		store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-																		v310 = i32(516)
+																		v310 = i32(513)
 																		v311 = v13
 																		t430 := int32(load32((*m.memory)[int64(uint32(v7))+4:]))
 																		v312 = t430
@@ -81648,7 +81871,7 @@ l265:
 																		t441 := int32((*m.memory)[uint32(v10+i32(-1))])
 																		v1 = t441
 																		store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-																		v318 = i32(516)
+																		v318 = i32(513)
 																		v319 = v13
 																		t442 := int32(load32((*m.memory)[int64(uint32(v7))+4:]))
 																		v320 = t442
@@ -81741,7 +81964,7 @@ l265:
 																			}
 																		}
 																		store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-																		v214 = i32(505)
+																		v214 = i32(502)
 																		v215 = v10
 																		v9 = v11 + (i32(1)-v10)<<2
 																		v216 = v9
@@ -81831,7 +82054,7 @@ l265:
 																			}
 																		}
 																		store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-																		v220 = i32(506)
+																		v220 = i32(503)
 																		v221 = v10
 																		v9 = v11 + (i32(1)-v10)<<2
 																		v222 = v9
@@ -81921,7 +82144,7 @@ l265:
 																			}
 																		}
 																		store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-																		v226 = i32(507)
+																		v226 = i32(504)
 																		v227 = v10
 																		store32((*m.memory)[uint32(v19):], uint32(v0))
 																		store32((*m.memory)[int64(uint32(v19))+4:], uint32(v1))
@@ -82010,7 +82233,7 @@ l265:
 																			}
 																		}
 																		store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-																		v238 = i32(509)
+																		v238 = i32(506)
 																		v239 = v10
 																		v9 = v11 + (i32(1)-v10)<<2
 																		v240 = v9
@@ -82113,7 +82336,7 @@ l265:
 																			t349 := int32(load32((*m.memory)[uint32(v14):]))
 																			v11 = t349
 																			store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-																			v244 = i32(473)
+																			v244 = i32(470)
 																			v245 = v11
 																			store32((*m.memory)[uint32(v19):], uint32(v0))
 																			store32((*m.memory)[int64(uint32(v19))+4:], uint32(v1))
@@ -82204,7 +82427,7 @@ l265:
 																			t356 := int32((*m.memory)[int64(uint32(v10))+2])
 																			v1 = t356
 																			store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-																			v249 = i32(510)
+																			v249 = i32(507)
 																			v250 = v1
 																			v251 = v14
 																			v252 = v13
@@ -82284,7 +82507,7 @@ l265:
 																		t363 := int32(load32((*m.memory)[uint32(v1):]))
 																		v1 = t363
 																		store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-																		v256 = i32(511)
+																		v256 = i32(508)
 																		v257 = v10
 																		v258 = v1
 																		v259 = v13
@@ -82382,7 +82605,7 @@ l265:
 																		switch v9 & i32(3) {
 																		case 0:
 																			store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-																			v263 = i32(41)
+																			v263 = i32(38)
 																			v264 = v10
 																			v265 = v7
 																			store32((*m.memory)[uint32(v19):], uint32(v0))
@@ -82457,7 +82680,7 @@ l265:
 																			t378 := int32(load32((*m.memory)[uint32(v11+i32(-4)):]))
 																			v9 = t378
 																			store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-																			v269 = i32(508)
+																			v269 = i32(505)
 																			v270 = v10
 																			v271 = v7
 																			v272 = v9
@@ -82531,7 +82754,7 @@ l265:
 																			goto l82
 																		default:
 																			store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-																			v276 = i32(512)
+																			v276 = i32(509)
 																			v277 = v10
 																			v278 = v7
 																			store32((*m.memory)[uint32(v19):], uint32(v0))
@@ -82619,7 +82842,7 @@ l265:
 																		t390 := int32(load32((*m.memory)[uint32(v11):]))
 																		v7 = t390
 																		store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-																		v282 = i32(513)
+																		v282 = i32(510)
 																		v283 = v7
 																		v284 = v10
 																		v285 = v11
@@ -82712,7 +82935,7 @@ l265:
 																		t397 := int32(load32((*m.memory)[uint32(v11):]))
 																		v7 = t397
 																		store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-																		v289 = i32(514)
+																		v289 = i32(511)
 																		v290 = v7
 																		v291 = v10
 																		v292 = v11
@@ -82811,7 +83034,7 @@ l265:
 																		t406 := int32(load32((*m.memory)[uint32(t405+v10<<2):]))
 																		v10 = t406
 																		store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-																		v296 = i32(515)
+																		v296 = i32(512)
 																		v297 = v10
 																		t407 := int32(load32((*m.memory)[int64(uint32(v7))+4:]))
 																		v298 = t407
@@ -82908,7 +83131,7 @@ l265:
 																		t417 := int32(load32((*m.memory)[uint32(t416+v10<<2):]))
 																		v10 = t417
 																		store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-																		v303 = i32(515)
+																		v303 = i32(512)
 																		v304 = v10
 																		t418 := int32(load32((*m.memory)[int64(uint32(v7))+4:]))
 																		v305 = t418
@@ -83008,7 +83231,7 @@ l265:
 																		t452 := int32(load32((*m.memory)[uint32(v9):]))
 																		v11 = t452
 																		store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-																		v326 = i32(36)
+																		v326 = i32(33)
 																		v327 = v11
 																		v328 = v10
 																		v329 = int32(uint32(v12)>>8) & i32(255)
@@ -83101,7 +83324,7 @@ l265:
 																		}
 																		store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
 																		v12 = i32(-1)
-																		v334 = i32(517)
+																		v334 = i32(514)
 																		v335 = i32(0)
 																		v336 = v10
 																		v9 = v11 + (v10&i32(255)+v9&i32(510)^i32(-1))<<2
@@ -83195,7 +83418,7 @@ l265:
 																		}
 																		store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
 																		v13 = i32(-1)
-																		v341 = i32(299)
+																		v341 = i32(296)
 																		v10 = v10 & i32(255)
 																		v342 = v10
 																		v343 = int32(uint32(v12)>>8) & i32(255)
@@ -83288,7 +83511,7 @@ l265:
 																			}
 																		}
 																		store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-																		v348 = i32(517)
+																		v348 = i32(514)
 																		v349 = i32(1)
 																		v350 = v10
 																		v9 = v11 + (i32(-2)-(v9&i32(510)+v10&i32(255)))<<2
@@ -83393,7 +83616,7 @@ l265:
 																		}
 																	l164:
 																		store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-																		v200 = i32(502)
+																		v200 = i32(499)
 																		v201 = v1
 																		store32((*m.memory)[uint32(v19):], uint32(v0))
 																		store32((*m.memory)[int64(uint32(v19))+8:], uint32(v2))
@@ -83490,7 +83713,7 @@ l265:
 																		t276 := int32(load32((*m.memory)[uint32(v11):]))
 																		v10 = t276
 																		store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-																		v188 = i32(501)
+																		v188 = i32(498)
 																		v189 = v10
 																		v190 = i32(0)
 																		store32((*m.memory)[uint32(v19):], uint32(v0))
@@ -83569,7 +83792,7 @@ l265:
 																		t282 := int32(load32((*m.memory)[uint32(v11):]))
 																		v10 = t282
 																		store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-																		v194 = i32(501)
+																		v194 = i32(498)
 																		v195 = v10
 																		v196 = v11
 																		store32((*m.memory)[uint32(v19):], uint32(v0))
@@ -83660,7 +83883,7 @@ l265:
 																		t333 := int32(load32((*m.memory)[uint32(v11):]))
 																		v11 = t333
 																		store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-																		v231 = i32(508)
+																		v231 = i32(505)
 																		v232 = v7
 																		v233 = v11
 																		v234 = v10
@@ -83745,7 +83968,7 @@ l265:
 																		t503 := int32(load32((*m.memory)[uint32(v11):]))
 																		v1 = t503
 																		store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-																		v363 = i32(489)
+																		v363 = i32(486)
 																		v364 = v1
 																		store32((*m.memory)[uint32(v19):], uint32(v0))
 																		store32((*m.memory)[int64(uint32(v19))+8:], uint32(v2))
@@ -83878,7 +84101,7 @@ l265:
 																		t513 := int32(load32((*m.memory)[uint32(v11+i32(-4)):]))
 																		v1 = t513
 																		store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-																		v372 = i32(489)
+																		v372 = i32(486)
 																		v373 = v1
 																		store32((*m.memory)[uint32(v19):], uint32(v0))
 																		store32((*m.memory)[int64(uint32(v19))+8:], uint32(v2))
@@ -84027,7 +84250,7 @@ l265:
 																				t527 := int32(load32((*m.memory)[uint32(v9):]))
 																				v7 = t527
 																				store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-																				v381 = i32(518)
+																				v381 = i32(515)
 																				v382 = v7
 																				v383 = i32(0)
 																				v384 = v12
@@ -84121,7 +84344,7 @@ l265:
 																			v13 = t533
 																			v12 = i32(0)
 																			store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-																			v389 = i32(518)
+																			v389 = i32(515)
 																			v390 = v13
 																			v391 = v7
 																			v392 = i32(0)
@@ -84218,7 +84441,7 @@ l265:
 																					goto l82
 																				}
 																				store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-																				v397 = i32(519)
+																				v397 = i32(516)
 																				v398 = v12
 																				v399 = i32(0x333c8)
 																				store32((*m.memory)[uint32(v19):], uint32(v0))
@@ -84299,7 +84522,7 @@ l265:
 																					goto l82
 																				}
 																				store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-																				v403 = i32(489)
+																				v403 = i32(486)
 																				v404 = v12
 																				store32((*m.memory)[uint32(v19):], uint32(v0))
 																				store32((*m.memory)[int64(uint32(v19))+8:], uint32(v2))
@@ -84503,7 +84726,7 @@ l265:
 																		t577 := int32(load32((*m.memory)[uint32(v11):]))
 																		v10 = t577
 																		store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-																		v429 = i32(522)
+																		v429 = i32(519)
 																		v430 = v10
 																		store32((*m.memory)[uint32(v19):], uint32(v0))
 																		store32((*m.memory)[int64(uint32(v19))+4:], uint32(v1))
@@ -84692,7 +84915,7 @@ l265:
 																			}
 																		}
 																		store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-																		v37 = i32(490)
+																		v37 = i32(487)
 																		v38 = v10
 																		store32((*m.memory)[uint32(v19):], uint32(v0))
 																		store32((*m.memory)[int64(uint32(v19))+4:], uint32(v1))
@@ -84781,7 +85004,7 @@ l265:
 																			}
 																		}
 																		store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-																		v42 = i32(32)
+																		v42 = i32(29)
 																		v43 = v10
 																		store32((*m.memory)[uint32(v19):], uint32(v0))
 																		store32((*m.memory)[int64(uint32(v19))+4:], uint32(v1))
@@ -84872,7 +85095,7 @@ l265:
 																		t58 := int32(load32((*m.memory)[uint32(v11):]))
 																		v7 = t58
 																		store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-																		v47 = i32(491)
+																		v47 = i32(488)
 																		v48 = v7
 																		v49 = v10
 																		store32((*m.memory)[uint32(v19):], uint32(v0))
@@ -84963,7 +85186,7 @@ l265:
 																		t66 := int32(load32((*m.memory)[uint32(v11):]))
 																		v7 = t66
 																		store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-																		v53 = i32(492)
+																		v53 = i32(489)
 																		v54 = v7
 																		v55 = v10
 																		v56 = v11
@@ -85050,7 +85273,7 @@ l265:
 																			}
 																		}
 																		store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-																		v60 = i32(493)
+																		v60 = i32(490)
 																		v61 = v7
 																		v62 = v11 + i32(-8)
 																		store32((*m.memory)[uint32(v19):], uint32(v0))
@@ -85123,7 +85346,7 @@ l265:
 																		goto l85
 																	case 68:
 																		store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-																		v66 = i32(494)
+																		v66 = i32(491)
 																		store32((*m.memory)[uint32(v19):], uint32(v0))
 																		store32((*m.memory)[int64(uint32(v19))+4:], uint32(v1))
 																		store32((*m.memory)[int64(uint32(v19))+8:], uint32(v2))
@@ -85204,7 +85427,7 @@ l265:
 																		t83 := int32(load32((*m.memory)[uint32(v11):]))
 																		v11 = t83
 																		store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-																		v70 = i32(495)
+																		v70 = i32(492)
 																		v71 = v10
 																		v72 = v11
 																		v73 = i32(4)
@@ -85332,7 +85555,7 @@ l265:
 																		t98 := int32(load32((*m.memory)[uint32(v11):]))
 																		v1 = t98
 																		store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-																		v77 = i32(496)
+																		v77 = i32(493)
 																		v78 = v7
 																		v79 = v1
 																		store32((*m.memory)[uint32(v19):], uint32(v0))
@@ -85420,7 +85643,7 @@ l265:
 																		t105 := int32(load32((*m.memory)[uint32(v11):]))
 																		v1 = t105
 																		store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-																		v83 = i32(38)
+																		v83 = i32(35)
 																		v84 = v7
 																		v85 = v1
 																		store32((*m.memory)[uint32(v19):], uint32(v0))
@@ -85509,7 +85732,7 @@ l265:
 																		t113 := int32(load32((*m.memory)[uint32(v11):]))
 																		v9 = t113
 																		store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-																		v89 = i32(497)
+																		v89 = i32(494)
 																		v90 = v9
 																		v91 = v10
 																		v92 = v7
@@ -85589,7 +85812,7 @@ l265:
 																		t120 := int32(load32((*m.memory)[uint32(v11):]))
 																		v9 = t120
 																		store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-																		v96 = i32(495)
+																		v96 = i32(492)
 																		v97 = v7
 																		v98 = v9
 																		v99 = v10
@@ -85717,7 +85940,7 @@ l265:
 																			}
 																		}
 																		store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-																		v103 = i32(498)
+																		v103 = i32(495)
 																		v104 = v7
 																		store32((*m.memory)[uint32(v19):], uint32(v0))
 																		store32((*m.memory)[int64(uint32(v19))+8:], uint32(v2))
@@ -85802,7 +86025,7 @@ l265:
 																			}
 																		}
 																		store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-																		v108 = i32(499)
+																		v108 = i32(496)
 																		v109 = v7
 																		store32((*m.memory)[uint32(v19):], uint32(v0))
 																		store32((*m.memory)[int64(uint32(v19))+8:], uint32(v2))
@@ -85942,7 +86165,7 @@ l265:
 																		t156 := int32(load32((*m.memory)[uint32(v11):]))
 																		v1 = t156
 																		store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-																		v113 = i32(500)
+																		v113 = i32(497)
 																		v114 = v1
 																		store32((*m.memory)[uint32(v19):], uint32(v0))
 																		store32((*m.memory)[int64(uint32(v19))+8:], uint32(v2))
@@ -86050,7 +86273,7 @@ l265:
 																		t166 := int32(load32((*m.memory)[uint32(v11):]))
 																		v1 = t166
 																		store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-																		v118 = i32(500)
+																		v118 = i32(497)
 																		v119 = v1
 																		store32((*m.memory)[uint32(v19):], uint32(v0))
 																		store32((*m.memory)[int64(uint32(v19))+8:], uint32(v2))
@@ -86156,7 +86379,7 @@ l265:
 																		t176 := int32(load32((*m.memory)[uint32(v11):]))
 																		v1 = t176
 																		store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-																		v123 = i32(500)
+																		v123 = i32(497)
 																		v124 = v1
 																		store32((*m.memory)[uint32(v19):], uint32(v0))
 																		store32((*m.memory)[int64(uint32(v19))+8:], uint32(v2))
@@ -86267,7 +86490,7 @@ l265:
 																		t188 := int32(load32((*m.memory)[uint32(v11):]))
 																		v1 = t188
 																		store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-																		v128 = i32(500)
+																		v128 = i32(497)
 																		v129 = v1
 																		store32((*m.memory)[uint32(v19):], uint32(v0))
 																		store32((*m.memory)[int64(uint32(v19))+8:], uint32(v2))
@@ -86364,7 +86587,7 @@ l265:
 																		t198 := int32(load32((*m.memory)[uint32(v11):]))
 																		v12 = t198
 																		store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-																		v133 = i32(492)
+																		v133 = i32(489)
 																		v134 = v12
 																		v135 = i32(13)
 																		v136 = v11
@@ -86443,7 +86666,7 @@ l265:
 																			goto l7
 																		}
 																		store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-																		v140 = i32(492)
+																		v140 = i32(489)
 																		v141 = v12
 																		v142 = i32(12)
 																		v9 = v11 + i32(8)
@@ -86523,7 +86746,7 @@ l265:
 																			goto l7
 																		}
 																		store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-																		v147 = i32(299)
+																		v147 = i32(296)
 																		v148 = i32(0)
 																		v149 = i32(0)
 																		v150 = v9
@@ -86639,7 +86862,7 @@ l265:
 																			if v10&i32(1) == 0 {
 																				store32((*m.memory)[int64(uint32(v11))+4:], uint32(v10))
 																				store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-																				v168 = i32(473)
+																				v168 = i32(470)
 																				v169 = v10
 																				store32((*m.memory)[uint32(v19):], uint32(v0))
 																				store32((*m.memory)[int64(uint32(v19))+4:], uint32(v1))
@@ -86714,7 +86937,7 @@ l265:
 																				store32((*m.memory)[uint32(v11):], uint32(v9))
 																				store32((*m.memory)[int64(uint32(v11))+8:], uint32(i32(6)))
 																				store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-																				v173 = i32(299)
+																				v173 = i32(296)
 																				v174 = i32(3)
 																				v175 = i32(0)
 																				v9 = v11 + i32(-8)
@@ -86794,7 +87017,7 @@ l265:
 																					goto l7
 																				}
 																				store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-																				v180 = i32(500)
+																				v180 = i32(497)
 																				v181 = v12
 																				store32((*m.memory)[uint32(v19):], uint32(v0))
 																				store32((*m.memory)[int64(uint32(v19))+4:], uint32(v1))
@@ -86846,7 +87069,7 @@ l265:
 																			v12 = t224
 																			store32((*m.memory)[uint32(v7):], uint32(i32(6)))
 																			store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-																			v161 = i32(299)
+																			v161 = i32(296)
 																			v162 = i32(3)
 																			v163 = i32(0)
 																			v13 = v11 + i32(-12)
@@ -86936,7 +87159,7 @@ l265:
 																		}
 																		store64((*m.memory)[int64(uint32(v11))+4:], uint64(i64(0x600000006)))
 																		store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-																		v154 = i32(299)
+																		v154 = i32(296)
 																		v155 = i32(3)
 																		v156 = i32(0)
 																		v9 = v11 + i32(-8)
@@ -87253,7 +87476,7 @@ l265:
 															}
 															store16((*m.memory)[int64(uint32(i32(0)))+218760:], uint16(i32(256)))
 															store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-															v205 = i32(503)
+															v205 = i32(500)
 															store32((*m.memory)[uint32(v19):], uint32(v0))
 															store32((*m.memory)[int64(uint32(v19))+8:], uint32(v2))
 															store32((*m.memory)[int64(uint32(v19))+12:], uint32(v3))
@@ -87327,7 +87550,7 @@ l265:
 															goto l85
 														}
 														store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-														v209 = i32(504)
+														v209 = i32(501)
 														v210 = i32(1)
 														store32((*m.memory)[uint32(v19):], uint32(v0))
 														store32((*m.memory)[int64(uint32(v19))+8:], uint32(v2))
@@ -87535,7 +87758,7 @@ l265:
 													}
 													store16((*m.memory)[int64(uint32(i32(0)))+218760:], uint16(i32(256)))
 													store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-													v359 = i32(503)
+													v359 = i32(500)
 													store32((*m.memory)[uint32(v19):], uint32(v0))
 													store32((*m.memory)[int64(uint32(v19))+4:], uint32(v1))
 													store32((*m.memory)[int64(uint32(v19))+8:], uint32(v2))
@@ -87620,7 +87843,7 @@ l265:
 											}
 										l114:
 											store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-											v434 = i32(523)
+											v434 = i32(520)
 											v435 = i32(210368)
 											v436 = i32(197431)
 											store32((*m.memory)[uint32(v19):], uint32(v0))
@@ -87765,7 +87988,7 @@ l265:
 										if uint32(v7) > uint32(i32(211)) {
 											if uint32(v7) > uint32(i32(249)) {
 												store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-												v457 = i32(523)
+												v457 = i32(520)
 												v458 = i32(210476)
 												v459 = i32(201687)
 												store32((*m.memory)[uint32(v19):], uint32(v0))
@@ -87903,7 +88126,7 @@ l265:
 											t600 := int32(load32((*m.memory)[uint32(v11):]))
 											v11 = t600
 											store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-											v450 = i32(525)
+											v450 = i32(522)
 											v451 = v7 + i32(-215)
 											v452 = v10
 											v453 = v11
@@ -87983,7 +88206,7 @@ l265:
 										t593 := int32(load32((*m.memory)[uint32(v11):]))
 										v10 = t593
 										store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-										v444 = i32(524)
+										v444 = i32(521)
 										v445 = v7 + i32(-208)
 										v446 = v10
 										store32((*m.memory)[uint32(v19):], uint32(v0))
@@ -88197,7 +88420,7 @@ l265:
 							}
 						l222:
 							store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-							v472 = i32(523)
+							v472 = i32(520)
 							v473 = i32(210440)
 							v474 = i32(201172)
 							store32((*m.memory)[uint32(v19):], uint32(v0))
@@ -88336,7 +88559,7 @@ l265:
 				t632 := int32(load32((*m.memory)[uint32(v1):]))
 				v1 = t632
 				store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-				v482 = i32(476)
+				v482 = i32(473)
 				v483 = v1
 				v484 = i32(209936)
 				store32((*m.memory)[uint32(v19):], uint32(v0))
@@ -88411,7 +88634,7 @@ l265:
 					v1 = t639
 					if v1 == i32(104) {
 						store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-						v488 = i32(477)
+						v488 = i32(474)
 						t643 := int32(load32((*m.memory)[int64(uint32(v2))+20:]))
 						v489 = t643
 						store32((*m.memory)[uint32(v19):], uint32(v0))
@@ -88566,7 +88789,7 @@ l265:
 						}
 					}
 					store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-					v493 = i32(526)
+					v493 = i32(523)
 					v1 = v13 + v14
 					v494 = v1
 					store32((*m.memory)[uint32(v19):], uint32(v0))
@@ -88669,7 +88892,7 @@ l265:
 				l275:
 					{
 						store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-						v498 = i32(527)
+						v498 = i32(524)
 						v499 = v1
 						store32((*m.memory)[uint32(v19):], uint32(v0))
 						store32((*m.memory)[int64(uint32(v19))+8:], uint32(v2))
@@ -88798,7 +89021,7 @@ l265:
 					}
 				l276:
 					store32((*m.memory)[int64(uint32(i32(0)))+218776:], uint32(i32(0)))
-					v503 = i32(528)
+					v503 = i32(525)
 					t675 := int32(load32((*m.memory)[int64(uint32(v2))+20:]))
 					v504 = t675
 					v505 = v8
@@ -89051,7 +89274,7 @@ func (m *Module) _vstr_init_print(v0, v1, v2 int32) {
 	v1 = t3
 	(*m.memory)[int64(uint32(v0))+12] = byte(i32(0))
 	store32((*m.memory)[int64(uint32(v0))+8:], uint32(v1))
-	store32((*m.memory)[int64(uint32(v2))+4:], uint32(i32(529)))
+	store32((*m.memory)[int64(uint32(v2))+4:], uint32(i32(526)))
 	store32((*m.memory)[uint32(v2):], uint32(v0))
 	m.___stack_pointer = v3 + i32(16)
 }
@@ -89540,7 +89763,7 @@ l1:
 			goto l3
 		}
 	l2:
-		store32((*m.memory)[int64(uint32(v4))+32:], uint32(i32(530)))
+		store32((*m.memory)[int64(uint32(v4))+32:], uint32(i32(527)))
 		t12 := int32(load32((*m.memory)[int64(uint32(v1))+4:]))
 		t13 := v4
 		v3 = t12

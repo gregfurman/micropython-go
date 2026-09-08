@@ -16,11 +16,20 @@
 #include "value.h"
 #include "vm.h"
 
+#define EXPORT(ret, fn, name, params, args)            \
+    static ret fn##_body params;                       \
+    __attribute__((export_name(name))) ret fn params { \
+        vm_enter();                                    \
+        return fn##_body args;                         \
+    }                                                  \
+    static ret fn##_body params
+
+// init_vm is the one export that predates the interpreter it would enter.
 __attribute__((export_name("init_vm"))) int32_t init_vm(size_t heap_size, int max_args) {
     return vm_init(heap_size, max_args);
 }
 
-__attribute__((export_name("define_function"))) void define_function(const char* name, uint32_t func_id) {
+EXPORT(void, define_function, "define_function", (const char* name, uint32_t func_id), (name, func_id)) {
     mp_obj_t bound_func = new_host_function(func_id);
     qstr q_name = qstr_from_str(name);
 
@@ -30,8 +39,11 @@ __attribute__((export_name("define_function"))) void define_function(const char*
 
 // Re-read an object the host holds a ref to. A container comes back by value,
 // one level deep: anything cyclic inside it is a ref again.
-__attribute__((export_name("ref_to_value"))) int32_t ref_to_value(
-    uint32_t ref, uint32_t out_ptr, uint32_t out_capacity) {
+EXPORT(int32_t,
+    ref_to_value,
+    "ref_to_value",
+    (uint32_t ref, uint32_t out_ptr, uint32_t out_capacity),
+    (ref, out_ptr, out_capacity)) {
     mp_value_t* out = (mp_value_t*)(uintptr_t)out_ptr;
     mp_arena_t arena;
     if (output_arena_init(&arena, out_ptr, out_capacity) != 0) {
@@ -53,32 +65,42 @@ __attribute__((export_name("ref_to_value"))) int32_t ref_to_value(
     return output_arena_status(&arena);
 }
 
-__attribute__((export_name("eval"))) int32_t eval_ext(
-    const char* code, uint32_t len, uint32_t out_ptr, uint32_t out_capacity) {
+EXPORT(int32_t,
+    eval_ext,
+    "eval",
+    (const char* code, uint32_t len, uint32_t out_ptr, uint32_t out_capacity),
+    (code, len, out_ptr, out_capacity)) {
     mp_arena_t arena;
     if (output_arena_init(&arena, out_ptr, out_capacity) != 0) {
         return -1;
     }
-    execute_python(code, len, MP_PARSE_EVAL_INPUT, &arena, (mp_value_t*)(uintptr_t)out_ptr);
+    eval_python(code, len, &arena, (mp_value_t*)(uintptr_t)out_ptr);
     return output_arena_status(&arena);
 }
 
-__attribute__((export_name("exec"))) int32_t exec_ext(
-    const char* code, uint32_t len, uint32_t out_ptr, uint32_t out_capacity) {
+EXPORT(int32_t,
+    exec_ext,
+    "exec",
+    (const char* code, uint32_t len, uint32_t out_ptr, uint32_t out_capacity),
+    (code, len, out_ptr, out_capacity)) {
     mp_arena_t arena;
     if (output_arena_init(&arena, out_ptr, out_capacity) != 0) {
         return -1;
     }
-    execute_python(code, len, MP_PARSE_FILE_INPUT, &arena, (mp_value_t*)(uintptr_t)out_ptr);
+    exec_python(code, len, &arena, (mp_value_t*)(uintptr_t)out_ptr);
     return output_arena_status(&arena);
 }
 
-__attribute__((export_name("call"))) int32_t call_ext(const char* name,
-    uint32_t name_len,
-    uint32_t args_ptr,
-    uint32_t num_args,
-    uint32_t out_ptr,
-    uint32_t out_capacity) {
+EXPORT(int32_t,
+    call_ext,
+    "call",
+    (const char* name,
+        uint32_t name_len,
+        uint32_t args_ptr,
+        uint32_t num_args,
+        uint32_t out_ptr,
+        uint32_t out_capacity),
+    (name, name_len, args_ptr, num_args, out_ptr, out_capacity)) {
     mp_value_t* out = (mp_value_t*)(uintptr_t)out_ptr;
     const mp_value_t* args = (const mp_value_t*)(uintptr_t)args_ptr;
     mp_arena_t arena;
@@ -110,8 +132,11 @@ __attribute__((export_name("call"))) int32_t call_ext(const char* name,
     return output_arena_status(&arena);
 }
 
-__attribute__((export_name("call_ref"))) int32_t call_ref_ext(
-    uint32_t ref, uint32_t args_ptr, uint32_t num_args, uint32_t out_ptr, uint32_t out_capacity) {
+EXPORT(int32_t,
+    call_ref_ext,
+    "call_ref",
+    (uint32_t ref, uint32_t args_ptr, uint32_t num_args, uint32_t out_ptr, uint32_t out_capacity),
+    (ref, args_ptr, num_args, out_ptr, out_capacity)) {
     mp_value_t* out = (mp_value_t*)(uintptr_t)out_ptr;
     const mp_value_t* args = (const mp_value_t*)(uintptr_t)args_ptr;
     mp_arena_t arena;
@@ -147,7 +172,7 @@ __attribute__((export_name("call_ref"))) int32_t call_ref_ext(
 // matters: until then the ref table kept the object alive anyway, and after it
 // only a leftover pointer can. Scrubbing here rather than on every call keeps
 // the cost off the hot path, where it roughly doubled a trivial call.
-__attribute__((export_name("release_ref"))) void release_ref_ext(uint32_t ref) {
+EXPORT(void, release_ref_ext, "release_ref", (uint32_t ref), (ref)) {
     refs_unpin(ref);
     scrub_dead_stack();
 }
@@ -155,7 +180,7 @@ __attribute__((export_name("release_ref"))) void release_ref_ext(uint32_t ref) {
 // A restored memory snapshot contains the old host root lists, but Go handles
 // from that timeline are intentionally invalid.  Drop those roots so the
 // restored guest can collect the no-longer-host-owned objects.
-__attribute__((export_name("reset_refs"))) void reset_refs_ext(void) { refs_reset(); }
+EXPORT(void, reset_refs_ext, "reset_refs", (void), ()) { refs_reset(); }
 
 // Advance a host-held generator. This returns what every other result-producing
 // export returns, the bytes used or a negative failure, and an uncaught Python
@@ -165,8 +190,11 @@ __attribute__((export_name("reset_refs"))) void reset_refs_ext(void) { refs_rese
 // StopIteration into the MP_OBJ_STOP_ITERATION sentinel, which crosses as 0: a
 // yielded None is a value like any other, and 0 is not a size any result can
 // have, since every one opens with a transfer header.
-__attribute__((export_name("iterator_next"))) int32_t iterator_next_ext(
-    uint32_t ref, uint32_t out_ptr, uint32_t out_capacity) {
+EXPORT(int32_t,
+    iterator_next_ext,
+    "iterator_next",
+    (uint32_t ref, uint32_t out_ptr, uint32_t out_capacity),
+    (ref, out_ptr, out_capacity)) {
     mp_value_t* out = (mp_value_t*)(uintptr_t)out_ptr;
     mp_arena_t arena;
     if (output_arena_init(&arena, out_ptr, out_capacity) != 0) {
@@ -196,8 +224,11 @@ __attribute__((export_name("iterator_next"))) int32_t iterator_next_ext(
     return output_arena_status(&arena);
 }
 
-__attribute__((export_name("get_global"))) int32_t get_global_ext(
-    const char* name, uint32_t name_len, uint32_t out_ptr, uint32_t out_capacity) {
+EXPORT(int32_t,
+    get_global_ext,
+    "get_global",
+    (const char* name, uint32_t name_len, uint32_t out_ptr, uint32_t out_capacity),
+    (name, name_len, out_ptr, out_capacity)) {
     mp_value_t* out = (mp_value_t*)(uintptr_t)out_ptr;
     mp_arena_t arena;
     if (output_arena_init(&arena, out_ptr, out_capacity) != 0) {
@@ -216,8 +247,11 @@ __attribute__((export_name("get_global"))) int32_t get_global_ext(
     return output_arena_status(&arena);
 }
 
-__attribute__((export_name("set_global"))) int32_t set_global_ext(
-    const char* name, uint32_t name_len, uint32_t value_ptr, uint32_t out_ptr, uint32_t out_capacity) {
+EXPORT(int32_t,
+    set_global_ext,
+    "set_global",
+    (const char* name, uint32_t name_len, uint32_t value_ptr, uint32_t out_ptr, uint32_t out_capacity),
+    (name, name_len, value_ptr, out_ptr, out_capacity)) {
     mp_value_t* out = (mp_value_t*)(uintptr_t)out_ptr;
     mp_arena_t arena;
     if (output_arena_init(&arena, out_ptr, out_capacity) != 0) {
@@ -228,7 +262,7 @@ __attribute__((export_name("set_global"))) int32_t set_global_ext(
     if (nlr_push(&nlr) == 0) {
         mp_obj_t value = obj_from_value((mp_value_t*)(uintptr_t)value_ptr);
         mp_store_global(qstr_from_strn(name, name_len), value);
-        value_from_mp_obj_committed(&arena, mp_const_none, out);
+        mp_value_set_none(out);
         nlr_pop();
     } else {
         output_arena_reset(&arena);

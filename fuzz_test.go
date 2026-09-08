@@ -152,7 +152,7 @@ func FuzzProgram(f *testing.F) {
 	f.Add("", "f", []byte{})
 
 	f.Fuzz(func(t *testing.T, src, name string, seed []byte) {
-		p, err := CompileSource(context.Background(), src)
+		p, err := Compile(context.Background(), src)
 		if err != nil {
 			// Source that does not load is an ordinary answer, not a crash.
 			return
@@ -168,7 +168,7 @@ func FuzzProgram(f *testing.F) {
 			wg.Go(func() {
 				ctx, cancel := bounded()
 				defer cancel()
-				p.Call(ctx, name, arg) //nolint:errcheck // any answer is fine; not panicking is the point
+				progCall(ctx, p, name, arg) //nolint:errcheck // any answer is fine; not panicking is the point
 			})
 		}
 		wg.Wait()
@@ -177,15 +177,15 @@ func FuzzProgram(f *testing.F) {
 		ctx, cancel := bounded()
 		defer cancel()
 
-		got, err := p.Call(ctx, "len", "abcd")
+		got, err := progCall(ctx, p, "len", "abcd")
 		if errors.Is(err, context.DeadlineExceeded) {
 			t.Skip("guest did not return")
 		}
 		if err != nil {
-			t.Fatalf("Program unusable after CompileSource(%q)+Call(%q): %v", src, name, err)
+			t.Fatalf("Program unusable after Compile(%q)+Call(%q): %v", src, name, err)
 		}
 		if got.Export() != int64(4) {
-			t.Fatalf("Program wrong after CompileSource(%q)+Call(%q): len('abcd') = %#v", src, name, got)
+			t.Fatalf("Program wrong after Compile(%q)+Call(%q): len('abcd') = %#v", src, name, got)
 		}
 	})
 }

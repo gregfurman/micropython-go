@@ -168,12 +168,13 @@ func TestRoundTripValuesWithNoGoEquivalent(t *testing.T) {
 			if err != nil {
 				t.Fatalf("%s: %v", expr, err)
 			}
-			obj, err := got.AsObject()
-			if err != nil {
-				t.Fatalf("%s = %#v, want an Object: %v", expr, got, err)
+			// An opaque value stays a Value: Type reports its Python class
+			// without the caller reaching for a separate wrapper.
+			if _, err := got.AsObject(); err != nil {
+				t.Fatalf("%s = %#v, want an opaque handle: %v", expr, got, err)
 			}
-			if obj.Type() == "" {
-				t.Errorf("%s = %+v, want Type set", expr, obj)
+			if got.Type() == "" {
+				t.Errorf("%s = %+v, want Type set", expr, got)
 			}
 		})
 	}
@@ -546,4 +547,62 @@ func sameElements(got, want []any) bool {
 		return out
 	}
 	return reflect.DeepEqual(key(got), key(want))
+}
+
+func TestNestedValuesConvert(t *testing.T) {
+	in := newT(t)
+	ctx := t.Context()
+	if err := in.Exec(ctx, "def echo(v):\n    return v\n"); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, tc := range []struct {
+		name string
+		arg  any
+		want any
+	}{
+		{"on its own", Int(2), int64(2)},
+		{"in a slice", []any{Int(2)}, []any{int64(2)}},
+		{"in a map", map[string]any{"n": Int(2)}, map[string]any{"n": int64(2)}},
+		{
+			"several levels down",
+			[]any{map[string]any{"k": []any{Int(2)}}},
+			[]any{map[string]any{"k": []any{int64(2)}}},
+		},
+		{"plain values are untouched", []any{int64(1), "a"}, []any{int64(1), "a"}},
+		{
+			"and so are uncomparable ones",
+			[]any{[]any{int64(1)}, map[string]any{"a": int64(1)}},
+			[]any{[]any{int64(1)}, map[string]any{"a": int64(1)}},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := in.Call(ctx, "echo", tc.arg)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !reflect.DeepEqual(got.Export(), tc.want) {
+				t.Errorf("echo(%#v) = %#v, want %#v", tc.arg, got.Export(), tc.want)
+			}
+		})
+	}
+}
+
+func TestZeroValue(t *testing.T) {
+	var zero Value
+
+	if got := zero.Type(); got != "invalid" {
+		t.Errorf("Type = %q, want invalid", got)
+	}
+	if got := zero.Export(); got != nil {
+		t.Errorf("Export = %#v, want nil", got)
+	}
+	if got := zero.String(); got != "<invalid>" {
+		t.Errorf("String = %q, want <invalid>", got)
+	}
+
+	in := newT(t)
+	if err := in.Set(t.Context(), "z", zero); err == nil {
+		t.Error("Set accepted the zero Value instead of reporting it")
+	}
 }

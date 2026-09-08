@@ -112,8 +112,13 @@ func (i *Module) ReleasePendingRefs() {
 
 // Begin starts an operation under the instance lock, clearing cancellation and
 // releasing references before any arguments are reduced to guest IDs.
+//
+// Clearing means both halves of the signal: the flag the guest polls, and the
+// channel host callbacks wait on. Leaving the channel closed would hand every
+// later callback a context that is already done.
 func (i *Module) Begin() {
 	i.cancelled.Store(false)
+	i.shutSig.Reset()
 	i.ReleasePendingRefs()
 }
 
@@ -303,6 +308,16 @@ func (i *Module) Resolve(obj value.Object) (value.Value, error) {
 
 	used := i.mod.Xref_to_value(int32(ref), outPtr, defaultValueArenaCapacity)
 	return i.consumeArena(outPtr, used)
+}
+
+// Release frees the objects these handles name, giving back every acquisition
+// of each rather than one, so the guest gets the memory back now instead of
+// whenever the last handle is collected. Handles naming a freed object go
+// stale, and report ErrStaleRef if anything uses one afterwards.
+func (i *Module) Release(refs ...*value.Ref) {
+	for _, ref := range refs {
+		i.refs.FreeHandle(ref)
+	}
 }
 
 // NextGenerator advances a generator ref returned by the guest. When exhausted,
