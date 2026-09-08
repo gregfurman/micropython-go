@@ -9,4 +9,10 @@
 // if the heap could not be allocated.
 int32_t vm_init(size_t heap_size, int max_args);
 
+// vm_enter starts one host call. Python that locks the heap and never unlocks
+// it, by raising or by just forgetting, would otherwise leave every later
+// allocation failing for the life of the instance. Each host call is the
+// top-level the REPL prompt is upstream, so each one clears the lock.
+void vm_enter(void);
+
 #endif

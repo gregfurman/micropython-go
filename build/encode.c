@@ -1,4 +1,4 @@
-// Guest objects out to the host. value_from_obj picks a writer by Python type
+// Guest objects out to the host. value_from_mp_obj picks a writer by Python type
 // and every writer puts its payload in the same arena, so one result is one
 // contiguous region the host reads without following anything back into the
 // guest heap.
@@ -52,26 +52,26 @@ static void pending_refs_clear(pending_refs_t* pending);
 static void pending_refs_commit(mp_arena_t* arena, pending_refs_t* pending);
 
 static bool obj_is_iterator(mp_obj_t obj);
-static void value_from_opaque(
+static void value_from_mp_opaque(
     mp_arena_t* arena, pending_refs_t* pending, mp_value_t* out, mp_obj_t obj, uint32_t attributes);
-static bool value_from_handle(mp_arena_t* arena, pending_refs_t* pending, mp_value_t* out, mp_obj_t obj);
-static void value_from_bigint(mp_arena_t* arena, mp_value_t* out, mp_obj_t obj);
-static void value_from_byte_string(mp_arena_t* arena, mp_value_t* out, mp_obj_t obj);
-static void value_from_sequence(mp_arena_t* arena, pending_refs_t* pending, mp_value_t* out, mp_obj_t obj);
-static void value_from_set(mp_arena_t* arena, pending_refs_t* pending, mp_value_t* out, mp_obj_t obj);
-static void value_from_dict(mp_arena_t* arena, pending_refs_t* pending, mp_value_t* out, mp_obj_t obj);
-static void value_from_obj(mp_arena_t* arena, pending_refs_t* pending, mp_obj_t obj, mp_value_t* out);
+static bool value_from_mp_handle(mp_arena_t* arena, pending_refs_t* pending, mp_value_t* out, mp_obj_t obj);
+static void value_from_mp_bigint(mp_arena_t* arena, mp_value_t* out, mp_obj_t obj);
+static void value_from_mp_byte_string(mp_arena_t* arena, mp_value_t* out, mp_obj_t obj);
+static void value_from_mp_sequence(mp_arena_t* arena, pending_refs_t* pending, mp_value_t* out, mp_obj_t obj);
+static void value_from_mp_set(mp_arena_t* arena, pending_refs_t* pending, mp_value_t* out, mp_obj_t obj);
+static void value_from_mp_dict(mp_arena_t* arena, pending_refs_t* pending, mp_value_t* out, mp_obj_t obj);
+static void value_from_mp_obj(mp_arena_t* arena, pending_refs_t* pending, mp_obj_t obj, mp_value_t* out);
 
 // -----------------------------------------------------------------------------
 // Public encoding entry points
 // -----------------------------------------------------------------------------
 
-void value_from_objs_committed(mp_arena_t* arena, const mp_obj_t* objs, size_t n, mp_value_t* out) {
+void value_from_mp_objs_committed(mp_arena_t* arena, const mp_obj_t* objs, size_t n, mp_value_t* out) {
     pending_refs_t pending = {0};
     nlr_buf_t nlr;
 
     if (nlr_push(&nlr) == 0) {
-        for (size_t i = 0; i < n; i++) value_from_obj(arena, &pending, objs[i], &out[i]);
+        for (size_t i = 0; i < n; i++) value_from_mp_obj(arena, &pending, objs[i], &out[i]);
 
         pending_refs_commit(arena, &pending);
 
@@ -85,14 +85,14 @@ void value_from_objs_committed(mp_arena_t* arena, const mp_obj_t* objs, size_t n
     nlr_jump(nlr.ret_val);
 }
 
-void value_from_obj_committed(mp_arena_t* arena, mp_obj_t obj, mp_value_t* out) {
-    value_from_objs_committed(arena, &obj, 1, out);
+void value_from_mp_obj_committed(mp_arena_t* arena, mp_obj_t obj, mp_value_t* out) {
+    value_from_mp_objs_committed(arena, &obj, 1, out);
 }
 
 // An exception packs type, message and traceback into one blob separated by
 // \x04. It needs no ref, so it survives the arena reset that discards the
 // partly written result it replaces.
-void value_from_exception(mp_arena_t* arena, mp_obj_t exc, mp_value_t* out) {
+void value_from_mp_exception(mp_arena_t* arena, mp_obj_t exc, mp_value_t* out) {
     static const char fallback[] = "<unprintable exception>";
 
     out->kind = KIND_EXCEPTION;
@@ -236,11 +236,9 @@ static bool obj_is_iterator(mp_obj_t obj) {
 
 // An object with no wire form crosses as a handle. Nothing is written for it
 // beyond its attributes: w1 is filled in once the caller has acquired an id.
-static void value_from_opaque(
+static void value_from_mp_opaque(
     mp_arena_t* arena, pending_refs_t* pending, mp_value_t* out, mp_obj_t obj, uint32_t attributes) {
-    // The class name is the one thing about an opaque object the host cannot
-    // work out for itself, and asking for it later costs a call per handle. It
-    // is a qstr already in memory, so copying it here is a strlen and a memcpy.
+    // NOTE(gregfurman):
     const char* name = mp_obj_get_type_str(obj);
     size_t len = strlen(name);
 
@@ -254,30 +252,29 @@ static void value_from_opaque(
 
     out->kind = KIND_OBJECT;
     out->w1 = 0;  // patched with ref id during commit
-    // arena_alloc aligns to four, so the low bits are the attributes' to use.
     out->w2 = (uint32_t)(uintptr_t)class | attributes;
 
     pending_refs_add(pending, obj, out);
 }
 
-// value_from_handle reports whether obj has to cross as a handle rather than a
+// value_from_mp_handle reports whether obj has to cross as a handle rather than a
 // copy, writing it out if so.
-static bool value_from_handle(mp_arena_t* arena, pending_refs_t* pending, mp_value_t* out, mp_obj_t obj) {
+static bool value_from_mp_handle(mp_arena_t* arena, pending_refs_t* pending, mp_value_t* out, mp_obj_t obj) {
     if (arena->depth >= MP_VALUE_MAX_DEPTH) {
-        value_from_opaque(arena, pending, out, obj, 0);
+        value_from_mp_opaque(arena, pending, out, obj, 0);
         return true;
     }
 
     for (const mp_active_t* node = arena->active; node != NULL; node = node->prev) {
         if (node->obj == obj) {
-            value_from_opaque(arena, pending, out, obj, 0);
+            value_from_mp_opaque(arena, pending, out, obj, 0);
             return true;
         }
     }
     return false;
 }
 
-static void value_from_bigint(mp_arena_t* arena, mp_value_t* out, mp_obj_t obj) {
+static void value_from_mp_bigint(mp_arena_t* arena, mp_value_t* out, mp_obj_t obj) {
     vstr_t text;
     mp_print_t print;
 
@@ -286,7 +283,7 @@ static void value_from_bigint(mp_arena_t* arena, mp_value_t* out, mp_obj_t obj) 
     value_take_vstr(arena, out, KIND_BIGINT, &text);
 }
 
-static void value_from_byte_string(mp_arena_t* arena, mp_value_t* out, mp_obj_t obj) {
+static void value_from_mp_byte_string(mp_arena_t* arena, mp_value_t* out, mp_obj_t obj) {
     size_t len;
     const char* src = mp_obj_str_get_data(obj, &len);
 
@@ -305,7 +302,7 @@ static void value_from_byte_string(mp_arena_t* arena, mp_value_t* out, mp_obj_t 
     out->w2 = (uint32_t)(uintptr_t)dst;
 }
 
-static void value_from_sequence(mp_arena_t* arena, pending_refs_t* pending, mp_value_t* out, mp_obj_t obj) {
+static void value_from_mp_sequence(mp_arena_t* arena, pending_refs_t* pending, mp_value_t* out, mp_obj_t obj) {
     size_t len;
     mp_obj_t* items;
 
@@ -335,11 +332,11 @@ static void value_from_sequence(mp_arena_t* arena, pending_refs_t* pending, mp_v
 
     mp_active_t frame;
     arena_push(arena, &frame, obj);
-    for (size_t i = 0; i < len; i++) value_from_obj(arena, pending, snapshot->items[i], &values[i]);
+    for (size_t i = 0; i < len; i++) value_from_mp_obj(arena, pending, snapshot->items[i], &values[i]);
     arena_pop(arena, &frame);
 }
 
-static void value_from_set(mp_arena_t* arena, pending_refs_t* pending, mp_value_t* out, mp_obj_t obj) {
+static void value_from_mp_set(mp_arena_t* arena, pending_refs_t* pending, mp_value_t* out, mp_obj_t obj) {
     uint32_t kind = KIND_INVALID;
     if (mp_obj_is_type(obj, &mp_type_frozenset))
         kind = KIND_FROZENSET;
@@ -371,11 +368,11 @@ static void value_from_set(mp_arena_t* arena, pending_refs_t* pending, mp_value_
 
     mp_active_t frame;
     arena_push(arena, &frame, obj);
-    for (size_t i = 0; i < len; i++) value_from_obj(arena, pending, snapshot->items[i], &values[i]);
+    for (size_t i = 0; i < len; i++) value_from_mp_obj(arena, pending, snapshot->items[i], &values[i]);
     arena_pop(arena, &frame);
 }
 
-static void value_from_dict(mp_arena_t* arena, pending_refs_t* pending, mp_value_t* out, mp_obj_t obj) {
+static void value_from_mp_dict(mp_arena_t* arena, pending_refs_t* pending, mp_value_t* out, mp_obj_t obj) {
     mp_obj_dict_t* dict = MP_OBJ_TO_PTR(obj);
     size_t len = dict->map.used;
 
@@ -402,11 +399,11 @@ static void value_from_dict(mp_arena_t* arena, pending_refs_t* pending, mp_value
 
     mp_active_t frame;
     arena_push(arena, &frame, obj);
-    for (size_t i = 0; i < 2 * len; i++) value_from_obj(arena, pending, snapshot->items[i], &values[i]);
+    for (size_t i = 0; i < 2 * len; i++) value_from_mp_obj(arena, pending, snapshot->items[i], &values[i]);
     arena_pop(arena, &frame);
 }
 
-static void value_from_obj(mp_arena_t* arena, pending_refs_t* pending, mp_obj_t obj, mp_value_t* out) {
+static void value_from_mp_obj(mp_arena_t* arena, pending_refs_t* pending, mp_obj_t obj, mp_value_t* out) {
     mp_cstack_check();
 
     out->w1 = 0;
@@ -440,7 +437,7 @@ static void value_from_obj(mp_arena_t* arena, pending_refs_t* pending, mp_obj_t 
             out->kind = KIND_INT;
             mp_value_set_i64(out, (int64_t)v);
         } else {
-            value_from_bigint(arena, out, obj);
+            value_from_mp_bigint(arena, out, obj);
         }
         return;
     }
@@ -454,34 +451,34 @@ static void value_from_obj(mp_arena_t* arena, pending_refs_t* pending, mp_obj_t 
 #endif
 
     if (mp_obj_is_str(obj) || mp_obj_is_type(obj, &mp_type_bytes)) {
-        value_from_byte_string(arena, out, obj);
+        value_from_mp_byte_string(arena, out, obj);
         return;
     }
 
     if (mp_obj_is_type(obj, &mp_type_tuple) || mp_obj_is_type(obj, &mp_type_list)) {
-        if (value_from_handle(arena, pending, out, obj)) {
+        if (value_from_mp_handle(arena, pending, out, obj)) {
             return;
         }
 
-        value_from_sequence(arena, pending, out, obj);
+        value_from_mp_sequence(arena, pending, out, obj);
         return;
     }
 
     if (mp_obj_is_type(obj, &mp_type_dict)) {
-        if (value_from_handle(arena, pending, out, obj)) {
+        if (value_from_mp_handle(arena, pending, out, obj)) {
             return;
         }
 
-        value_from_dict(arena, pending, out, obj);
+        value_from_mp_dict(arena, pending, out, obj);
         return;
     }
 
     if (mp_obj_is_type(obj, &mp_type_set) || mp_obj_is_type(obj, &mp_type_frozenset)) {
-        if (value_from_handle(arena, pending, out, obj)) {
+        if (value_from_mp_handle(arena, pending, out, obj)) {
             return;
         }
 
-        value_from_set(arena, pending, out, obj);
+        value_from_mp_set(arena, pending, out, obj);
         return;
     }
 
@@ -495,5 +492,5 @@ static void value_from_obj(mp_arena_t* arena, pending_refs_t* pending, mp_obj_t 
         attributes |= KIND_OBJECT_ATTR_CALLABLE;
     }
 
-    value_from_opaque(arena, pending, out, obj, attributes);
+    value_from_mp_opaque(arena, pending, out, obj, attributes);
 }

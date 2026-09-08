@@ -10,7 +10,6 @@ type options struct {
 
 	globals      map[string]Value
 	hostFuncs    map[string]HostFunc
-	packages     []PackageSpec
 	sourceScript string
 	stdout       io.Writer
 }
@@ -92,22 +91,13 @@ func WithHostFunc(name string, fn HostFunc) Option {
 	})
 }
 
-// WithPackage installs a Python package before the source script runs. It is
-// available to both Instance and Program construction; a Program snapshots the
-// installed package and its host callbacks along with the rest of its baseline.
-func WithPackage(pkg PackageSpec) Option {
-	return optionFunc(func(o *options) {
-		o.packages = append(o.packages, pkg)
-	})
-}
-
-// WithSourceScript runs src at module level once, before anything else calls
+// WithSource runs src at module level once, before anything else calls
 // in. Globals and host functions are bound first, so src can use them. A
 // Program snapshots the result, so every call starts from it.
 //
 //	micropython.CompileSource(ctx, src) // shorthand for
-//	micropython.Compile(ctx, micropython.WithSourceScript(src))
-func WithSourceScript(src string) Option {
+//	micropython.Compile(ctx, micropython.WithSource(src))
+func WithSource(src string) Option {
 	return optionFunc(func(o *options) {
 		o.sourceScript = src
 	})

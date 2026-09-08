@@ -32,3 +32,5 @@ int32_t vm_init(size_t heap_size, int max_args) {
         MP_OBJ_FROM_PTR(mp_globals_get()), MP_OBJ_NEW_QSTR(MP_QSTR_HostError), MP_OBJ_FROM_PTR(&mp_type_HostError));
     return 0;
 }
+
+void vm_enter(void) { MP_STATE_THREAD(gc_lock_depth) = 0; }

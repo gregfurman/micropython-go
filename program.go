@@ -62,7 +62,7 @@ func Compile(ctx context.Context, opts ...ProgramOption) (*Program, error) {
 // CompileSource runs src at module level and captures the result as the
 // Program's starting state. Shorthand for Compile with WithSourceScript.
 func CompileSource(ctx context.Context, src string, opts ...ProgramOption) (*Program, error) {
-	return Compile(ctx, append(slices.Clip(opts), WithSourceScript(src))...)
+	return Compile(ctx, append(slices.Clip(opts), WithSource(src))...)
 }
 
 // Instance spawns a standalone Python interpreter initialized with the compiled

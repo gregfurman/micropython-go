@@ -12,7 +12,6 @@
 #include "gccollect.h"
 #include "hostfn.h"
 #include "py/runtime.h"
-#include "pymodule.h"
 #include "refs.h"
 #include "value.h"
 #include "vm.h"
@@ -27,78 +26,6 @@ __attribute__((export_name("define_function"))) void define_function(const char*
 
     // Fetch the __main__ global dictionary and store the bound function
     mp_obj_dict_store(MP_OBJ_FROM_PTR(mp_globals_get()), MP_OBJ_NEW_QSTR(q_name), bound_func);
-}
-
-__attribute__((export_name("define_module"))) int32_t define_module_ext(
-    const char* path, uint32_t path_len, uint32_t out_ptr, uint32_t out_capacity) {
-    mp_value_t* out = (mp_value_t*)(uintptr_t)out_ptr;
-    mp_arena_t arena;
-    if (output_arena_init(&arena, out_ptr, out_capacity) != 0) {
-        return -1;
-    }
-
-    nlr_buf_t nlr;
-    if (nlr_push(&nlr) == 0) {
-        get_or_create_module(path, path_len);
-        value_from_obj_committed(&arena, mp_const_none, out);
-        nlr_pop();
-    } else {
-        output_arena_reset(&arena);
-        value_from_exception(&arena, (mp_obj_t)nlr.ret_val, out);
-    }
-    return output_arena_status(&arena);
-}
-
-__attribute__((export_name("define_module_function"))) int32_t define_module_function_ext(const char* path,
-    uint32_t path_len,
-    const char* name,
-    uint32_t name_len,
-    uint32_t func_id,
-    uint32_t out_ptr,
-    uint32_t out_capacity) {
-    mp_value_t* out = (mp_value_t*)(uintptr_t)out_ptr;
-    mp_arena_t arena;
-    if (output_arena_init(&arena, out_ptr, out_capacity) != 0) {
-        return -1;
-    }
-
-    nlr_buf_t nlr;
-    if (nlr_push(&nlr) == 0) {
-        module_store_attr(get_or_create_module(path, path_len), name, name_len, new_host_function(func_id));
-        value_from_obj_committed(&arena, mp_const_none, out);
-        nlr_pop();
-    } else {
-        output_arena_reset(&arena);
-        value_from_exception(&arena, (mp_obj_t)nlr.ret_val, out);
-    }
-    return output_arena_status(&arena);
-}
-
-__attribute__((export_name("set_module_attr"))) int32_t set_module_attr_ext(const char* path,
-    uint32_t path_len,
-    const char* name,
-    uint32_t name_len,
-    uint32_t value_ptr,
-    uint32_t out_ptr,
-    uint32_t out_capacity) {
-    mp_value_t* out = (mp_value_t*)(uintptr_t)out_ptr;
-    mp_arena_t arena;
-    if (output_arena_init(&arena, out_ptr, out_capacity) != 0) {
-        return -1;
-    }
-
-    nlr_buf_t nlr;
-    if (nlr_push(&nlr) == 0) {
-        module_store_attr(
-            get_or_create_module(path, path_len), name, name_len, obj_from_value((mp_value_t*)(uintptr_t)value_ptr));
-        value_from_obj_committed(&arena, mp_const_none, out);
-        nlr_pop();
-    } else {
-        output_arena_reset(&arena);
-        value_from_exception(&arena, (mp_obj_t)nlr.ret_val, out);
-    }
-
-    return output_arena_status(&arena);
 }
 
 // Re-read an object the host holds a ref to. A container comes back by value,
@@ -117,11 +44,11 @@ __attribute__((export_name("ref_to_value"))) int32_t ref_to_value(
         if (obj == MP_OBJ_NULL) {
             mp_raise_ValueError(MP_ERROR_TEXT("stale ref"));
         }
-        value_from_obj_committed(&arena, obj, out);
+        value_from_mp_obj_committed(&arena, obj, out);
         nlr_pop();
     } else {
         output_arena_reset(&arena);
-        value_from_exception(&arena, (mp_obj_t)nlr.ret_val, out);
+        value_from_mp_exception(&arena, (mp_obj_t)nlr.ret_val, out);
     }
     return output_arena_status(&arena);
 }
@@ -173,12 +100,12 @@ __attribute__((export_name("call"))) int32_t call_ext(const char* name,
         }
 
         mp_obj_t result = mp_call_function_n_kw(fn, num_args, 0, argv);
-        value_from_obj_committed(&arena, result, out);
+        value_from_mp_obj_committed(&arena, result, out);
 
         nlr_pop();
     } else {
         output_arena_reset(&arena);
-        value_from_exception(&arena, (mp_obj_t)nlr.ret_val, out);
+        value_from_mp_exception(&arena, (mp_obj_t)nlr.ret_val, out);
     }
     return output_arena_status(&arena);
 }
@@ -206,11 +133,11 @@ __attribute__((export_name("call_ref"))) int32_t call_ref_ext(
             argv[i] = obj_from_value(&args[i]);
         }
         mp_obj_t result = mp_call_function_n_kw(fn, num_args, 0, argv);
-        value_from_obj_committed(&arena, result, out);
+        value_from_mp_obj_committed(&arena, result, out);
         nlr_pop();
     } else {
         output_arena_reset(&arena);
-        value_from_exception(&arena, (mp_obj_t)nlr.ret_val, out);
+        value_from_mp_exception(&arena, (mp_obj_t)nlr.ret_val, out);
     }
 
     return output_arena_status(&arena);
@@ -259,13 +186,13 @@ __attribute__((export_name("iterator_next"))) int32_t iterator_next_ext(
             return 0;
         }
 
-        value_from_obj_committed(&arena, item, out);
+        value_from_mp_obj_committed(&arena, item, out);
         nlr_pop();
         return output_arena_status(&arena);
     }
 
     output_arena_reset(&arena);
-    value_from_exception(&arena, (mp_obj_t)nlr.ret_val, out);
+    value_from_mp_exception(&arena, (mp_obj_t)nlr.ret_val, out);
     return output_arena_status(&arena);
 }
 
@@ -280,11 +207,11 @@ __attribute__((export_name("get_global"))) int32_t get_global_ext(
     nlr_buf_t nlr;
     if (nlr_push(&nlr) == 0) {
         mp_obj_t value = mp_load_global(qstr_from_strn(name, name_len));
-        value_from_obj_committed(&arena, value, out);
+        value_from_mp_obj_committed(&arena, value, out);
         nlr_pop();
     } else {
         output_arena_reset(&arena);
-        value_from_exception(&arena, (mp_obj_t)nlr.ret_val, out);
+        value_from_mp_exception(&arena, (mp_obj_t)nlr.ret_val, out);
     }
     return output_arena_status(&arena);
 }
@@ -301,11 +228,11 @@ __attribute__((export_name("set_global"))) int32_t set_global_ext(
     if (nlr_push(&nlr) == 0) {
         mp_obj_t value = obj_from_value((mp_value_t*)(uintptr_t)value_ptr);
         mp_store_global(qstr_from_strn(name, name_len), value);
-        value_from_obj_committed(&arena, mp_const_none, out);
+        value_from_mp_obj_committed(&arena, mp_const_none, out);
         nlr_pop();
     } else {
         output_arena_reset(&arena);
-        value_from_exception(&arena, (mp_obj_t)nlr.ret_val, out);
+        value_from_mp_exception(&arena, (mp_obj_t)nlr.ret_val, out);
     }
 
     return output_arena_status(&arena);

@@ -104,12 +104,6 @@ func (i *Instance) DefineFunction(ctx context.Context, name string, fn host.Host
 	})
 }
 
-func (i *Instance) InstallPackage(ctx context.Context, pkg host.Package) error {
-	return i.run(ctx, func(rt *host.Module) error {
-		return rt.RegisterPackage(pkg)
-	})
-}
-
 func (i *Instance) Cancel() {
 	if rt := i.rt.Load(); rt != nil {
 		rt.Cancel()

@@ -77,13 +77,6 @@ func newInstance(ctx context.Context, opt *options) (*Instance, error) {
 		}
 	}
 
-	for _, pkg := range opt.packages {
-		if err := (&Instance{wrapped: in}).RegisterPackage(ctx, pkg); err != nil {
-			in.Close()
-			return nil, err
-		}
-	}
-
 	if src := opt.sourceScript; src != "" {
 		if err := in.Exec(ctx, src); err != nil {
 			in.Close()

@@ -13,10 +13,10 @@ void execute_python(const char* src, size_t len, mp_parse_input_kind_t input_kin
         mp_parse_tree_t parse_tree = mp_parse(lex, input_kind);
         mp_obj_t module_fun = mp_compile(&parse_tree, source_name, false);
         mp_obj_t result = mp_call_function_0(module_fun);
-        value_from_obj_committed(arena, result, out);
+        value_from_mp_obj_committed(arena, result, out);
         nlr_pop();
     } else {
         output_arena_reset(arena);
-        value_from_exception(arena, (mp_obj_t)nlr.ret_val, out);
+        value_from_mp_exception(arena, (mp_obj_t)nlr.ret_val, out);
     }
 }

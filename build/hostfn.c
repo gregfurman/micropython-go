@@ -27,7 +27,9 @@ static mp_obj_t generic_host_invoke(size_t n_args, const mp_obj_t* args) {
     }
     mp_transfer_t* arguments = (mp_transfer_t*)arg_storage;
     arguments->value = (mp_value_t){
-        .kind = KIND_TUPLE, .w1 = n, .w2 = (uint32_t)(uintptr_t)argbuf,
+        .kind = KIND_TUPLE,
+        .w1 = n,
+        .w2 = (uint32_t)(uintptr_t)argbuf,
     };
     // Account for the tuple wrapper when bounding nested argument trees.
     arg_arena.depth = 1;
@@ -41,10 +43,12 @@ static mp_obj_t generic_host_invoke(size_t n_args, const mp_obj_t* args) {
     ret->w2 = 0;
 
     // NOTE: args are committed prior to trampoline
-    value_from_objs_committed(&arg_arena, &args[1], n, argbuf);
-    host_trampoline(
-        func_id, (uint32_t)(uintptr_t)arg_storage, arg_arena.offset,
-        (uint32_t)(uintptr_t)ret_storage, sizeof(ret_storage));
+    value_from_mp_objs_committed(&arg_arena, &args[1], n, argbuf);
+    host_trampoline(func_id,
+        (uint32_t)(uintptr_t)arg_storage,
+        arg_arena.offset,
+        (uint32_t)(uintptr_t)ret_storage,
+        sizeof(ret_storage));
 
     if (ret->kind == KIND_INVALID) {
         mp_raise_msg(&mp_type_RuntimeError, MP_ERROR_TEXT("host wrote no value"));

@@ -33,7 +33,7 @@ BUILTINS="$("$WASI_SDK/clang" -print-resource-dir)/lib/wasm32-unknown-wasi/libcl
 "$WASI_SDK/clang" --target=wasm32 -ffreestanding -nostdlib -Os -Wall -fno-common \
 	-o micropython \
 	arena.c decode.c encode.c exec.c gccollect.c hostfn.c main.c mphalport.c \
-	pymodule.c refs.c vm.c wasm_sjlj.c \
+	refs.c vm.c wasm_sjlj.c \
 	$ROOT/libc/libc.c \
 	$ROOT/libc/malloc_sbrk.c \
 	$ROOT/micropython/py/*.c \
