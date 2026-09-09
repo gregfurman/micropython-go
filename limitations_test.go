@@ -65,12 +65,35 @@ func TestLimitImportCannotReachRealFiles(t *testing.T) {
 	}
 }
 
-func TestLimitNoOSModule(t *testing.T) {
+func TestLimitOSIsFilesystemAndEnvOnly(t *testing.T) {
 	in := newT(t)
 
-	if got := raises(t, in, "import os").Type(); got != "ImportError" {
-		t.Errorf("import os raised %s, want ImportError", got)
+	if err := in.Exec(t.Context(), "import os"); err != nil {
+		t.Fatalf("import os: %v", err)
 	}
+	// What os offers here is the VFS surface plus getenv/putenv/unsetenv.
+	for _, name := range []string{
+		"os.getenv", "os.putenv", "os.unsetenv",
+		"os.sep", "os.listdir", "os.ilistdir", "os.stat", "os.mkdir", "os.remove", "os.rename",
+	} {
+		if _, err := in.Eval(t.Context(), name); err != nil {
+			t.Errorf("%s: %v", name, err)
+		}
+	}
+	// The rest of CPython's os is absent, including environ: there is no
+	// process to have an environment, only what the host handed this instance.
+	for _, name := range []string{
+		"os.environ", "os.system", "os.uname", "os.urandom",
+		"os.getpid", "os.walk", "os.path",
+	} {
+		if got := raises(t, in, name).Type(); got != "AttributeError" {
+			t.Errorf("%s raised %s, want AttributeError", name, got)
+		}
+	}
+}
+
+func TestLimitNoSysStreams(t *testing.T) {
+	in := newT(t)
 
 	// sys itself exists; it is the stream objects on it that do not.
 	if err := in.Exec(t.Context(), "import sys"); err != nil {

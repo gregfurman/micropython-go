@@ -50,7 +50,11 @@ func newInstance(ctx context.Context, opt *options) (*Instance, error) {
 		return nil, err
 	}
 
-	in, err := api.New(int32(opt.heapBytes), opt.stdout)
+	networkConfig, err := opt.network()
+	if err != nil {
+		return nil, err
+	}
+	in, err := api.New(int32(opt.heapBytes), opt.stdout, networkConfig, opt.filesystem, opt.vars)
 	if err != nil {
 		return nil, err
 	}
@@ -210,6 +214,7 @@ func (i *Instance) Call(ctx context.Context, name string, args ...any) (Value, e
 // Clone copies the current Python state into a new, caller-owned Instance.
 // It briefly locks the source. Go callback closures and output writers are shared;
 // guest handles cannot be transferred between instances.
+// Close Python sockets, files, and directory iterators before cloning.
 func (i *Instance) Clone(ctx context.Context) (*Instance, error) {
 	if i.wrapped == nil {
 		return nil, ErrInstanceNotInitialised

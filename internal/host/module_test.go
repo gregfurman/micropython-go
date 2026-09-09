@@ -11,6 +11,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gregfurman/micropython-go/internal/host/abi"
+	"github.com/gregfurman/micropython-go/internal/host/network"
+	wasi "github.com/gregfurman/micropython-go/internal/micropython"
 	"github.com/gregfurman/micropython-go/internal/value"
 )
 
@@ -23,7 +26,7 @@ except Exception as e:
 
 func newT(t *testing.T) *Module {
 	t.Helper()
-	inst, err := NewModule(0, nil)
+	inst, err := NewModule(0, nil, network.Config{}, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -208,7 +211,10 @@ func TestHostFuncSurvivesSnapshotRestore(t *testing.T) {
 	inst := newT(t)
 	define(t, inst, "f", func(context.Context, []value.Value) (value.Value, error) { return value.Str("from host"), nil })
 
-	snap := inst.Snapshot()
+	snap, err := inst.Snapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	t.Run("into a fresh instance", func(t *testing.T) {
 		restored, err := snap.Restore()
@@ -458,5 +464,50 @@ func TestReleasedRefIDIsNotReused(t *testing.T) {
 	step(t, inst)
 	if out, err := inst.CallRef(stale, nil); err == nil {
 		t.Fatalf("stale ref %d resolved to %#v, want an error", staleID, value.Lift(out))
+	}
+}
+
+type statusEnvironment struct {
+	wasi.Xos
+	status int32
+}
+
+func (e statusEnvironment) Xhost_env_set(int32, int32, int32, int32) int32 { return e.status }
+func (e statusEnvironment) Xhost_env_unset(int32, int32) int32             { return e.status }
+
+func TestGuestRejectsInvalidEnvironmentStatus(t *testing.T) {
+	for _, status := range []int32{1, -4096, -abi.EACCES} {
+		t.Run(fmt.Sprint(status), func(t *testing.T) {
+			m := newModule(nil, network.Config{}, nil, nil)
+			t.Cleanup(func() { _ = m.Close() })
+			// Substitute the import before guest initialization to exercise the
+			// C adapter, including statuses the real Go provider never returns.
+			m.mod = wasi.New(m, m.network, m.filesystem, statusEnvironment{m.environment, status})
+			m.mem.Bind(m.mod)
+			if m.mod.Xinit_vm(defaultHeapSize, maxHostArgs) != 0 {
+				t.Fatal("guest initialization failed")
+			}
+			var err error
+			m.arena, err = m.mem.NewArena(moduleArenaCapacity)
+			if err != nil {
+				t.Fatal(err)
+			}
+			code := abi.EIO
+			if status == -abi.EACCES {
+				code = abi.EACCES
+			}
+			if err := m.Exec(fmt.Sprintf(`
+import os
+for operation in (lambda: os.putenv('KEY', 'value'), lambda: os.unsetenv('KEY')):
+    try:
+        operation()
+    except OSError as error:
+        assert error.args[0] == %d, error.args
+    else:
+        raise AssertionError('invalid host status accepted')
+`, code)); err != nil {
+				t.Fatal(err)
+			}
+		})
 	}
 }

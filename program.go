@@ -56,6 +56,8 @@ func (o *OwnedInstance) Exec(ctx context.Context, src string) error {
 // Compile applies opts, runs src, and snapshots the resulting state for a Program.
 // A nonempty src overrides [WithSource]; an empty src uses it if provided.
 // The caller must close the Program when done.
+// Initialization must close files, directory iterators, and sockets before the
+// state is snapshotted. Filesystem changes are not included in the snapshot.
 func Compile(ctx context.Context, src string, opts ...ProgramOption) (*Program, error) {
 	// TODO(gregfurman): Consider catering for warm and cold starts
 	opt := newOptions(opts)
@@ -105,15 +107,17 @@ func (p *Program) Instance(ctx context.Context) (*Instance, error) {
 }
 
 // Run lends an interpreter to fn, then rewinds or discards it, even on error
-// or panic. It returns fn's error unchanged; panics propagate after cleanup.
+// or panic. Cleanup failures are joined with fn's error; otherwise it is
+// returned unchanged. Panics propagate after cleanup.
 // External effects, including changes made by Go callbacks, are not rewound.
+// Open files and sockets are closed when the interpreter is returned.
 //
 // Use the callback's context: it inherits ctx and is canceled when fn exits.
 // Cancellation is cooperative; Run waits for fn but not its goroutines.
 // Finish all interpreter-using work before returning. Do not retain the
 // OwnedInstance or use guest handles afterward, including handles nested in
 // exported containers. Only detached Go data may outlive the run.
-func (p *Program) Run(ctx context.Context, fn func(ctx context.Context, in *OwnedInstance) error) error {
+func (p *Program) Run(ctx context.Context, fn func(ctx context.Context, in *OwnedInstance) error) (err error) {
 	if fn == nil {
 		return errors.New("micropython: Run needs a function to run")
 	}
@@ -125,7 +129,11 @@ func (p *Program) Run(ctx context.Context, fn func(ctx context.Context, in *Owne
 	if err != nil {
 		return err
 	}
-	defer p.release(in)
+	defer func() {
+		if cleanupErr := p.release(in); cleanupErr != nil {
+			err = errors.Join(err, cleanupErr)
+		}
+	}()
 
 	if err := ctx.Err(); err != nil {
 		return err
@@ -145,10 +153,11 @@ func (p *Program) Close() error {
 	p.free, p.closed = nil, true
 	p.mu.Unlock()
 
+	var err error
 	for _, in := range free {
-		in.Close()
+		err = errors.Join(err, in.Close())
 	}
-	return nil
+	return err
 }
 
 // acquire takes an interpreter from the pool, or makes one if none is free.
@@ -174,7 +183,9 @@ func (p *Program) acquire() (*Instance, error) {
 		if in.Err() == nil {
 			return in, nil
 		}
-		in.Close()
+		if err := in.Close(); err != nil {
+			return nil, err
+		}
 	}
 }
 
@@ -184,19 +195,17 @@ func (p *Program) acquire() (*Instance, error) {
 //
 // The decision comes before the rewind: rewinding costs a copy of the whole
 // interpreter, and there is no point paying it for one about to be closed.
-func (p *Program) release(in *Instance) {
+func (p *Program) release(in *Instance) error {
 	p.mu.Lock()
 	keep := !p.closed && len(p.free) < p.maxIdle
 	p.mu.Unlock()
 
 	if !keep {
-		in.Close()
-		return
+		return in.Close()
 	}
 
 	if err := in.restore(p.snap); err != nil {
-		in.Close()
-		return
+		return errors.Join(err, in.Close())
 	}
 
 	p.mu.Lock()
@@ -209,6 +218,7 @@ func (p *Program) release(in *Instance) {
 	p.mu.Unlock()
 
 	if !keep {
-		in.Close()
+		return in.Close()
 	}
+	return nil
 }

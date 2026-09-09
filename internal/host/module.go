@@ -5,12 +5,16 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"maps"
 	"math"
 	"sync/atomic"
 
 	"github.com/gregfurman/micropython-go/internal/host/codec"
+	"github.com/gregfurman/micropython-go/internal/host/env"
 	"github.com/gregfurman/micropython-go/internal/host/memory"
+	"github.com/gregfurman/micropython-go/internal/host/network"
+	"github.com/gregfurman/micropython-go/internal/host/vfs"
 	wasi "github.com/gregfurman/micropython-go/internal/micropython"
 	"github.com/gregfurman/micropython-go/internal/util"
 	"github.com/gregfurman/micropython-go/internal/value"
@@ -55,14 +59,21 @@ type Module struct {
 	arena *memory.Arena
 
 	refs *OwnedReferences
+
+	network       *network.Network
+	networkConfig network.Config
+
+	filesystem *vfs.Filesystem
+
+	environment *env.Environment
 }
 
-func NewModule(size uint, stdout io.Writer) (*Module, error) {
+func NewModule(size uint, stdout io.Writer, config network.Config, filesystem fs.FS, vars map[string]string) (*Module, error) {
 	if size == 0 {
 		size = defaultHeapSize
 	}
 
-	i := newModule(stdout)
+	i := newModule(stdout, config, filesystem, vars)
 
 	if i.mod.Xinit_vm(int32(size), int32(maxHostArgs)) != 0 {
 		return nil, memory.ErrGuestOOM
@@ -77,7 +88,7 @@ func NewModule(size uint, stdout io.Writer) (*Module, error) {
 
 	return i, nil
 }
-func newModule(stdout io.Writer) *Module {
+func newModule(stdout io.Writer, config network.Config, filesystem fs.FS, vars map[string]string) *Module {
 	if stdout == nil {
 		stdout = io.Discard
 	}
@@ -91,8 +102,16 @@ func newModule(stdout io.Writer) *Module {
 		shutSig:  util.NewSignaller(),
 	}
 
-	i.mem = memory.New(guestPages, memory.MaxPages)
-	i.mod = wasi.New(i)
+	mem := memory.New(guestPages, memory.MaxPages)
+
+	i.network = network.New(mem, config)
+	i.networkConfig = config
+	i.filesystem = vfs.New(mem, filesystem)
+
+	i.environment = env.New(mem, vars)
+
+	i.mem = mem
+	i.mod = wasi.New(i, i.network, i.filesystem, i.environment)
 	i.mem.Bind(i.mod)
 
 	refs.release = func(id uint32) {
@@ -102,6 +121,15 @@ func newModule(stdout io.Writer) *Module {
 	i.codec = codec.New(i.mem, refs)
 
 	return i
+}
+
+func (i *Module) Close() error {
+	i.environment.Close()
+	return errors.Join(i.network.Close(), i.filesystem.Close())
+}
+
+func (i *Module) SetNetworkContext(ctx context.Context) {
+	i.network.SetContext(ctx)
 }
 
 // ReleasePendingRefs applies queued releases while no guest call is in flight.
@@ -385,20 +413,36 @@ func (i *Module) Set(name string, v any) error {
 	return err
 }
 
-func (i *Module) Snapshot() *Snapshot {
-	return &Snapshot{
-		memory:   i.mem.Image(),
-		stack:    *i.mod.X__stack_pointer(),
-		arena:    i.arena.Save(),
-		registry: maps.Clone(i.registry),
-		counter:  i.counter,
-		stdout:   i.stdout,
+func (i *Module) Snapshot() (*Snapshot, error) {
+	if i.filesystem.HasOpenFiles() {
+		return nil, errors.New("micropython: close open files and directory iterators before cloning or compiling")
 	}
+	if i.network.HasOpenSockets() {
+		return nil, errors.New("micropython: close open sockets before cloning or compiling")
+	}
+
+	return &Snapshot{
+		memory:     i.mem.Image(),
+		stack:      *i.mod.X__stack_pointer(),
+		arena:      i.arena.Save(),
+		registry:   maps.Clone(i.registry),
+		counter:    i.counter,
+		stdout:     i.stdout,
+		network:    i.networkConfig,
+		filesystem: i.filesystem.FS(),
+		vars:       i.environment.Vars(),
+	}, nil
 }
 
 // Restore rewinds guest memory and replaces its reference owner. Old handles
 // and their cleanup queues belong to the abandoned owner, never the new one.
 func (i *Module) Restore(s *Snapshot) error {
+	if err := errors.Join(i.network.Reset(s.network), i.filesystem.Reset(s.filesystem)); err != nil {
+		return err
+	}
+	i.environment.Reset(s.vars)
+
+	i.networkConfig = s.network
 	if err := i.mem.Load(s.memory); err != nil {
 		return err
 	}

@@ -3,7 +3,14 @@ package micropython
 import (
 	"fmt"
 	"io"
+	"io/fs"
+	"maps"
 	"math"
+	"net"
+	"slices"
+
+	"github.com/gregfurman/micropython-go/internal/host/env"
+	"github.com/gregfurman/micropython-go/internal/host/network"
 )
 
 type options struct {
@@ -15,6 +22,18 @@ type options struct {
 	hostFuncs    map[string]HostFunc
 	sourceScript string
 	stdout       io.Writer
+	filesystem   fs.FS
+	vars         map[string]string
+
+	netGrants   []netGrant
+	resolver    *net.Resolver
+	resolverSet bool
+}
+
+type netGrant struct {
+	transport network.Transport
+	address   string
+	port      int
 }
 
 // ProgramOption configures a Program. Every Option is also a ProgramOption.
@@ -104,6 +123,18 @@ func (o *options) validate() error {
 		return fmt.Errorf("micropython: heap size %d exceeds the %d byte maximum", o.heapBytes, math.MaxInt32)
 	case o.maxIdleSet && o.maxIdle < 0:
 		return fmt.Errorf("micropython: idle interpreter count %d is negative", o.maxIdle)
+	case o.resolverSet && o.resolver == nil:
+		return fmt.Errorf("micropython: DNS resolver must not be nil")
+	}
+
+	for _, name := range slices.Sorted(maps.Keys(o.vars)) {
+		if err := env.Validate(name, o.vars[name]); err != nil {
+			return fmt.Errorf("micropython: environment variable: %w", err)
+		}
+	}
+
+	if _, err := o.allowList(); err != nil {
+		return err
 	}
 	return nil
 }
@@ -115,4 +146,114 @@ func WithStdout(w io.Writer) Option {
 	return optionFunc(func(o *options) {
 		o.stdout = w
 	})
+}
+
+// WithFS mounts filesystem at Python's root. Nil denies access; last call wins.
+// Open files are closed on rewind or instance close, but the caller owns the
+// filesystem. Programs and clones share it; filesystem changes are not rewound.
+//
+// Standard fs.FS implementations are read-only. Backends can grant writes with
+// [OpenFileFS], [MkdirFS], [UnlinkFS], [RmdirFS], and [RenameFS].
+//
+// The backend must confine symlinks and support concurrent use by independent
+// instances. os.DirFS alone does not prevent symlinks escaping its directory.
+func WithFS(filesystem fs.FS) Option {
+	return optionFunc(func(o *options) { o.filesystem = filesystem })
+}
+
+// WithEnv sets one variable in the environment os.getenv reads; the default is
+// none. Calls are additive, the last value for a name wins, and order is not
+// preserved.
+//
+// The Go process environment is never inherited. Python's os.putenv and
+// os.unsetenv affect only this instance. Clones copy the current variables;
+// Program.Run restores the variables captured after initialization.
+//
+// Names must be nonempty, at most 1024 bytes, and contain neither "=" nor NUL.
+// Values must be at most 65536 bytes and contain no NUL. Invalid pairs fail
+// construction. Guest writes use the same limits and cannot add a new name
+// when 256 variables already exist. This host memory is outside WithHeapSize.
+func WithEnv(name, value string) Option {
+	return optionFunc(func(o *options) {
+		if o.vars == nil {
+			o.vars = make(map[string]string)
+		}
+		o.vars[name] = value
+	})
+}
+
+// AnyAddress matches all supported destination addresses, including loopback
+// and private networks.
+const AnyAddress = network.AnyAddress
+
+// WithTCPAccess permits outbound TCP to an IPv4 address, CIDR block, or
+// [AnyAddress], on port 1-65535. Hostnames and IPv6 are not supported.
+//
+//	WithTCPAccess("192.0.2.10", 443)
+//	WithTCPAccess("10.0.0.0/8", 5432)
+//	WithTCPAccess(AnyAddress, 443)
+//
+// Grants are additive and order-independent. Without grants, connections are
+// denied. DNS requires [WithDNSResolver]. Invalid grants fail at construction.
+// This opens no sockets; port 443 permits TCP traffic, not just HTTPS.
+func WithTCPAccess(address string, port int) Option {
+	return optionFunc(func(o *options) {
+		o.netGrants = append(o.netGrants, netGrant{transport: network.TCP, address: address, port: port})
+	})
+}
+
+// WithUDPAccess permits outbound UDP on the same terms as [WithTCPAccess].
+// Python must connect the socket first. sendto may only name the connected
+// peer; recvfrom returns that peer. Unconnected datagrams are unsupported.
+func WithUDPAccess(address string, port int) Option {
+	return optionFunc(func(o *options) {
+		o.netGrants = append(o.netGrants, netGrant{transport: network.UDP, address: address, port: port})
+	})
+}
+
+// WithDNSResolver supplies and enables name resolution for socket.getaddrinfo.
+// Without it, resolution is denied. Nil fails at construction; use
+// net.DefaultResolver explicitly to use the host resolver. Last call wins.
+//
+//	WithTCPAccess(AnyAddress, 443)
+//	WithDNSResolver(net.DefaultResolver)
+//
+// Lookups are independent of TCP/UDP grants and can contact nameservers outside
+// those grants. Resolved destinations still need connection permission.
+// Programs and clones share r; do not modify it while they are in use.
+func WithDNSResolver(r *net.Resolver) Option {
+	return optionFunc(func(o *options) { o.resolver, o.resolverSet = r, true })
+}
+
+func (o *options) allowList() (*network.AllowList, error) {
+	list := &network.AllowList{}
+	for _, g := range o.netGrants {
+		if err := list.Add(g.transport, g.address, g.port); err != nil {
+			return nil, fmt.Errorf("micropython: %w", err)
+		}
+		if err := network.ValidateIPv4Address(g.address); err != nil {
+			return nil, fmt.Errorf("micropython: %w", err)
+		}
+	}
+	return list, nil
+}
+
+// network folds the options into the host configuration. Connecting and
+// resolving are granted separately, and neither defaults to on.
+func (o *options) network() (network.Config, error) {
+	allowed, err := o.allowList()
+	if err != nil {
+		return network.Config{}, err
+	}
+
+	conf := network.Config{DialContext: network.DenyAll}
+	if len(o.netGrants) > 0 {
+		conf.DialContext = allowed.Dial((&net.Dialer{}).DialContext)
+	}
+
+	if o.resolver != nil {
+		conf.LookupIP = o.resolver.LookupIP
+	}
+
+	return conf, nil
 }

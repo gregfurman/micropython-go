@@ -8,6 +8,9 @@
 #include "py/mphal.h"
 #include "py/runtime.h"
 
+// vfs.h requires MicroPython's types and port configuration first.
+#include "extmod/vfs.h"
+
 // Called from the VM hook. The host raises KeyboardInterrupt inside the guest
 // by answering this, which is how a cancelled context stops a running script.
 void minimal_vm_poll(void) {
@@ -21,7 +24,12 @@ mp_uint_t mp_hal_stdout_tx_strn(const char* str, size_t len) {
     return len;
 }
 
-// There is no filesystem: source only ever arrives through eval and exec.
+// With MICROPY_VFS the port supplies none of these: py/builtin.h routes
+// mp_import_stat and open() to the mount table, and py/lexer.c defines
+// mp_lexer_new_from_file on top of MICROPY_READER_VFS.
+#if !MICROPY_VFS
+
+// Without a filesystem, source only ever arrives through eval and exec.
 mp_lexer_t* mp_lexer_new_from_file(qstr filename) { mp_raise_OSError(MP_ENOENT); }
 
 mp_import_stat_t mp_import_stat(const char* path) {
@@ -36,6 +44,8 @@ mp_obj_t mp_builtin_open(size_t n_args, const mp_obj_t* args, mp_map_t* kwargs) 
     mp_raise_OSError(MP_ENOENT);
 }
 MP_DEFINE_CONST_FUN_OBJ_KW(mp_builtin_open_obj, 1, mp_builtin_open);
+
+#endif
 
 void MP_NORETURN __fatal_error(const char* msg) {
     (void)msg;

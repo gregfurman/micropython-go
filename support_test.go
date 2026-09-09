@@ -1,7 +1,5 @@
 package micropython
 
-// TODO: This should be kept in sync with SUPPORT_MATRIX.md
-
 import (
 	"context"
 	"errors"
@@ -37,13 +35,13 @@ func check(t *testing.T, subject string, want state, run func() error) {
 		return
 	}
 	if got {
-		t.Errorf("%s: works, but SUPPORT_MATRIX.md records it as %s", subject, want)
+		t.Errorf("%s: works, but is recorded as %s", subject, want)
 		return
 	}
-	t.Errorf("%s: SUPPORT_MATRIX.md records it as %s, but it failed: %v", subject, want, err)
+	t.Errorf("%s: recorded as %s, but it failed: %v", subject, want, err)
 }
 
-// supportedModules is what SUPPORT_MATRIX.md claims about `import <name>`.
+// supportedModules is what this build is expected to provide for `import <name>`.
 var supportedModules = [...]struct {
 	name string
 	want state
@@ -54,11 +52,20 @@ var supportedModules = [...]struct {
 	{"errno", supported}, {"sys", supported}, {"time", supported},
 	{"weakref", supported},
 
+	// These import and expose their constants, but every operation raises
+	// OSError("no available NIC") until a NIC is registered. This table only
+	// covers the import.
+	{"network", supported}, {"socket", supported},
+
+	// os is the VFS and environment surface, not CPython's os. Its filesystem
+	// half raises OSError until WithFS mounts something.
+	{"os", supported},
+
 	{"asyncio", missingHere}, {"binascii", missingHere}, {"btree", missingHere},
 	{"cmath", missingHere}, {"deflate", missingHere},
 	{"hashlib", missingHere}, {"heapq", missingHere}, {"machine", missingHere},
-	{"os", missingHere}, {"platform", missingHere}, {"random", missingHere},
-	{"select", missingHere}, {"socket", missingHere}, {"ssl", missingHere},
+	{"platform", missingHere}, {"random", missingHere},
+	{"select", missingHere}, {"ssl", missingHere},
 	{"termios", missingHere}, {"uctypes", missingHere},
 	{"vfs", missingHere}, {"_thread", missingHere},
 
@@ -107,7 +114,7 @@ func TestSupportedTemplatelib(t *testing.T) {
 	}
 	// It is a t-strings artifact, not the CPython string module.
 	if _, err := in.Eval(ctx, "__import__('string').ascii_lowercase"); err == nil {
-		t.Error("string.ascii_lowercase resolved; SUPPORT_MATRIX.md says this is not the full module")
+		t.Error("string.ascii_lowercase resolved; this is not the full module")
 	}
 }
 

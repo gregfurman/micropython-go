@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/gregfurman/micropython-go/internal/host"
+	"github.com/gregfurman/micropython-go/internal/host/network"
 	"github.com/gregfurman/micropython-go/internal/value"
 )
 
@@ -302,7 +303,7 @@ func TestRefTableDoesNotGrowInGuestLoop(t *testing.T) {
 
 func newT(t *testing.T) *Instance {
 	t.Helper()
-	in, err := New(0, nil)
+	in, err := New(0, nil, network.Config{}, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

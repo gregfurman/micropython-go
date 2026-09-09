@@ -17,6 +17,8 @@
 
 #define MP_SSIZE_MAX (0x7fffffff)
 
+#define MP_STATE_PORT MP_STATE_VM
+
 // libc-gen's math.h has rint but not nearbyint.
 #define nearbyint(x) rint(x)
 
@@ -72,6 +74,33 @@
 #define MICROPY_PY_RE_MATCH_GROUPS (1)
 #define MICROPY_PY_RE_MATCH_SPAN_START_END (1)
 
+// Required to enable sockets
+#define MICROPY_PY_NETWORK (1)
+#define MICROPY_PY_SOCKET (1)
+#define MICROPY_PY_LWIP (0)
+#define MICROPY_PY_NETWORK_HOSTNAME_DEFAULT "micropython-wasi"
+
+// network.c registers the host NIC during VM initialization. No Python-visible
+// constructor is needed. Extended state preserves timeouts set before connect.
+#define MICROPY_PORT_NETWORK_INTERFACES
+#define MICROPY_PY_SOCKET_EXTENDED_STATE (1)
+
+// vfs.c mounts a single host-backed filesystem on / during vm_init. The guest
+// gets it through import and open(), not through a mount API of its own, so
+// MICROPY_PY_VFS stays off and extmod/modvfs.c is never compiled.
+#define MICROPY_VFS (1)
+#define MICROPY_PY_VFS (0)
+#define MICROPY_READER_VFS (1)
+
+// os.c supplies getenv/putenv/unsetenv over the host imports; the rest of the
+// os module is the VFS surface. The environment is per-instance, so putenv and
+// unsetenv change what this guest sees and nothing else. statvfs stays off
+// because io/fs reports no filesystem totals.
+#define MICROPY_PY_OS (1)
+#define MICROPY_PY_OS_GETENV_PUTENV_UNSETENV (1)
+#define MICROPY_PY_OS_STATVFS (0)
+#define MICROPY_PY_OS_INCLUDEFILE "os.c"
+
 #define MICROPY_PY_BUILTINS_BYTES_HEX (1)
 #define MICROPY_PY_BUILTINS_FILTER (1)
 #define MICROPY_PY_BUILTINS_MEMORYVIEW_ITEMSIZE (1)
@@ -112,8 +141,7 @@
 #define MICROPY_VM_HOOK_COUNT (256)
 #define MICROPY_VM_HOOK_INIT static uint16_t vm_hook_divisor = MICROPY_VM_HOOK_COUNT;
 #define MICROPY_VM_HOOK_POLL                     \
-    if (--vm_hook_divisor == 0)                  \
-    {                                            \
+    if (--vm_hook_divisor == 0) {                \
         vm_hook_divisor = MICROPY_VM_HOOK_COUNT; \
         extern void minimal_vm_poll(void);       \
         minimal_vm_poll();                       \

@@ -843,3 +843,14 @@ func TestRunRejectsBadInput(t *testing.T) {
 		t.Error("Run invoked the callback despite a cancelled context")
 	}
 }
+
+func TestRunPreservesCallbackError(t *testing.T) {
+	p := newProgram(t)
+	want := errors.New("callback failed")
+	err := p.Run(t.Context(), func(context.Context, *OwnedInstance) error {
+		return want
+	})
+	if err != want {
+		t.Fatalf("Run = %v, want the original callback error", err)
+	}
+}
