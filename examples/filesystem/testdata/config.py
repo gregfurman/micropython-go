@@ -1,0 +1,1 @@
+TEMPLATE = "hello, %s"

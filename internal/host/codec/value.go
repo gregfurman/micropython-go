@@ -4,10 +4,13 @@ import (
 	"encoding/binary"
 	"math"
 
-	"github.com/gregfurman/micropython-go/internal/value"
+	"github.com/gregfurman/micropython-go/internal/host/abi"
 )
 
-const ValueSize = 12
+const (
+	ValueSize    = abi.ValueSize
+	TransferSize = abi.TransferSize
+)
 
 type Value struct {
 	Kind Kind
@@ -32,23 +35,3 @@ func (v *Value) MarshalWords(b []byte) {
 	binary.LittleEndian.PutUint32(b[4:], v.W1)
 	binary.LittleEndian.PutUint32(b[8:], v.W2)
 }
-
-type PythonError = value.Exception
-
-// type Ref struct {
-// 	inst *Instance
-// 	id   uint32
-// 	kind Kind // KindCallable or KindObject
-// }
-
-// func (r *Ref) Close() error {
-// 	if r.inst == nil {
-// 		return nil
-// 	}
-// 	// FIXME: Use refs_free to release the host reference, not the memory allocator
-// 	r.inst.mod.Xfree(int32(r.id))
-// 	r.inst = nil
-// 	return nil
-// }
-//
-// func (r *Ref) Callable() bool { return r.kind == KindCallable }

@@ -55,7 +55,7 @@ func FuzzExec(f *testing.F) {
 		ctx, cancel := bounded()
 		defer cancel()
 
-		if _, err := in.Exec(ctx, src); errors.Is(err, context.DeadlineExceeded) {
+		if err := in.Exec(ctx, src); errors.Is(err, context.DeadlineExceeded) {
 			t.Skip("guest did not return")
 		}
 
@@ -67,7 +67,7 @@ func FuzzExec(f *testing.F) {
 		if err != nil {
 			t.Fatalf("interpreter unusable after Exec(%q): %v", src, err)
 		}
-		if got != int64(3) {
+		if got.Export() != int64(3) {
 			t.Fatalf("interpreter wrong after Exec(%q): len('abc') = %#v", src, got)
 		}
 	})
@@ -97,7 +97,7 @@ func FuzzEval(f *testing.F) {
 		if err != nil {
 			t.Fatalf("interpreter unusable after Eval(%q): %v", expr, err)
 		}
-		if got != int64(3) {
+		if got.Export() != int64(3) {
 			t.Fatalf("interpreter wrong after Eval(%q): len('abc') = %#v", expr, got)
 		}
 	})
@@ -120,7 +120,7 @@ func FuzzCallArgs(f *testing.F) {
 			t.Fatal("Call resolved a name that does not exist")
 		}
 
-		if _, err := in.Exec(t.Context(), "def echo(v):\n    return v\n"); err != nil {
+		if err := in.Exec(t.Context(), "def echo(v):\n    return v\n"); err != nil {
 			t.Fatal(err)
 		}
 
@@ -136,7 +136,7 @@ func FuzzCallArgs(f *testing.F) {
 		}
 		// equalValue rather than DeepEqual: a Python set has no order, so its
 		// members come back in whatever order the hash table held them.
-		if !equalValue(got, want) {
+		if !equalValue(got.Export(), want) {
 			t.Fatalf("round trip: got %#v, want %#v", got, want)
 		}
 	})
@@ -152,7 +152,7 @@ func FuzzProgram(f *testing.F) {
 	f.Add("", "f", []byte{})
 
 	f.Fuzz(func(t *testing.T, src, name string, seed []byte) {
-		p, err := CompileSource(context.Background(), src)
+		p, err := NewProgram(context.Background(), WithSource(src))
 		if err != nil {
 			// Source that does not load is an ordinary answer, not a crash.
 			return
@@ -168,7 +168,7 @@ func FuzzProgram(f *testing.F) {
 			wg.Go(func() {
 				ctx, cancel := bounded()
 				defer cancel()
-				p.Call(ctx, name, arg) //nolint:errcheck // any answer is fine; not panicking is the point
+				progCall(ctx, p, name, arg) //nolint:errcheck // any answer is fine; not panicking is the point
 			})
 		}
 		wg.Wait()
@@ -177,15 +177,15 @@ func FuzzProgram(f *testing.F) {
 		ctx, cancel := bounded()
 		defer cancel()
 
-		got, err := p.Call(ctx, "len", "abcd")
+		got, err := progCall(ctx, p, "len", "abcd")
 		if errors.Is(err, context.DeadlineExceeded) {
 			t.Skip("guest did not return")
 		}
 		if err != nil {
-			t.Fatalf("Program unusable after CompileSource(%q)+Call(%q): %v", src, name, err)
+			t.Fatalf("Program unusable after Compile(%q)+Call(%q): %v", src, name, err)
 		}
-		if got != int64(4) {
-			t.Fatalf("Program wrong after CompileSource(%q)+Call(%q): len('abcd') = %#v", src, name, got)
+		if got.Export() != int64(4) {
+			t.Fatalf("Program wrong after Compile(%q)+Call(%q): len('abcd') = %#v", src, name, got)
 		}
 	})
 }

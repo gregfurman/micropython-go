@@ -1,7 +1,5 @@
 package micropython
 
-// TODO: This should be kept in sync with SUPPORT_MATRIX.md
-
 import (
 	"context"
 	"errors"
@@ -37,47 +35,57 @@ func check(t *testing.T, subject string, want state, run func() error) {
 		return
 	}
 	if got {
-		t.Errorf("%s: works, but SUPPORT_MATRIX.md records it as %s", subject, want)
+		t.Errorf("%s: works, but is recorded as %s", subject, want)
 		return
 	}
-	t.Errorf("%s: SUPPORT_MATRIX.md records it as %s, but it failed: %v", subject, want, err)
+	t.Errorf("%s: recorded as %s, but it failed: %v", subject, want, err)
+}
+
+// supportedModules is what this build is expected to provide for `import <name>`.
+var supportedModules = [...]struct {
+	name string
+	want state
+}{
+	{"array", supported}, {"collections", supported}, {"gc", supported},
+	{"io", supported}, {"json", supported}, {"math", supported},
+	{"micropython", supported}, {"re", supported}, {"struct", supported},
+	{"errno", supported}, {"sys", supported}, {"time", supported},
+	{"weakref", supported},
+
+	// These import and expose their constants, but every operation raises
+	// OSError("no available NIC") until a NIC is registered. This table only
+	// covers the import.
+	{"network", supported}, {"socket", supported},
+
+	// os is the VFS and environment surface, not CPython's os. Its filesystem
+	// half raises OSError until WithFS mounts something.
+	{"os", supported},
+
+	{"asyncio", missingHere}, {"binascii", missingHere}, {"btree", missingHere},
+	{"cmath", missingHere}, {"deflate", missingHere},
+	{"hashlib", missingHere}, {"heapq", missingHere}, {"machine", missingHere},
+	{"platform", missingHere}, {"random", missingHere},
+	{"select", missingHere}, {"ssl", missingHere},
+	{"termios", missingHere}, {"uctypes", missingHere},
+	{"vfs", missingHere}, {"_thread", missingHere},
+
+	{"abc", missingBoth}, {"base64", missingBoth}, {"copy", missingBoth},
+	{"dataclasses", missingBoth}, {"datetime", missingBoth}, {"decimal", missingBoth},
+	{"enum", missingBoth}, {"functools", missingBoth}, {"inspect", missingBoth},
+	{"itertools", missingBoth}, {"logging", missingBoth}, {"operator", missingBoth},
+	{"pickle", missingBoth}, {"threading", missingBoth}, {"traceback", missingBoth},
+	{"typing", missingBoth}, {"unittest", missingBoth}, {"warnings", missingBoth},
+
+	{"importlib", missingBoth}, // VERIFY THIS
 }
 
 func TestSupportedModules(t *testing.T) {
 	ctx := context.Background()
 	in := newT(t)
 
-	modules := []struct {
-		name string
-		want state
-	}{
-		{"array", supported}, {"collections", supported}, {"gc", supported},
-		{"io", supported}, {"json", supported}, {"math", supported},
-		{"micropython", supported}, {"re", supported}, {"struct", supported},
-		{"sys", supported}, {"time", supported},
-
-		{"asyncio", missingHere}, {"binascii", missingHere}, {"btree", missingHere},
-		{"cmath", missingHere}, {"deflate", missingHere}, {"errno", missingHere},
-		{"hashlib", missingHere}, {"heapq", missingHere}, {"machine", missingHere},
-		{"os", missingHere}, {"platform", missingHere}, {"random", missingHere},
-		{"select", missingHere}, {"socket", missingHere}, {"ssl", missingHere},
-		{"termios", missingHere}, {"uctypes", missingHere},
-		{"vfs", missingHere}, {"_thread", missingHere},
-
-		{"abc", missingBoth}, {"base64", missingBoth}, {"copy", missingBoth},
-		{"dataclasses", missingBoth}, {"datetime", missingBoth}, {"decimal", missingBoth},
-		{"enum", missingBoth}, {"functools", missingBoth}, {"inspect", missingBoth},
-		{"itertools", missingBoth}, {"logging", missingBoth}, {"operator", missingBoth},
-		{"pickle", missingBoth}, {"threading", missingBoth}, {"traceback", missingBoth},
-		{"typing", missingBoth}, {"unittest", missingBoth}, {"warnings", missingBoth},
-		{"weakref", missingBoth},
-
-		{"importlib", missingBoth}, // VERIFY THIS
-	}
-
-	for _, m := range modules {
+	for _, m := range supportedModules {
 		check(t, "import "+m.name, m.want, func() error {
-			_, err := in.Exec(ctx, "import "+m.name)
+			err := in.Exec(ctx, "import "+m.name)
 			return err
 		})
 	}
@@ -91,7 +99,7 @@ func TestSupportedTemplatelib(t *testing.T) {
 	if err != nil {
 		t.Fatalf("import string: %v", err)
 	}
-	names, ok := got.([]any)
+	names, ok := got.Export().([]any)
 	if !ok {
 		t.Fatalf("dir(string) = %#v, want a list", got)
 	}
@@ -106,44 +114,45 @@ func TestSupportedTemplatelib(t *testing.T) {
 	}
 	// It is a t-strings artifact, not the CPython string module.
 	if _, err := in.Eval(ctx, "__import__('string').ascii_lowercase"); err == nil {
-		t.Error("string.ascii_lowercase resolved; SUPPORT_MATRIX.md says this is not the full module")
+		t.Error("string.ascii_lowercase resolved; this is not the full module")
 	}
+}
+
+var supportedBuiltins = [...]struct {
+	name string
+	want state
+}{
+	{"input", missingHere},
+
+	{"format", missingBoth}, {"vars", missingBoth},
+
+	{"abs", supported}, {"all", supported}, {"any", supported}, {"bin", supported},
+	{"bool", supported}, {"bytearray", supported}, {"bytes", supported},
+	{"callable", supported}, {"chr", supported}, {"classmethod", supported},
+	{"compile", supported}, {"complex", supported}, {"delattr", supported},
+	{"dict", supported}, {"dir", supported}, {"divmod", supported}, {"eval", supported},
+	{"exec", supported}, {"enumerate", supported}, {"float", supported}, {"frozenset", supported},
+	{"getattr", supported}, {"globals", supported}, {"hasattr", supported},
+	{"hash", supported}, {"hex", supported}, {"id", supported}, {"int", supported},
+	{"isinstance", supported}, {"issubclass", supported}, {"iter", supported},
+	{"len", supported}, {"list", supported}, {"locals", supported}, {"map", supported},
+	{"memoryview", supported}, {"min", supported}, {"max", supported},
+	{"next", supported}, {"object", supported},
+	{"oct", supported}, {"open", supported}, {"ord", supported}, {"pow", supported},
+	{"filter", supported}, {"NotImplemented", supported},
+	{"print", supported}, {"property", supported},
+	{"range", supported}, {"repr", supported},
+	{"reversed", supported}, {"round", supported}, {"set", supported},
+	{"setattr", supported}, {"slice", supported}, {"sorted", supported},
+	{"staticmethod", supported}, {"str", supported}, {"sum", supported},
+	{"super", supported}, {"tuple", supported}, {"type", supported}, {"zip", supported},
 }
 
 func TestSupportedBuiltins(t *testing.T) {
 	ctx := context.Background()
 	in := newT(t)
 
-	builtins := []struct {
-		name string
-		want state
-	}{
-		{"property", missingHere}, {"min", missingHere}, {"max", missingHere},
-		{"filter", missingHere}, {"enumerate", missingHere}, {"input", missingHere},
-		{"NotImplemented", missingHere},
-
-		{"format", missingBoth}, {"vars", missingBoth},
-
-		{"abs", supported}, {"all", supported}, {"any", supported}, {"bin", supported},
-		{"bool", supported}, {"bytearray", supported}, {"bytes", supported},
-		{"callable", supported}, {"chr", supported}, {"classmethod", supported},
-		{"compile", supported}, {"complex", supported}, {"delattr", supported},
-		{"dict", supported}, {"dir", supported}, {"divmod", supported}, {"eval", supported},
-		{"exec", supported}, {"float", supported}, {"frozenset", supported},
-		{"getattr", supported}, {"globals", supported}, {"hasattr", supported},
-		{"hash", supported}, {"hex", supported}, {"id", supported}, {"int", supported},
-		{"isinstance", supported}, {"issubclass", supported}, {"iter", supported},
-		{"len", supported}, {"list", supported}, {"locals", supported}, {"map", supported},
-		{"memoryview", supported}, {"next", supported}, {"object", supported},
-		{"oct", supported}, {"open", supported}, {"ord", supported}, {"pow", supported},
-		{"print", supported}, {"range", supported}, {"repr", supported},
-		{"reversed", supported}, {"round", supported}, {"set", supported},
-		{"setattr", supported}, {"slice", supported}, {"sorted", supported},
-		{"staticmethod", supported}, {"str", supported}, {"sum", supported},
-		{"super", supported}, {"tuple", supported}, {"type", supported}, {"zip", supported},
-	}
-
-	for _, b := range builtins {
+	for _, b := range supportedBuiltins {
 		check(t, b.name, b.want, func() error {
 			_, err := in.Eval(ctx, b.name)
 			return err
@@ -167,68 +176,68 @@ func TestBuiltinsPresentButUnusable(t *testing.T) {
 		t.Error("slice() constructed; the matrix says it cannot be in either build")
 	}
 	// Slice syntax is unaffected.
-	if got, err := in.Eval(ctx, `"abcdef"[1:3]`); err != nil || got != "bc" {
+	if got, err := in.Eval(ctx, `"abcdef"[1:3]`); err != nil || got.Export() != "bc" {
 		t.Errorf(`"abcdef"[1:3] = %#v, %v; want "bc"`, got, err)
 	}
+}
+
+var supportedLanguageFeatures = [...]struct {
+	name string
+	src  string
+	want state
+}{
+	{"async def / await", "async def f(): return 1", missingHere},
+	{"t-strings", "r = t'{1}'", supported},
+	{"match / case", "x = 1\nmatch x:\n    case 1:\n        r = 1", missingBoth},
+
+	{"f-strings", "r = f'{1+1}'", supported},
+	{"f-string self-doc", "r = f'{1+1=}'", supported},
+	{"walrus", "r = [y := 2]", supported},
+	{"list comprehension", "r = [x for x in range(3)]", supported},
+	{"dict comprehension", "r = {x: x for x in range(2)}", supported},
+	{"set comprehension", "r = {x for x in range(2)}", supported},
+	{"generator expression", "r = list(x for x in range(2))", supported},
+	{"decorators", "def d(f):\n    return f\n@d\ndef g(): return 1\nr = g()", supported},
+	{"yield", "def g():\n    yield 1\nr = list(g())", supported},
+	{"yield from", "def a():\n    yield 1\ndef b():\n    yield from a()\nr = list(b())", supported},
+	{"generator.send", "def g():\n    x = yield 1\n    yield x\nit = g()\nnext(it)\nr = it.send(5)", supported},
+	{"classes", "class A:\n    def f(self): return 1\nr = A().f()", supported},
+	{"multiple inheritance", "class A: pass\nclass B: pass\nclass C(A, B): pass\nr = C()", supported},
+	{"super()", "class A:\n    def f(self): return 1\nclass B(A):\n    def f(self): return super().f()\nr = B().f()", supported},
+	{"__slots__", "class A:\n    __slots__ = ('x',)\nr = A()", supported},
+	{"classmethod", "class A:\n    @classmethod\n    def f(cls): return 1\nr = A.f()", supported},
+	{"staticmethod", "class A:\n    @staticmethod\n    def f(): return 1\nr = A.f()", supported},
+	{"property", "class A:\n    @property\n    def x(self): return 1\nr = A().x", supported},
+	{"special methods", "class A:\n    def __add__(self, o): return 7\nr = A() + 1", supported},
+	{"reverse special methods", "class A:\n    def __radd__(self, o): return 7\nr = 1 + A()", supported},
+	{"__getattr__", "class A:\n    def __getattr__(self, n): return 9\nr = A().zz", supported},
+	{"__call__", "class A:\n    def __call__(self): return 3\nr = A()()", supported},
+	{"context managers", "class A:\n    def __enter__(self): return 1\n    def __exit__(self, *a): return False\nwith A() as v:\n    r = v", supported},
+	{"try/except/else/finally", "try:\n    pass\nexcept Exception:\n    pass\nelse:\n    r = 1\nfinally:\n    pass", supported},
+	{"raise from", "try:\n    try:\n        raise ValueError('a')\n    except ValueError as e:\n        raise TypeError('b') from e\nexcept TypeError:\n    r = 1", supported},
+	{"custom exceptions", "class E(Exception): pass\ntry:\n    raise E('x')\nexcept E as e:\n    r = str(e)", supported},
+	{"namedtuple", "from collections import namedtuple\nP = namedtuple('P', ('a', 'b'))\nr = P(1, 2).a", supported},
+	{"keyword-only args", "def f(a, *, b=1): return b\nr = f(1, b=2)", supported},
+	{"kwargs", "def f(**kw): return kw\nr = f(a=1)", supported},
+	{"call unpacking", "def f(a, b): return a + b\nr = f(*[1], **{'b': 2})", supported},
+	{"star unpack assignment", "a, *b = [1, 2, 3]\nr = b", supported},
+	{"global / nonlocal", "def f():\n    def g():\n        nonlocal x\n        x = 2\n    x = 1\n    g()\n    return x\nr = f()", supported},
+	{"assert", "assert True\nr = 1", supported},
+	{"del", "d = {'a': 1}\ndel d['a']\nr = d", supported},
+	{"function annotations", "def f(a: int) -> int: return a\nr = f(1)", supported},
+	{"variable annotations", "x: int = 1\nr = x", supported},
+	{"chained comparison", "r = 1 < 2 < 3", supported},
+	{"conditional expression", "r = 1 if True else 2", supported},
+	{"lambda", "r = (lambda a, b=1, *c, **d: a)(1)", supported},
 }
 
 func TestSupportedLanguageFeatures(t *testing.T) {
 	ctx := context.Background()
 
-	features := []struct {
-		name string
-		src  string
-		want state
-	}{
-		{"async def / await", "async def f(): return 1", missingHere},
-		{"t-strings", "r = t'{1}'", supported},
-		{"match / case", "x = 1\nmatch x:\n    case 1:\n        r = 1", missingBoth},
-
-		{"f-strings", "r = f'{1+1}'", supported},
-		{"f-string self-doc", "r = f'{1+1=}'", supported},
-		{"walrus", "r = [y := 2]", supported},
-		{"list comprehension", "r = [x for x in range(3)]", supported},
-		{"dict comprehension", "r = {x: x for x in range(2)}", supported},
-		{"set comprehension", "r = {x for x in range(2)}", supported},
-		{"generator expression", "r = list(x for x in range(2))", supported},
-		{"decorators", "def d(f):\n    return f\n@d\ndef g(): return 1\nr = g()", supported},
-		{"yield", "def g():\n    yield 1\nr = list(g())", supported},
-		{"yield from", "def a():\n    yield 1\ndef b():\n    yield from a()\nr = list(b())", supported},
-		{"generator.send", "def g():\n    x = yield 1\n    yield x\nit = g()\nnext(it)\nr = it.send(5)", supported},
-		{"classes", "class A:\n    def f(self): return 1\nr = A().f()", supported},
-		{"multiple inheritance", "class A: pass\nclass B: pass\nclass C(A, B): pass\nr = C()", supported},
-		{"super()", "class A:\n    def f(self): return 1\nclass B(A):\n    def f(self): return super().f()\nr = B().f()", supported},
-		{"__slots__", "class A:\n    __slots__ = ('x',)\nr = A()", supported},
-		{"classmethod", "class A:\n    @classmethod\n    def f(cls): return 1\nr = A.f()", supported},
-		{"staticmethod", "class A:\n    @staticmethod\n    def f(): return 1\nr = A.f()", supported},
-		{"property", "class A:\n    @property\n    def x(self): return 1\nr = A().x", missingHere},
-		{"special methods", "class A:\n    def __add__(self, o): return 7\nr = A() + 1", supported},
-		{"reverse special methods", "class A:\n    def __radd__(self, o): return 7\nr = 1 + A()", supported},
-		{"__getattr__", "class A:\n    def __getattr__(self, n): return 9\nr = A().zz", supported},
-		{"__call__", "class A:\n    def __call__(self): return 3\nr = A()()", supported},
-		{"context managers", "class A:\n    def __enter__(self): return 1\n    def __exit__(self, *a): return False\nwith A() as v:\n    r = v", supported},
-		{"try/except/else/finally", "try:\n    pass\nexcept Exception:\n    pass\nelse:\n    r = 1\nfinally:\n    pass", supported},
-		{"raise from", "try:\n    try:\n        raise ValueError('a')\n    except ValueError as e:\n        raise TypeError('b') from e\nexcept TypeError:\n    r = 1", supported},
-		{"custom exceptions", "class E(Exception): pass\ntry:\n    raise E('x')\nexcept E as e:\n    r = str(e)", supported},
-		{"namedtuple", "from collections import namedtuple\nP = namedtuple('P', ('a', 'b'))\nr = P(1, 2).a", supported},
-		{"keyword-only args", "def f(a, *, b=1): return b\nr = f(1, b=2)", supported},
-		{"kwargs", "def f(**kw): return kw\nr = f(a=1)", supported},
-		{"call unpacking", "def f(a, b): return a + b\nr = f(*[1], **{'b': 2})", supported},
-		{"star unpack assignment", "a, *b = [1, 2, 3]\nr = b", supported},
-		{"global / nonlocal", "def f():\n    def g():\n        nonlocal x\n        x = 2\n    x = 1\n    g()\n    return x\nr = f()", supported},
-		{"assert", "assert True\nr = 1", supported},
-		{"del", "d = {'a': 1}\ndel d['a']\nr = d", supported},
-		{"function annotations", "def f(a: int) -> int: return a\nr = f(1)", supported},
-		{"variable annotations", "x: int = 1\nr = x", supported},
-		{"chained comparison", "r = 1 < 2 < 3", supported},
-		{"conditional expression", "r = 1 if True else 2", supported},
-		{"lambda", "r = (lambda a, b=1, *c, **d: a)(1)", supported},
-	}
-
-	for _, f := range features {
+	for _, f := range supportedLanguageFeatures {
 		in := newT(t)
 		check(t, f.name, f.want, func() error {
-			_, err := in.Exec(ctx, f.src)
+			err := in.Exec(ctx, f.src)
 			return err
 		})
 	}
@@ -240,49 +249,81 @@ func TestSupportedNumerics(t *testing.T) {
 
 	// Arbitrary precision, so a value far past the small-int boundary is still exact.
 	const big = "1606938044258990275541962092341162602522202993782792835301376"
-	if got, err := in.Eval(ctx, "2**200 == "+big); err != nil || got != true {
+	if got, err := in.Eval(ctx, "2**200 == "+big); err != nil || got.Export() != true {
 		t.Errorf("2**200 exact = %#v, %v", got, err)
 	}
-	if got, err := in.Eval(ctx, "repr(0.1 + 0.2)"); err != nil || got != "0.30000000000000004" {
+	if got, err := in.Eval(ctx, "repr(0.1 + 0.2)"); err != nil || got.Export() != "0.30000000000000004" {
 		t.Errorf("float is not a 64-bit double: %#v, %v", got, err)
 	}
-	if got, err := in.Eval(ctx, "(1+2j).imag"); err != nil || got != 2.0 {
+	if got, err := in.Eval(ctx, "(1+2j).imag"); err != nil || got.Export() != 2.0 {
 		t.Errorf("complex = %#v, %v", got, err)
 	}
 
 	// wasm32, so the small-int boundary is 32-bit. The matrix records this exact value.
-	if got, err := in.Eval(ctx, "__import__('sys').maxsize"); err != nil || got != int64(2147483647) {
+	if got, err := in.Eval(ctx, "__import__('sys').maxsize"); err != nil || got.Export() != int64(2147483647) {
 		t.Errorf("sys.maxsize = %#v, %v; want 2147483647", got, err)
 	}
 	// It is a boundary, not a ceiling: larger values promote rather than overflow.
-	if got, err := in.Eval(ctx, "__import__('sys').maxsize + 1 > 0"); err != nil || got != true {
+	if got, err := in.Eval(ctx, "__import__('sys').maxsize + 1 > 0"); err != nil || got.Export() != true {
 		t.Errorf("maxsize+1 did not promote: %#v, %v", got, err)
 	}
+}
+
+var supportedStringAndBytes = [...]struct {
+	name string
+	src  string
+	want state
+}{
+	{"bytes.hex()", `b"ab".hex()`, supported},
+	{"str.center", `"a".center(3)`, supported},
+	{"str.rjust", `"a".rjust(3)`, missingHere},
+	{"str.format", `"{}-{}".format(1, 2)`, supported},
+	{"% operator", `"%s-%d" % ("a", 1)`, supported},
+	{"encode/decode", `"a".encode().decode()`, supported},
+	{"memoryview slice", `bytes(memoryview(b"ab")[1:])`, supported},
+	{"set algebra", `{1, 2} | {3}`, supported},
+	{"frozenset", `frozenset([1, 2])`, supported},
+	{"dict.fromkeys", `dict.fromkeys("ab")`, supported},
+	{"range attrs", `range(1, 9, 2).step`, supported},
 }
 
 func TestSupportedStringAndBytes(t *testing.T) {
 	ctx := context.Background()
 	in := newT(t)
 
-	cases := []struct {
-		name string
-		src  string
-		want state
-	}{
-		{"bytes.hex()", `b"ab".hex()`, missingHere},
-		{"str.center", `"a".center(3)`, missingHere},
-		{"str.rjust", `"a".rjust(3)`, missingHere},
-		{"str.format", `"{}-{}".format(1, 2)`, supported},
-		{"% operator", `"%s-%d" % ("a", 1)`, supported},
-		{"encode/decode", `"a".encode().decode()`, supported},
-		{"memoryview slice", `bytes(memoryview(b"ab")[1:])`, supported},
-		{"set algebra", `{1, 2} | {3}`, supported},
-		{"frozenset", `frozenset([1, 2])`, supported},
-		{"dict.fromkeys", `dict.fromkeys("ab")`, supported},
-		{"range attrs", `range(1, 9, 2).step`, supported},
+	for _, c := range supportedStringAndBytes {
+		check(t, c.name, c.want, func() error {
+			_, err := in.Eval(ctx, c.src)
+			return err
+		})
 	}
+}
 
-	for _, c := range cases {
+// supportedSetOperations covers set and frozenset semantics inside the guest,
+// as opposed to the Go-to-Python conversion of them that roundtrip_test.go
+// checks.
+var supportedSetOperations = []struct {
+	name string
+	src  string
+	want state
+}{
+	{"set literal", "{1, 2, 3}", supported},
+	{"set union", "{1, 2} | {2, 3}", supported},
+	{"set difference", "{1, 2, 3} - {2}", supported},
+	{"set intersection", "{1, 2, 3} & {2, 3, 4}", supported},
+	{"empty set", "set()", supported},
+	{"frozenset()", "frozenset({1, 2})", supported},
+	{"sorted(set)", "sorted({3, 1, 2})", supported},
+	{"len(set)", "len({1, 2, 2, 3})", supported},
+	{"in operator", "2 in {1, 2}", supported},
+	{"set of str", "{'a', 'b'}", supported},
+}
+
+func TestSupportedSetOperations(t *testing.T) {
+	ctx := context.Background()
+	in := newT(t)
+
+	for _, c := range supportedSetOperations {
 		check(t, c.name, c.want, func() error {
 			_, err := in.Eval(ctx, c.src)
 			return err

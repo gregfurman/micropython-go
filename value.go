@@ -1,25 +1,461 @@
 package micropython
 
 import (
+	"context"
+	"errors"
+	"fmt"
+	"iter"
+	"math/big"
+
 	"github.com/gregfurman/micropython-go/internal/value"
 )
 
-// Value is a Python value the host has built. It wraps the internal one so
-// this package's surface names nothing a caller cannot import.
+var errZeroValue = errors.New("micropython: the zero Value holds nothing to convert")
+
+// Value represents copied Python data or a handle owned by an interpreter.
+// Use Export for Go data or the As methods for checked, type-specific access.
+// The zero Value is invalid; use [None] for Python None.
+// Data copied from a [Program.Run] survives the run; handles returned by that
+// run, including those nested in collections, do not.
 type Value struct {
 	val value.Value
 }
 
-// Type names the value as Python would.
-func (v Value) Type() string { return v.val.Type() }
+func wrapValue(v value.Value) Value {
+	return Value{val: v}
+}
 
-func (v Value) lift() any { return value.Lift(v.val) }
+// Type returns the Python type name, or "invalid" for a zero Value.
+func (v Value) Type() string {
+	if v.val == nil {
+		return "invalid"
+	}
+	return v.val.Type()
+}
+
+// Export converts data to Go scalars, slices, and maps. Handles remain Values,
+// including inside containers. None and the zero Value export as nil.
+// Container kinds are flattened and non-comparable dictionary keys stringified;
+// use the As methods when those distinctions matter.
+func (v Value) Export() any {
+	if v.val == nil {
+		return nil
+	}
+	return exported(value.Lift(v.val))
+}
+
+func exported(v any) any {
+	switch x := v.(type) {
+	case value.Object:
+		return wrapValue(x)
+
+	case []any:
+		return exportedSlice(x)
+	case value.Tuple:
+		return value.Tuple(exportedSlice(x))
+	case value.Set:
+		return value.Set(exportedSlice(x))
+	case value.FrozenSet:
+		return value.FrozenSet(exportedSlice(x))
+
+	case map[string]any:
+		out := make(map[string]any, len(x))
+		for k, item := range x {
+			out[k] = exported(item)
+		}
+		return out
+	case map[any]any:
+		out := make(map[any]any, len(x))
+		for k, item := range x {
+			out[exported(k)] = exported(item)
+		}
+		return out
+
+	default:
+		return v
+	}
+}
+
+func exportedSlice(items []any) []any {
+	out := make([]any, len(items))
+	for i, item := range items {
+		out[i] = exported(item)
+	}
+	return out
+}
+
+// String formats v for display; it is not Python repr or serialization.
+func (v Value) String() string {
+	switch x := v.val.(type) {
+	case nil:
+		return "<invalid>"
+	case value.None:
+		return "None"
+	case value.Bool:
+		if x {
+			return "True"
+		}
+		return "False"
+	default:
+		return fmt.Sprint(value.Lift(v.val))
+	}
+}
+
+// Of converts Go data to a Value. Nil becomes None; []byte becomes bytes.
+// Scalars and collections use native conversions; other types use JSON.
+// Unsigned integers must fit in int64; use [BigInt] for larger integers.
+// Use builders such as [Tuple] when the Python type matters.
+// Conversion failures produce an invalid Value, reported when passed to Python.
+func Of(v any) Value {
+	if built, ok := v.(Value); ok {
+		return built
+	}
+
+	x, err := value.Lower(unwrapAny(v))
+	if err != nil {
+		return wrapValue(value.Invalid(err))
+	}
+
+	return wrapValue(x)
+}
+
+func conversionError(v Value, expected string) error {
+	return fmt.Errorf(
+		"micropython: expected Python %s, got %s",
+		expected,
+		v.Type(),
+	)
+}
+
+func unwrapArgs(args []any) []any {
+	out := make([]any, len(args))
+	for i, arg := range args {
+		out[i] = unwrapAny(arg)
+	}
+	return out
+}
+
+func unwrapAny(v any) any {
+	switch x := v.(type) {
+	case Value:
+		if x.val == nil {
+			// A Value that was never built carries no intent. Sending None in
+			// its place would hide the mistake where it matters least, so it
+			// converts to a refusal the encoder reports instead.
+			return value.Invalid(errZeroValue)
+		}
+		return x.val
+	case Object:
+		return x.unwrap()
+	case Func:
+		return x.c.unwrap()
+	case *Func:
+		return x.c.unwrap()
+	case Iterator:
+		return x.i
+	case *Iterator:
+		return x.i
+
+	case []any:
+		out := make([]any, len(x))
+		for i, item := range x {
+			out[i] = unwrapAny(item)
+		}
+		return out
+	case map[string]any:
+		out := make(map[string]any, len(x))
+		for k, item := range x {
+			out[k] = unwrapAny(item)
+		}
+		return out
+	case map[any]any:
+		out := make(map[any]any, len(x))
+		for k, item := range x {
+			out[unwrapAny(k)] = unwrapAny(item)
+		}
+		return out
+
+	default:
+		return v
+	}
+}
+
+// Iterator is a guest iterator bound to an Instance by [Instance.AsIterator].
+type Iterator struct {
+	i  value.Object
+	in *Instance
+}
+
+// Iter yields values until exhaustion or the first error.
+// Stopping early leaves the iterator positioned for a later call to Iter.
+func (i Iterator) Iter(ctx context.Context) iter.Seq2[Value, error] {
+	return func(yield func(Value, error) bool) {
+		if i.i.Ref() == 0 || i.in == nil || i.in.wrapped == nil {
+			yield(Value{}, ErrInstanceNotInitialised)
+			return
+		}
+
+		for {
+			out, more, err := i.in.wrapped.NextGenerator(ctx, i.i)
+			if err != nil {
+				yield(Value{}, err)
+				return
+			}
+			if !more {
+				return
+			}
+			if !yield(wrapValue(out), nil) {
+				return
+			}
+		}
+	}
+}
+
+// IsIterator reports whether v holds a guest iterator, not a copied collection.
+func (v Value) IsIterator() bool {
+	obj, ok := v.val.(value.Object)
+	return ok && obj.IsIterable()
+}
+
+// AsIterator binds a guest iterator value to this Instance for lazy iteration.
+func (i *Instance) AsIterator(v Value) (Iterator, error) {
+	if i == nil || i.wrapped == nil {
+		return Iterator{}, ErrInstanceNotInitialised
+	}
+
+	it, ok := v.val.(value.Object)
+	if !ok || it.Ref() == 0 || !it.IsIterable() {
+		return Iterator{}, conversionError(v, "iterator")
+	}
+	return Iterator{i: it, in: i}, nil
+}
+
+// ---------------------------------------------------------------------
+
+// None returns a Python None value.
+func None() Value {
+	return wrapValue(value.None{})
+}
+
+// Bool converts a Go bool to a Python bool.
+func Bool(b bool) Value {
+	return wrapValue(value.Bool(b))
+}
+
+// Int converts a Go int64 to a Python int.
+func Int(n int64) Value {
+	return wrapValue(value.Int(n))
+}
+
+// BigInt copies n into a Python int Value; nil becomes zero.
+func BigInt(n *big.Int) Value {
+	return wrapValue(value.NewBigInt(n))
+}
+
+// Float converts a Go float64 to a Python float.
+func Float(f float64) Value {
+	return wrapValue(value.Float(f))
+}
+
+// Str converts a Go string to a Python str.
+func Str(s string) Value {
+	return wrapValue(value.Str(s))
+}
+
+// Bytes copies b into a Python bytes Value.
+func Bytes(b []byte) Value {
+	out := make([]byte, len(b))
+	copy(out, b)
+	return wrapValue(value.Bytes(out))
+}
+
+// ---------------------------------------------------------------------
+
+// IsNone reports whether the value is Python's None.
+func (v Value) IsNone() bool {
+	_, ok := v.val.(value.None)
+	return ok
+}
+
+// AsBool returns a Python bool as a Go bool, or an error for other types.
+func (v Value) AsBool() (bool, error) {
+	x, ok := v.val.(value.Bool)
+	if !ok {
+		return false, conversionError(v, "bool")
+	}
+	return bool(x), nil
+}
+
+// AsInt returns an int64, reporting type mismatch or overflow.
+// Use [Value.AsBigInt] for larger integers.
+func (v Value) AsInt() (int64, error) {
+	switch x := v.val.(type) {
+	case value.Int:
+		return int64(x), nil
+
+	case value.BigInt:
+		n := x.Unwrap()
+		if !n.IsInt64() {
+			return 0, fmt.Errorf(
+				"micropython: Python int %s overflows int64",
+				n,
+			)
+		}
+		return n.Int64(), nil
+
+	default:
+		return 0, conversionError(v, "int")
+	}
+}
+
+// AsBigInt returns a Python integer, or an error for other types.
+// The result may share storage with v; copy it before modifying it.
+func (v Value) AsBigInt() (*big.Int, error) {
+	switch x := v.val.(type) {
+	case value.Int:
+		return big.NewInt(int64(x)), nil
+
+	case value.BigInt:
+		return x.Unwrap(), nil
+
+	default:
+		return nil, conversionError(v, "int")
+	}
+}
+
+// AsFloat returns a Python float as a float64, or an error for other types.
+// It does not convert integers to floats.
+func (v Value) AsFloat() (float64, error) {
+	x, ok := v.val.(value.Float)
+	if !ok {
+		return 0, conversionError(v, "float")
+	}
+	return float64(x), nil
+}
+
+// AsString returns a Python str as a Go string, or an error for other types.
+func (v Value) AsString() (string, error) {
+	x, ok := v.val.(value.Str)
+	if !ok {
+		return "", conversionError(v, "str")
+	}
+	return string(x), nil
+}
+
+// AsBytes copies Python bytes into a Go slice, or returns an error for other types.
+func (v Value) AsBytes() ([]byte, error) {
+	x, ok := v.val.(value.Bytes)
+	if !ok {
+		return nil, conversionError(v, "bytes")
+	}
+
+	out := make([]byte, len(x))
+	copy(out, x)
+	return out, nil
+}
+
+// ---------------------------------------------------------------------
 
 // Item is one entry of a Dict.
 type Item struct {
 	Key Value
 	Val Value
 }
+
+// List creates a Python list from the given values.
+func List(items ...Value) Value {
+	return wrapValue(value.NewList(unwrap(items)...))
+}
+
+// Tuple creates a Python tuple from the given values.
+func Tuple(items ...Value) Value {
+	return wrapValue(value.NewTuple(unwrap(items)...))
+}
+
+// Set creates a mutable Python set from the given values.
+func Set(items ...Value) Value {
+	return wrapValue(value.NewSet(unwrap(items)...))
+}
+
+// FrozenSet creates an immutable Python frozenset from the given values.
+func FrozenSet(items ...Value) Value {
+	return wrapValue(value.NewFrozenSet(unwrap(items)...))
+}
+
+// Dict creates a Python dictionary from the given key-value items.
+func Dict(entries ...Item) Value {
+	out := make([]value.Item, len(entries))
+
+	for i, entry := range entries {
+		out[i] = value.Item{
+			Key: entry.Key.val,
+			Val: entry.Val.val,
+		}
+	}
+
+	return wrapValue(value.NewDict(out...))
+}
+
+// ---------------------------------------------------------------------
+
+// AsList returns a new slice of a Python list's elements, or an error for other types.
+func (v Value) AsList() ([]Value, error) {
+	x, ok := v.val.(value.ListValue)
+	if !ok {
+		return nil, conversionError(v, "list")
+	}
+	return wrapValues(x), nil
+}
+
+// AsTuple returns a new slice of a Python tuple's elements, or an error for other types.
+func (v Value) AsTuple() ([]Value, error) {
+	x, ok := v.val.(value.TupleValue)
+	if !ok {
+		return nil, conversionError(v, "tuple")
+	}
+	return wrapValues(x), nil
+}
+
+// AsSet returns a new slice of a Python set's elements, or an error for other types.
+// Element order is unspecified.
+func (v Value) AsSet() ([]Value, error) {
+	x, ok := v.val.(value.SetValue)
+	if !ok {
+		return nil, conversionError(v, "set")
+	}
+	return wrapValues(x), nil
+}
+
+// AsFrozenSet returns a new slice of a Python frozenset's elements.
+// It returns an error for other types. Element order is unspecified.
+func (v Value) AsFrozenSet() ([]Value, error) {
+	x, ok := v.val.(value.FrozenSetValue)
+	if !ok {
+		return nil, conversionError(v, "frozenset")
+	}
+	return wrapValues(x), nil
+}
+
+// AsDict returns a new slice of dictionary entries without converting keys.
+// It preserves received order and returns an error for other types.
+func (v Value) AsDict() ([]Item, error) {
+	entries, ok := v.val.(value.DictValue)
+	if !ok {
+		return nil, conversionError(v, "dict")
+	}
+
+	out := make([]Item, len(entries))
+	for i, entry := range entries {
+		out[i] = Item{
+			Key: wrapValue(entry.Key),
+			Val: wrapValue(entry.Val),
+		}
+	}
+
+	return out, nil
+}
+
+// ---------------------------------------------------------------------
 
 func unwrap(items []Value) []value.Value {
 	out := make([]value.Value, len(items))
@@ -29,119 +465,147 @@ func unwrap(items []Value) []value.Value {
 	return out
 }
 
-// None returns a Python None value.
-func None() Value { return Value{val: value.None{}} }
-
-// Bool converts a Go bool to a Python bool.
-func Bool(b bool) Value { return Value{val: value.Bool(b)} }
-
-// Int converts a Go int64 to a Python int.
-func Int(n int64) Value { return Value{val: value.Int(n)} }
-
-// Float converts a Go float64 to a Python float.
-func Float(f float64) Value { return Value{val: value.Float(f)} }
-
-// Str converts a Go string to a Python str.
-func Str(s string) Value { return Value{val: value.Str(s)} }
-
-// Bytes converts a Go byte slice to a Python bytes object.
-func Bytes(b []byte) Value { return Value{val: value.Bytes(b)} }
-
-// List creates a Python list from the given values.
-func List(items ...Value) Value { return Value{val: value.NewList(unwrap(items)...)} }
-
-// Dict creates a Python dictionary from the given key-value items.
-func Dict(entries ...Item) Value {
-	out := make([]value.Item, len(entries))
-	for i, e := range entries {
-		out[i] = value.Item{Key: e.Key.val, Val: e.Val.val}
+func wrapValues[S ~[]value.Value](items S) []Value {
+	out := make([]Value, len(items))
+	for i, item := range items {
+		out[i] = wrapValue(item)
 	}
-	return Value{val: value.NewDict(out...)}
+	return out
 }
 
-// PythonError is the error a failing call returns. Unwrap it to read which
-// exception the guest raised, rather than matching on the message:
-//
-//	var exc *micropython.PythonError
-//	if errors.As(err, &exc) && exc.Type() == "KeyError" { ... }
-//
-// Exception, by contrast, builds one to send.
+// ---------------------------------------------------------------------
+
+// Func is a Python callable bound by [Instance.AsCallable].
+// It can be invoked in Go or passed back to the same interpreter.
+type Func struct {
+	c  Object
+	in *Instance
+}
+
+// Call invokes the bound function with [Instance.Call] argument conversions.
+// It must not be called from a HostFunc running on the same Instance.
+func (f Func) Call(ctx context.Context, args ...any) (Value, error) {
+	if f.c.ref() == 0 || f.in == nil || f.in.wrapped == nil {
+		return Value{}, ErrInstanceNotInitialised
+	}
+
+	out, err := f.in.wrapped.CallRef(ctx, f.c.unwrap(), unwrapArgs(args))
+	if err != nil {
+		return Value{}, err
+	}
+
+	return wrapValue(out), nil
+}
+
+// Value returns the function's handle as a Value.
+func (f Func) Value() Value {
+	return wrapValue(f.c.unwrap())
+}
+
+// IsCallable reports whether v holds a Python callable.
+func (v Value) IsCallable() bool {
+	obj, ok := v.val.(value.Object)
+	return ok && obj.IsCallable()
+}
+
+// AsCallable binds a callable Value to this Instance for invocation through [Func.Call].
+// The value must belong to this interpreter and remain live when called.
+func (i *Instance) AsCallable(v Value) (Func, error) {
+	if i == nil || i.wrapped == nil {
+		return Func{}, ErrInstanceNotInitialised
+	}
+
+	c, ok := v.val.(value.Object)
+	if !ok || c.Ref() == 0 || !c.IsCallable() {
+		return Func{}, conversionError(v, "callable")
+	}
+
+	return Func{c: Object{obj: c}, in: i}, nil
+}
+
+// ---------------------------------------------------------------------
+
+// Object is an opaque guest handle with cached type and capability information.
+// Passing it back to its interpreter refers to the original Python object.
+type Object struct {
+	obj value.Object
+}
+
+func (o Object) unwrap() value.Object { return o.obj }
+
+func (o Object) handle() *value.Ref { return o.obj.Handle() }
+
+func (o Object) ref() uint32 { return o.obj.Ref() }
+
+// Type is the handle's Python class, or "object" when no name crossed with it.
+func (o Object) Type() string { return o.obj.Type() }
+
+// IsCallable reports whether the guest object can be called.
+func (o Object) IsCallable() bool { return o.obj.IsCallable() }
+
+// IsIterable reports whether the guest object is an iterator.
+func (o Object) IsIterable() bool { return o.obj.IsIterable() }
+
+// AsObject returns the opaque handle, or an error for copied data.
+func (v Value) AsObject() (Object, error) {
+	x, ok := v.val.(value.Object)
+	if !ok {
+		return Object{}, conversionError(v, "object")
+	}
+	return Object{obj: x}, nil
+}
+
+// PythonError describes a guest exception. Use errors.As with *PythonError
+// to inspect its Type, Message, and Raw traceback.
 type PythonError = value.Exception
 
-// Exception builds a Python exception as a Value, for binding one the guest can raise.
-func Exception(typ, msg string) Value { return Value{val: value.NewException(typ, msg)} }
-
-// Raise returns an error that makes the guest raise a specific Python exception.
-// Return it from a HostFunc to control which class the caller sees:
-//
-//	in.DefineFunction(ctx, "lookup", func(args []any) (any, error) {
-//	    return nil, micropython.Raise("KeyError", "missing")
-//	})
-//
-// Python then catches it as a KeyError. A typ that does not name a builtin
-// exception falls back to HostError, as does any other error a HostFunc
-// returns, carrying that error's text as the message.
-func Raise(typ, msg string) error { return value.NewException(typ, msg) }
-
-// Tuple creates a Python tuple from the given values.
-func Tuple(items ...Value) Value { return Value{val: value.NewTuple(unwrap(items)...)} }
-
-// Set creates a mutable Python set from the given values.
-func Set(items ...Value) Value { return Value{val: value.NewSet(unwrap(items)...)} }
-
-// FrozenSet creates an immutable Python frozenset from the given values.
-func FrozenSet(items ...Value) Value { return Value{val: value.NewFrozenSet(unwrap(items)...)} }
-
-// Strs is a convenience function that creates a Python list of strings.
-func Strs(items ...string) Value {
-	out := make([]Value, len(items))
-	for i, s := range items {
-		out[i] = Str(s)
-	}
-	return List(out...)
+// Exception builds an exception Value. Returning it from a HostFunc raises it;
+// use [Raise] to return an exception through the error result instead.
+func Exception(typ, msg string) Value {
+	return wrapValue(value.NewException(typ, msg))
 }
 
-// Ints is a convenience function that creates a Python list of integers.
-func Ints(items ...int64) Value {
-	out := make([]Value, len(items))
-	for i, n := range items {
-		out[i] = Int(n)
-	}
-	return List(out...)
+// Raise creates an error for a HostFunc to raise as a Python exception.
+// Unknown exception classes and ordinary Go errors become HostError,
+// a subclass of RuntimeError.
+func Raise(typ, msg string) error {
+	return value.NewException(typ, msg)
 }
 
-// Of converts an ordinary Go value to its closest resembling Python representation:
-//
-//	Go value                                Python representation
-//	-------------------------------------------------------------
-//	nil                                     None
-//	bool                                    bool
-//	int, int64, other integers              int
-//	float32, float64                        float
-//	string                                  str
-//	[]byte                                  bytes
-//	[]any                                   list
-//	Tuple                                   tuple
-//	Set, FrozenSet                          set, frozenset
-//	map[string]any, map[any]any             dict
-//	anything else (e.g. structs)            JSON round-trip (dict/list)
-func Of(v any) Value {
-	if built, ok := v.(Value); ok {
-		return built
+// walk recurses over an iterable or nested Value, applying a closure fn to each.
+func walk(v Value, fn func(v Value) bool) bool {
+	if !fn(v) {
+		return false
 	}
 
-	x, err := value.FromGo(v)
-	if err != nil {
-		return Value{val: value.Invalid(err)}
+	if items, err := v.AsList(); err == nil {
+		return walkAll(items, fn)
 	}
-	return Value{val: x}
-}
-
-func unwrapArgs(args []any) []any {
-	for i, a := range args {
-		if v, ok := a.(Value); ok {
-			args[i] = v.val
+	if items, err := v.AsTuple(); err == nil {
+		return walkAll(items, fn)
+	}
+	if items, err := v.AsSet(); err == nil {
+		return walkAll(items, fn)
+	}
+	if items, err := v.AsFrozenSet(); err == nil {
+		return walkAll(items, fn)
+	}
+	if entries, err := v.AsDict(); err == nil {
+		for _, entry := range entries {
+			if !walk(entry.Key, fn) || !walk(entry.Val, fn) {
+				return false
+			}
 		}
 	}
-	return args
+
+	return true
+}
+
+func walkAll(items []Value, fn func(v Value) bool) bool {
+	for _, item := range items {
+		if !walk(item, fn) {
+			return false
+		}
+	}
+	return true
 }

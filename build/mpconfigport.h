@@ -1,9 +1,9 @@
 #include <stdint.h>
-#include <alloca.h>
 
 #define MICROPY_CONFIG_ROM_LEVEL (MICROPY_CONFIG_ROM_LEVEL_MINIMUM)
 #define MICROPY_ENABLE_GC (1)
-#define MICROPY_ENABLE_COMPILER     (1)
+#define MICROPY_ENABLE_COMPILER (1)
+#define MICROPY_ENABLE_EXTERNAL_IMPORT (1)
 #define MICROPY_STACK_CHECK (1)
 #define MICROPY_C_STACK_SIZE (98304)
 
@@ -15,6 +15,13 @@
 #undef MICROPY_FLOAT_IMPL
 #define MICROPY_FLOAT_IMPL (MICROPY_FLOAT_IMPL_DOUBLE)
 
+#define MP_SSIZE_MAX (0x7fffffff)
+
+#define MP_STATE_PORT MP_STATE_VM
+
+// libc-gen's math.h has rint but not nearbyint.
+#define nearbyint(x) rint(x)
+
 #define MICROPY_USE_INTERNAL_ERRNO (1)
 #define MICROPY_USE_INTERNAL_PRINTF (0)
 #define MICROPY_PY_SYS_PLATFORM "wasi"
@@ -22,8 +29,8 @@
 #define MICROPY_PY_GC (1)
 #define MICROPY_BUILTIN_METHOD_CHECK_SELF_ARG (1)
 #define MICROPY_FULL_CHECKS (1)
-#define MICROPY_WARNINGS (1)
-#define MICROPY_PY_STR_BYTES_CMP_WARN (1)
+#define MICROPY_WARNINGS (0)
+#define MICROPY_PY_STR_BYTES_CMP_WARN (0)
 
 #define MICROPY_PY_FSTRINGS (1)
 #define MICROPY_CPYTHON_COMPAT (1)
@@ -31,9 +38,15 @@
 #define MICROPY_ENABLE_SOURCE_LINE (1)
 #define MICROPY_PY_BUILTINS_SET (1)
 #define MICROPY_PY_BUILTINS_FROZENSET (1)
+#define MICROPY_PY_BUILTINS_ENUMERATE (1)
+#define MICROPY_PY_FUNCTION_ATTRS (1)
+#define MICROPY_PY_BUILTINS_FLOAT (1)
+#define MICROPY_PY_BUILTINS_ROUND_INT (1)
+#define MICROPY_PY_BUILTINS_MIN_MAX (1)
 #define MICROPY_PY_BUILTINS_SLICE (1)
 #define MICROPY_PY_BUILTINS_SLICE_ATTRS (1)
 #define MICROPY_PY_BUILTINS_SLICE_INDICES (1)
+#define MICROPY_PY_BUILTINS_STR_COUNT (1)
 #define MICROPY_PY_BUILTINS_BYTEARRAY (1)
 #define MICROPY_PY_BUILTINS_MEMORYVIEW (1)
 #define MICROPY_PY_BUILTINS_COMPILE (1)
@@ -61,6 +74,65 @@
 #define MICROPY_PY_RE_MATCH_GROUPS (1)
 #define MICROPY_PY_RE_MATCH_SPAN_START_END (1)
 
+// Required to enable sockets
+#define MICROPY_PY_NETWORK (1)
+#define MICROPY_PY_SOCKET (1)
+#define MICROPY_PY_LWIP (0)
+#define MICROPY_PY_NETWORK_HOSTNAME_DEFAULT "micropython-wasi"
+
+// network.c registers the host NIC during VM initialization. No Python-visible
+// constructor is needed. Extended state preserves timeouts set before connect.
+#define MICROPY_PORT_NETWORK_INTERFACES
+#define MICROPY_PY_SOCKET_EXTENDED_STATE (1)
+
+// vfs.c mounts a single host-backed filesystem on / during vm_init. The guest
+// gets it through import and open(), not through a mount API of its own, so
+// MICROPY_PY_VFS stays off and extmod/modvfs.c is never compiled.
+#define MICROPY_VFS (1)
+#define MICROPY_PY_VFS (0)
+#define MICROPY_READER_VFS (1)
+
+// os.c supplies getenv/putenv/unsetenv over the host imports; the rest of the
+// os module is the VFS surface. The environment is per-instance, so putenv and
+// unsetenv change what this guest sees and nothing else. statvfs stays off
+// because io/fs reports no filesystem totals.
+#define MICROPY_PY_OS (1)
+#define MICROPY_PY_OS_GETENV_PUTENV_UNSETENV (1)
+#define MICROPY_PY_OS_STATVFS (0)
+#define MICROPY_PY_OS_INCLUDEFILE "os.c"
+
+#define MICROPY_PY_BUILTINS_BYTES_HEX (1)
+#define MICROPY_PY_BUILTINS_FILTER (1)
+#define MICROPY_PY_BUILTINS_MEMORYVIEW_ITEMSIZE (1)
+#define MICROPY_PY_BUILTINS_NEXT2 (1)
+#define MICROPY_PY_BUILTINS_NOTIMPLEMENTED (1)
+#define MICROPY_PY_BUILTINS_POW3 (1)
+#define MICROPY_PY_BUILTINS_PROPERTY (1)
+#define MICROPY_PY_BUILTINS_RANGE_BINOP (1)
+#define MICROPY_PY_BUILTINS_STR_CENTER (1)
+#define MICROPY_PY_BUILTINS_STR_PARTITION (1)
+#define MICROPY_PY_BUILTINS_STR_SPLITLINES (1)
+#define MICROPY_PY_COLLECTIONS_DEQUE (1)
+#define MICROPY_PY_COLLECTIONS_DEQUE_ITER (1)
+#define MICROPY_PY_COLLECTIONS_DEQUE_SUBSCR (1)
+#define MICROPY_PY_COLLECTIONS_NAMEDTUPLE__ASDICT (1)
+#define MICROPY_PY_COLLECTIONS_ORDEREDDICT (1)
+#define MICROPY_PY_DELATTR_SETATTR (1)
+#define MICROPY_PY_DESCRIPTORS (1)
+#define MICROPY_PY_ERRNO (1)
+
+#define MICROPY_PY_SYS_GETSIZEOF (1)
+#define MICROPY_PY_FUNCTION_ATTRS_CODE (1)
+#define MICROPY_PY_GENERATOR_PEND_THROW (1)
+#define MICROPY_PY_IO_IOBASE (1)
+#define MICROPY_PY_IO_BUFFEREDWRITER (1)
+
+#define MICROPY_ENABLE_FINALISER (1)
+#define MICROPY_PY_WEAKREF (1)
+#define MICROPY_CAN_OVERRIDE_BUILTINS (1)
+#define MICROPY_COMP_RETURN_IF_EXPR (1)
+#define MICROPY_PY_ALL_INPLACE_SPECIAL_METHODS (1)
+
 // Otherwise print() goes through mp_hal_stdout_tx_strn_cooked, which turns LF
 // into CRLF for a terminal. There is no terminal, and the host wants the bytes
 // the program actually wrote.
@@ -68,11 +140,11 @@
 
 #define MICROPY_VM_HOOK_COUNT (256)
 #define MICROPY_VM_HOOK_INIT static uint16_t vm_hook_divisor = MICROPY_VM_HOOK_COUNT;
-#define MICROPY_VM_HOOK_POLL                        \
-    if (--vm_hook_divisor == 0) {                   \
-        vm_hook_divisor = MICROPY_VM_HOOK_COUNT;    \
-        extern void minimal_vm_poll(void);          \
-        minimal_vm_poll();                          \
+#define MICROPY_VM_HOOK_POLL                     \
+    if (--vm_hook_divisor == 0) {                \
+        vm_hook_divisor = MICROPY_VM_HOOK_COUNT; \
+        extern void minimal_vm_poll(void);       \
+        minimal_vm_poll();                       \
     }
 #define MICROPY_VM_HOOK_LOOP MICROPY_VM_HOOK_POLL
 #define MICROPY_VM_HOOK_RETURN MICROPY_VM_HOOK_POLL

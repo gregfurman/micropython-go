@@ -5,26 +5,26 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"math/big"
 	"reflect"
 	"strings"
 )
 
-// FromGo converts an ordinary Go value into the closed semantic value model.
+// Lower converts an ordinary Go value into the closed semantic value model.
 // Transport codecs consume this model; conversion itself is ABI-independent.
-func FromGo(v any) (Value, error) { return fromGo(v, 0) }
+func Lower(v any) (Value, error) { return lower(v, 0) }
 
-func fromGo(v any, depth int) (Value, error) {
+func lower(v any, depth int) (Value, error) {
 	if depth > MaxDepth {
 		return nil, fmt.Errorf("micropython: argument nested deeper than %d levels", MaxDepth)
 	}
 	if v == nil {
 		return None{}, nil
 	}
+	// Object, Exception, and every concrete kind below already satisfy Value,
+	// so they arrive here fully lowered and pass straight through.
 	if semantic, ok := v.(Value); ok {
 		return semantic, nil
-	}
-	if object, ok := v.(Object); ok {
-		return nil, fmt.Errorf("micropython: %s came from Python and cannot be passed back", object.Type)
 	}
 
 	switch x := v.(type) {
@@ -62,6 +62,8 @@ func fromGo(v any, depth int) (Value, error) {
 		return Str(x), nil
 	case []byte:
 		return Bytes(x), nil
+	case *big.Int:
+		return NewBigInt(x), nil
 	case Tuple:
 		return sequence(NewTuple, []any(x), depth)
 	case Set:
@@ -82,11 +84,11 @@ func fromGo(v any, depth int) (Value, error) {
 		if rv.IsNil() {
 			return None{}, nil
 		}
-		return fromGo(rv.Elem().Interface(), depth)
+		return lower(rv.Elem().Interface(), depth)
 	case reflect.Slice, reflect.Array:
 		items := make([]Value, rv.Len())
 		for i := range rv.Len() {
-			item, err := fromGo(rv.Index(i).Interface(), depth+1)
+			item, err := lower(rv.Index(i).Interface(), depth+1)
 			if err != nil {
 				return nil, err
 			}
@@ -97,11 +99,11 @@ func fromGo(v any, depth int) (Value, error) {
 		items := make([]Item, 0, rv.Len())
 		iter := rv.MapRange()
 		for iter.Next() {
-			key, err := fromGo(iter.Key().Interface(), depth+1)
+			key, err := lower(iter.Key().Interface(), depth+1)
 			if err != nil {
 				return nil, err
 			}
-			val, err := fromGo(iter.Value().Interface(), depth+1)
+			val, err := lower(iter.Value().Interface(), depth+1)
 			if err != nil {
 				return nil, err
 			}
@@ -138,7 +140,7 @@ func number(v json.Number) (Value, error) {
 func sequence(build func(...Value) Value, items []any, depth int) (Value, error) {
 	out := make([]Value, len(items))
 	for i, item := range items {
-		converted, err := fromGo(item, depth+1)
+		converted, err := lower(item, depth+1)
 		if err != nil {
 			return nil, err
 		}
@@ -158,5 +160,5 @@ func fromJSON(v any, depth int) (Value, error) {
 	if err := decoder.Decode(&standard); err != nil {
 		return nil, fmt.Errorf("micropython: cannot parse %T to Python: %w", v, err)
 	}
-	return fromGo(standard, depth)
+	return lower(standard, depth)
 }

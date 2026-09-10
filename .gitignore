@@ -13,4 +13,9 @@ wasi-sdk-*/
 *.o
 _obj/
 
+.wasm
+/build/micropython.wasm
+libc
+build-embed
+
 .DS_Store

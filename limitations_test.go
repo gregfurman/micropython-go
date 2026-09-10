@@ -5,6 +5,7 @@ package micropython
 // behaviour changed.
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -16,7 +17,7 @@ import (
 
 func raises(t *testing.T, in *Instance, src string) *PythonError {
 	t.Helper()
-	_, err := in.Exec(context.Background(), src)
+	err := in.Exec(context.Background(), src)
 	var exc *PythonError
 	if !errors.As(err, &exc) {
 		t.Fatalf("%s\n\tgave %v (%T), want a *PythonError", src, err, err)
@@ -38,7 +39,7 @@ func TestLimitOpenRaisesOSError(t *testing.T) {
 	}
 
 	// And sanity check that interpreter is unharmed by the refusal
-	if got, err := in.Eval(t.Context(), "1 + 1"); err != nil || got != int64(2) {
+	if got, err := in.Eval(t.Context(), "1 + 1"); err != nil || got.Export() != int64(2) {
 		// this would be embarassing lol
 		t.Errorf("after OSError: %#v, %v", got, err)
 	}
@@ -58,24 +59,47 @@ func TestLimitImportCannotReachRealFiles(t *testing.T) {
 	}
 
 	for _, mod := range []string{"json", "re", "sys"} {
-		if _, err := in.Exec(t.Context(), "import "+mod); err != nil {
+		if err := in.Exec(t.Context(), "import "+mod); err != nil {
 			t.Errorf("import %s: %v", mod, err)
 		}
 	}
 }
 
-func TestLimitNoOSModule(t *testing.T) {
+func TestLimitOSIsFilesystemAndEnvOnly(t *testing.T) {
 	in := newT(t)
 
-	if got := raises(t, in, "import os").Type(); got != "ImportError" {
-		t.Errorf("import os raised %s, want ImportError", got)
+	if err := in.Exec(t.Context(), "import os"); err != nil {
+		t.Fatalf("import os: %v", err)
 	}
+	// What os offers here is the VFS surface plus getenv/putenv/unsetenv.
+	for _, name := range []string{
+		"os.getenv", "os.putenv", "os.unsetenv",
+		"os.sep", "os.listdir", "os.ilistdir", "os.stat", "os.mkdir", "os.remove", "os.rename",
+	} {
+		if _, err := in.Eval(t.Context(), name); err != nil {
+			t.Errorf("%s: %v", name, err)
+		}
+	}
+	// The rest of CPython's os is absent, including environ: there is no
+	// process to have an environment, only what the host handed this instance.
+	for _, name := range []string{
+		"os.environ", "os.system", "os.uname", "os.urandom",
+		"os.getpid", "os.walk", "os.path",
+	} {
+		if got := raises(t, in, name).Type(); got != "AttributeError" {
+			t.Errorf("%s raised %s, want AttributeError", name, got)
+		}
+	}
+}
+
+func TestLimitNoSysStreams(t *testing.T) {
+	in := newT(t)
 
 	// sys itself exists; it is the stream objects on it that do not.
-	if _, err := in.Exec(t.Context(), "import sys"); err != nil {
+	if err := in.Exec(t.Context(), "import sys"); err != nil {
 		t.Fatalf("import sys: %v", err)
 	}
-	if got, err := in.Eval(t.Context(), "sys.platform"); err != nil || got != "wasi" {
+	if got, err := in.Eval(t.Context(), "sys.platform"); err != nil || got.Export() != "wasi" {
 		t.Errorf("sys.platform = %#v, %v; want \"wasi\"", got, err)
 	}
 	for _, stream := range []string{"sys.stdout", "sys.stderr", "sys.stdin"} {
@@ -85,33 +109,40 @@ func TestLimitNoOSModule(t *testing.T) {
 	}
 }
 
-func TestLimitPrintIsReturnedNotWritten(t *testing.T) {
-	// Ensure Exec hands back what the script printed, and (most importantly...) that
-	//  nothing reaches the host's stdout.
-	in := newT(t)
+func TestLimitPrintGoesToWithStdoutNotHostStdout(t *testing.T) {
+	// print() reaches the writer given to WithStdout, and (most importantly...)
+	// nothing reaches the host's stdout.
+	var out bytes.Buffer
+	in, err := NewInstance(t.Context(), WithStdout(&out))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { in.Close() })
 
-	var out string
 	onStdout := captureStdout(t, func() {
-		var err error
-		out, err = in.Exec(t.Context(), `
+		if err := in.Exec(t.Context(), `
 print("first")
 print("second", 2)
-`)
-		if err != nil {
+`); err != nil {
 			t.Error(err)
 		}
 	})
 
-	if want := "first\nsecond 2\n"; out != want {
-		t.Errorf("Exec returned %q, want %q", out, want)
+	if want := "first\nsecond 2\n"; out.String() != want {
+		t.Errorf("WithStdout received %q, want %q", out.String(), want)
 	}
 	if onStdout != "" {
 		t.Errorf("the process's stdout received %q, want nothing", onStdout)
 	}
 
-	// Each Exec reports only its own output.
-	if got, err := in.Exec(t.Context(), `print("third")`); err != nil || got != "third\n" {
-		t.Errorf("second Exec = %q, %v; want %q", got, err, "third\n")
+	// The sink is shared across calls, so a caller wanting one Exec's output on
+	// its own resets between them.
+	out.Reset()
+	if err := in.Exec(t.Context(), `print("third")`); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := out.String(), "third\n"; got != want {
+		t.Errorf("second Exec wrote %q, want %q", got, want)
 	}
 }
 
@@ -173,12 +204,12 @@ func TestLimitStackDepth(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			in := newT(t)
-			if _, err := in.Exec(t.Context(), fmt.Sprintf(countFramesUntilOverflow, tc.def, tc.call)); err != nil {
+			if err := in.Exec(t.Context(), fmt.Sprintf(countFramesUntilOverflow, tc.def, tc.call)); err != nil {
 				t.Fatal(err)
 			}
 
 			// It must be a catchable Python error, not a WASM trap.
-			if got, err := in.Eval(t.Context(), "raised"); err != nil || got != "RuntimeError" {
+			if got, err := in.Eval(t.Context(), "raised"); err != nil || got.Export() != "RuntimeError" {
 				t.Errorf("overflow raised %#v, %v; want RuntimeError", got, err)
 			}
 
@@ -186,7 +217,7 @@ func TestLimitStackDepth(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			depth, ok := got.(int64)
+			depth, ok := got.Export().(int64)
 			if !ok {
 				t.Fatalf("depth = %#v (%T), want int64", got, got)
 			}
@@ -196,7 +227,7 @@ func TestLimitStackDepth(t *testing.T) {
 			}
 
 			// Overflowing must leave the interpreter usable.
-			if got, err := in.Eval(t.Context(), "1 + 1"); err != nil || got != int64(2) {
+			if got, err := in.Eval(t.Context(), "1 + 1"); err != nil || got.Export() != int64(2) {
 				t.Errorf("after stack overflow: %#v, %v", got, err)
 			}
 		})
@@ -206,7 +237,7 @@ func TestLimitStackDepth(t *testing.T) {
 func TestLimitStructsGoThroughJSON(t *testing.T) {
 	ctx := context.Background()
 	in := newT(t)
-	if _, err := in.Exec(ctx, `
+	if err := in.Exec(ctx, `
 def keys(v):
     return sorted(v.keys())
 
@@ -246,7 +277,7 @@ def get(v, k):
 		{"count", int64(2)},
 		{"ratio", 0.5},
 	} {
-		if v, err := in.Call(ctx, "get", arg, tc.key); err != nil || v != tc.want {
+		if v, err := in.Call(ctx, "get", arg, tc.key); err != nil || v.Export() != tc.want {
 			t.Errorf("get(row, %q) = %#v (%T), %v; want %#v", tc.key, v, v, err, tc.want)
 		}
 	}
@@ -256,7 +287,7 @@ def get(v, k):
 	if v, err := in.Call(ctx, "keys", direct); err != nil || fmt.Sprint(v) != "[Count ID]" {
 		t.Errorf("map keys = %#v, %v; want [Count ID]", v, err)
 	}
-	if v, err := in.Call(ctx, "get", direct, "Count"); err != nil || v != int64(2) {
+	if v, err := in.Call(ctx, "get", direct, "Count"); err != nil || v.Export() != int64(2) {
 		t.Errorf(`get(map, "Count") = %#v (%T), %v; want int64(2)`, v, v, err)
 	}
 }
@@ -264,7 +295,7 @@ def get(v, k):
 func TestLimitUnmarshalableStructIsRejected(t *testing.T) {
 	ctx := context.Background()
 	in := newT(t)
-	if _, err := in.Exec(ctx, "def echo(v):\n    return v\n"); err != nil {
+	if err := in.Exec(ctx, "def echo(v):\n    return v\n"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -277,7 +308,100 @@ func TestLimitUnmarshalableStructIsRejected(t *testing.T) {
 	}
 
 	// And (once again) ensure the instance still works.
-	if got, err := in.Call(ctx, "echo", "fine"); err != nil || got != "fine" {
+	if got, err := in.Call(ctx, "echo", "fine"); err != nil || got.Export() != "fine" {
+		t.Errorf("after the refusal: %#v, %v", got, err)
+	}
+}
+
+// A container reachable from itself cannot be copied out whole. It crosses as
+// a reference to the same guest object instead, the way any other object does.
+func TestRefCycleGuest(t *testing.T) {
+	ctx := context.Background()
+	in := newT(t)
+	if err := in.Exec(ctx, "a = [1]\na.append(a)\ndef same(x):\n    return x is a\n"); err != nil {
+		t.Fatal(err)
+	}
+
+	val, err := in.Eval(ctx, "a")
+	if err != nil {
+		t.Fatal(err)
+	}
+	items, err := val.AsList()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 2 || items[0].Export() != int64(1) {
+		t.Fatalf("a = %#v, want [1, a]", items)
+	}
+
+	obj, err := items[1].AsObject()
+	if err != nil {
+		t.Fatalf("cyclic element: %v", err)
+	}
+
+	if got, err := in.Call(ctx, "same", obj); err != nil || got.Export() != true {
+		t.Errorf("the reference does not name a: %#v, %v", got, err)
+	}
+
+	// Resolve reads it back as the list it is, one level deep.
+	again, err := in.Resolve(ctx, items[1])
+	if err != nil {
+		t.Fatal(err)
+	}
+	inner, err := again.AsList()
+	if err != nil {
+		t.Fatalf("resolved cycle: %v", err)
+	}
+	if len(inner) != 2 || inner[0].Export() != int64(1) || inner[1].Type() != "list" {
+		t.Fatalf("resolved a = %#v, want [1, a]", inner)
+	}
+
+	// A dict does the same, and so does a cycle that closes through several
+	// containers.
+	if err := in.Exec(ctx, "d = {}\nd['self'] = d\nb = []\nb.append([b])\n"); err != nil {
+		t.Fatal(err)
+	}
+	for _, expr := range []string{"d", "b"} {
+		if _, err := in.Eval(ctx, expr); err != nil {
+			t.Errorf("%s: %v", expr, err)
+		}
+	}
+
+	// Nesting deeper than the host copies out in one go is not refused either.
+	// The value crosses, and the level at the bound is a handle to carry on
+	// from, the same as a cycle.
+	deep := "z = []\nc = z\nfor _ in range(2000):\n    n = []\n    c.append(n)\n    c = n\n"
+	if err := in.Exec(ctx, deep); err != nil {
+		t.Fatal(err)
+	}
+	nested, err := in.Eval(ctx, "z")
+	if err != nil {
+		t.Fatalf("deeply nested list: %v", err)
+	}
+	depth := 0
+	for {
+		items, err := nested.AsList()
+		if err != nil || len(items) == 0 {
+			break
+		}
+		nested = items[0]
+		depth++
+	}
+	if depth != 128 {
+		t.Errorf("copied out %d levels, want the %d the walk bounds itself to", depth, 128)
+	}
+	if _, err := nested.AsObject(); err != nil {
+		t.Fatalf("level %d is %#v, want a handle: %v", depth, nested, err)
+	}
+	rest, err := in.Resolve(ctx, nested)
+	if err != nil {
+		t.Fatalf("resolving the level at the bound: %v", err)
+	}
+	if _, err := rest.AsList(); err != nil {
+		t.Errorf("the handle does not read back as a list: %v", err)
+	}
+
+	if got, err := in.Eval(ctx, "1 + 1"); err != nil || got.Export() != int64(2) {
 		t.Errorf("after the refusal: %#v, %v", got, err)
 	}
 }

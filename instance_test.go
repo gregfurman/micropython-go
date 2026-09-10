@@ -1,15 +1,15 @@
 package micropython
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/gregfurman/micropython-go/internal/value"
 )
 
 const catchAs = `
@@ -18,6 +18,18 @@ try:
     f()
 except %s:
     ok = True
+`
+
+const releaseSetup = `
+import gc, weakref
+
+class Thing:
+    pass
+
+def track(o):
+    global alive
+    alive = weakref.ref(o)
+    return o
 `
 
 func newT(t *testing.T) *Instance {
@@ -34,7 +46,7 @@ func TestExecThenCall(t *testing.T) {
 	ctx := context.Background()
 	in := newT(t)
 
-	if _, err := in.Exec(ctx, `
+	if err := in.Exec(ctx, `
 def double(n):
     return n * 2
 
@@ -44,37 +56,42 @@ def shout(s):
 		t.Fatal(err)
 	}
 
-	if got, err := in.Call(ctx, "double", Of(21)); err != nil || got != int64(42) {
+	if got, err := in.Call(ctx, "double", Of(21)); err != nil || got.Export() != int64(42) {
 		t.Errorf("double(21) = %#v, %v", got, err)
 	}
-	if got, err := in.Call(ctx, "shout", "hi"); err != nil || got != "HI" {
+	if got, err := in.Call(ctx, "shout", "hi"); err != nil || got.Export() != "HI" {
 		t.Errorf("shout(\"hi\") = %#v, %v", got, err)
 	}
 }
 
 func TestExecOutput(t *testing.T) {
 	ctx := context.Background()
-	in := newT(t)
-	out, err := in.Exec(ctx, "print('hello')\n")
+	var out bytes.Buffer
+	in, err := NewInstance(ctx, WithStdout(&out))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if out != "hello\n" {
-		t.Errorf("out = %q", out)
+	t.Cleanup(func() { in.Close() })
+
+	if err := in.Exec(ctx, "print('hello')\n"); err != nil {
+		t.Fatal(err)
+	}
+	if got := out.String(); got != "hello\n" {
+		t.Errorf("out = %q", got)
 	}
 }
 
 func TestCallByName(t *testing.T) {
 	ctx := context.Background()
 	in := newT(t)
-	if _, err := in.Exec(ctx, "def add(a, b):\n    return a + b\n"); err != nil {
+	if err := in.Exec(ctx, "def add(a, b):\n    return a + b\n"); err != nil {
 		t.Fatal(err)
 	}
 	got, err := in.Call(ctx, "add", Of(20), Of(22))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got != int64(42) {
+	if got.Export() != int64(42) {
 		t.Errorf("add(20, 22) = %#v, want 42", got)
 	}
 }
@@ -91,7 +108,7 @@ func TestClose(t *testing.T) {
 	if _, err := in.Call(ctx, "print"); err == nil {
 		t.Error("expected an error after Close")
 	}
-	if _, err := in.Exec(ctx, "pass"); err == nil {
+	if err := in.Exec(ctx, "pass"); err == nil {
 		t.Error("expected an error after Close")
 	}
 }
@@ -99,11 +116,11 @@ func TestClose(t *testing.T) {
 func TestPythonError(t *testing.T) {
 	ctx := context.Background()
 	in := newT(t)
-	if _, err := in.Exec(ctx, "1/0\n"); err == nil {
+	if err := in.Exec(ctx, "1/0\n"); err == nil {
 		t.Fatal("expected a Python error")
 	}
 	// The instance must still work afterwards.
-	if got, err := in.Call(ctx, "len", "abc"); err != nil || got != int64(3) {
+	if got, err := in.Call(ctx, "len", "abc"); err != nil || got.Export() != int64(3) {
 		t.Errorf("after error: %#v, %v", got, err)
 	}
 }
@@ -113,7 +130,7 @@ func TestEval(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := []any{int64(1), int64(2), int64(3)}; !reflect.DeepEqual(got, want) {
+	if want := []any{int64(1), int64(2), int64(3)}; !reflect.DeepEqual(got.Export(), want) {
 		t.Errorf("Eval = %#v, want %#v", got, want)
 	}
 }
@@ -123,13 +140,13 @@ func TestEvalImport(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := "math"; got != want {
+	if want := "math"; got.Export() != want {
 		t.Errorf("Eval = %#v, want %#v", got, want)
 	}
 }
 
 func TestGlobals(t *testing.T) {
-	p, err := CompileSource(context.Background(), `
+	p, err := NewProgram(context.Background(), WithSource(`
 def run():
     return [
         NAME,
@@ -142,34 +159,32 @@ def run():
         NOTHING,
         sorted(UNIQUE),
     ]
-`,
-		WithGlobals(Globals{
-			"NAME":    Str("service"),
-			"LIMITS":  Dict(Item{Key: Str("retries"), Val: Int(3)}),
-			"TAGS":    Strs("b", "a"),
-			"COUNTS":  Tuple(Int(1), Int(2)),
-			"FLAG":    Bool(true),
-			"RATIO":   Float(0.5),
-			"RAW":     Bytes([]byte("hi")),
-			"NOTHING": None(),
-			"UNIQUE":  Set(Int(2), Int(1), Int(2)),
-		}),
-	)
+`), WithGlobals(Globals{
+		"NAME":    Str("service"),
+		"LIMITS":  Dict(Item{Key: Str("retries"), Val: Int(3)}),
+		"TAGS":    List(Str("b"), Str("a")),
+		"COUNTS":  Tuple(Int(1), Int(2)),
+		"FLAG":    Bool(true),
+		"RATIO":   Float(0.5),
+		"RAW":     Bytes([]byte("hi")),
+		"NOTHING": None(),
+		"UNIQUE":  Set(Int(2), Int(1), Int(2)),
+	}))
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer p.Close()
 
-	got, err := p.Call(t.Context(), "run")
+	got, err := progCall(t.Context(), p, "run")
 	if err != nil {
 		t.Fatal(err)
 	}
 	want := []any{
 		"service", int64(3), []any{"a", "b"},
-		value.Tuple{int64(1), int64(2)}, true, 0.5, []byte("hi"), nil,
+		[]any{int64(1), int64(2)}, true, 0.5, []byte("hi"), nil,
 		[]any{int64(1), int64(2)},
 	}
-	if !reflect.DeepEqual(got, want) {
+	if !reflect.DeepEqual(got.Export(), want) {
 		t.Errorf("run() =\n\t%#v\nwant\n\t%#v", got, want)
 	}
 }
@@ -182,7 +197,7 @@ func TestValueLiftMatchesRoundTrip(t *testing.T) {
 		Dict(Item{Key: Str("k"), Val: Int(1)}),
 	}
 
-	p, err := CompileSource(context.Background(), "def echo(v):\n    return v\n")
+	p, err := NewProgram(context.Background(), WithSource("def echo(v):\n    return v\n"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -203,8 +218,8 @@ func TestValueLiftMatchesRoundTrip(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if want := v.lift(); !reflect.DeepEqual(got, want) {
-				t.Errorf("guest sent %#v, Lift says %#v", got, want)
+			if want := v.Export(); !reflect.DeepEqual(got.Export(), want) {
+				t.Errorf("guest sent %#v, Export says %#v", got, want)
 			}
 		})
 	}
@@ -213,25 +228,46 @@ func TestValueLiftMatchesRoundTrip(t *testing.T) {
 func TestPythonValuesPassedBack(t *testing.T) {
 	in := newT(t)
 
-	got, err := in.Eval(t.Context(), "lambda: 1")
+	got, err := in.Eval(t.Context(), "object()")
 	if err != nil {
 		t.Fatal(err)
 	}
-	// NOTE: we don't export this for now.
-	obj, ok := got.(value.Object)
-	if !ok {
-		t.Fatalf("got %#v (%T), want an Object", got, got)
+	obj, err := got.AsObject()
+	if err != nil {
+		t.Fatalf("got %#v, want an Object: %v", got, err)
 	}
 
-	if _, err := in.Exec(t.Context(), "def f(v):\n    return v\n"); err != nil {
+	if err := in.Exec(t.Context(), "def f(v):\n    return v\n"); err != nil {
 		t.Fatal(err)
 	}
-	_, err = in.Call(t.Context(), "f", obj)
-	if err == nil {
-		t.Fatal("an Object was accepted as an argument")
+	// An Object crosses as a handle on the guest's own object, so it goes back
+	// as that same object rather than as a copy or a repr.
+	round, err := in.Call(t.Context(), "f", obj)
+	if err != nil {
+		t.Fatalf("passing an Object back: %v", err)
 	}
-	if !strings.Contains(err.Error(), "cannot be passed back") {
-		t.Errorf("Call = %v, want it to say the Object cannot be passed back", err)
+	if err := in.Exec(t.Context(), "def same(a, b):\n    return a is b\n"); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := in.Call(t.Context(), "same", obj, round); err != nil || got.Export() != true {
+		t.Errorf("the Object came back as a different object: %#v, %v", got, err)
+	}
+
+	// A callable is a handle too, and stays callable across the round trip.
+	lambda, err := in.Eval(t.Context(), "lambda: 1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	back, err := in.Call(t.Context(), "f", lambda)
+	if err != nil {
+		t.Fatalf("passing a callable back: %v", err)
+	}
+	call, err := in.AsCallable(back)
+	if err != nil {
+		t.Fatalf("a callable did not survive the round trip: %v", err)
+	}
+	if out, err := call.Call(t.Context()); err != nil || out.Export() != int64(1) {
+		t.Errorf("the lambda came back as %#v, %v; want it to return 1", out, err)
 	}
 
 	// An exception, by contrast, is fully described by its type and message,
@@ -241,21 +277,21 @@ func TestPythonValuesPassedBack(t *testing.T) {
 	if !errors.As(callErr, &exc) {
 		t.Fatalf("got %v (%T), want *Exception", callErr, callErr)
 	}
-	if _, err := in.Exec(t.Context(), "def kind(e):\n    return type(e).__name__\n"); err != nil {
+	if err := in.Exec(t.Context(), "def kind(e):\n    return type(e).__name__\n"); err != nil {
 		t.Fatal(err)
 	}
-	if got, err := in.Call(t.Context(), "kind", exc); err != nil || got != exc.Type() {
+	if got, err := in.Call(t.Context(), "kind", exc); err != nil || got.Export() != exc.Type() {
 		t.Errorf("passing an Exception back = %#v, %v; want %q", got, err, exc.Type())
 	}
 
 	// And the instance is unharmed.
-	if got, err := in.Call(t.Context(), "f", int64(1)); err != nil || got != int64(1) {
+	if got, err := in.Call(t.Context(), "f", int64(1)); err != nil || got.Export() != int64(1) {
 		t.Errorf("after the refusals: %#v, %v", got, err)
 	}
 }
 
 func TestExceptionLowers(t *testing.T) {
-	p, err := CompileSource(context.Background(), `
+	p, err := NewProgram(context.Background(), WithSource(`
 def raise_it():
     raise BAD
 
@@ -270,7 +306,7 @@ def unknown():
         raise ODD
     except RuntimeError as e:
         return "fallback:" + str(e)
-`, WithGlobals(Globals{
+`), WithGlobals(Globals{
 		"BAD": Exception("ValueError", "bad input"),
 		// A type the guest has never heard of falls back to HostError, which
 		// subclasses RuntimeError, rather than failing twice on the way to
@@ -282,16 +318,16 @@ def unknown():
 	}
 	defer p.Close()
 
-	if got, err := p.Call(t.Context(), "caught"); err != nil || got != "caught:bad input" {
+	if got, err := progCall(t.Context(), p, "caught"); err != nil || got.Export() != "caught:bad input" {
 		t.Errorf("caught() = %#v, %v", got, err)
 	}
-	if got, err := p.Call(t.Context(), "unknown"); err != nil || got != "fallback:still readable" {
+	if got, err := progCall(t.Context(), p, "unknown"); err != nil || got.Export() != "fallback:still readable" {
 		t.Errorf("unknown() = %#v, %v", got, err)
 	}
 
 	// Raised and uncaught, it comes back out as the same exception.
 	var exc *PythonError
-	if _, err := p.Call(t.Context(), "raise_it"); !errors.As(err, &exc) {
+	if _, err := progCall(t.Context(), p, "raise_it"); !errors.As(err, &exc) {
 		t.Fatalf("got %v (%T), want *Exception", err, err)
 	} else if exc.Type() != "ValueError" || exc.Message() != "bad input" {
 		t.Errorf("round trip = %q / %q", exc.Type(), exc.Message())
@@ -299,7 +335,7 @@ def unknown():
 }
 
 func TestBuiltValueAsCallArgument(t *testing.T) {
-	p, err := CompileSource(context.Background(), "def echo(v):\n    return v\n")
+	p, err := NewProgram(context.Background(), WithSource("def echo(v):\n    return v\n"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -318,11 +354,11 @@ func TestBuiltValueAsCallArgument(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.arg.Type(), func(t *testing.T) {
-			got, err := p.Call(t.Context(), "echo", tt.arg)
+			got, err := progCall(t.Context(), p, "echo", tt.arg)
 			if err != nil {
 				t.Fatal(err)
 			}
-			if !reflect.DeepEqual(got, tt.want) {
+			if !reflect.DeepEqual(got.Export(), tt.want) {
 				t.Errorf("echo(%s) = %#v, want %#v", tt.arg.Type(), got, tt.want)
 			}
 		})
@@ -331,11 +367,13 @@ func TestBuiltValueAsCallArgument(t *testing.T) {
 
 func TestInstanceCancel(t *testing.T) {
 	in := newT(t)
-	if _, err := in.Exec(t.Context(), spinSrc); err != nil {
+	if err := in.Exec(t.Context(), spinSrc); err != nil {
 		t.Fatal(err)
 	}
 
 	done := make(chan error, 1)
+	defer close(done)
+
 	go func() {
 		_, err := in.Call(context.Background(), "spin")
 		done <- err
@@ -359,7 +397,7 @@ func TestInstanceCancel(t *testing.T) {
 	}
 
 	// Cancel is a request for one call, not a permanent state.
-	if got, err := in.Call(context.Background(), "double", int64(4)); err != nil || got != int64(8) {
+	if got, err := in.Call(context.Background(), "double", int64(4)); err != nil || got.Export() != int64(8) {
 		t.Errorf("after Cancel: %#v, %v", got, err)
 	}
 }
@@ -367,36 +405,36 @@ func TestInstanceCancel(t *testing.T) {
 func TestWithHeapSize(t *testing.T) {
 	src := "def big(n):\n    return len(bytearray(n))\n"
 
-	small, err := CompileSource(context.Background(), src, WithHeapSize(128*1024))
+	small, err := NewProgram(context.Background(), WithSource(src), WithHeapSize(128*1024))
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer small.Close()
 
 	// Comfortably inside a 128KB heap.
-	if got, err := small.Call(t.Context(), "big", 16*1024); err != nil || got != int64(16*1024) {
+	if got, err := progCall(t.Context(), small, "big", 16*1024); err != nil || got.Export() != int64(16*1024) {
 		t.Errorf("16KB in a 128KB heap: %#v, %v", got, err)
 	}
 
 	// Beyond it, and the guest says so rather than the module dying.
 	var exc *PythonError
-	if _, err := small.Call(t.Context(), "big", 4*1024*1024); !errors.As(err, &exc) {
+	if _, err := progCall(t.Context(), small, "big", 4*1024*1024); !errors.As(err, &exc) {
 		t.Fatalf("4MB in a 128KB heap: %v, want an *Exception", err)
 	} else if exc.Type() != "MemoryError" {
 		t.Errorf("Type = %q, want MemoryError", exc.Type())
 	}
 
 	// The Program is unharmed, and a larger heap takes what the smaller could not.
-	if got, err := small.Call(t.Context(), "big", 16*1024); err != nil || got != int64(16*1024) {
+	if got, err := progCall(t.Context(), small, "big", 16*1024); err != nil || got.Export() != int64(16*1024) {
 		t.Errorf("after MemoryError: %#v, %v", got, err)
 	}
 
-	big, err := CompileSource(context.Background(), src, WithHeapSize(4*1024*1024))
+	big, err := NewProgram(context.Background(), WithSource(src), WithHeapSize(4*1024*1024))
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer big.Close()
-	if got, err := big.Call(t.Context(), "big", 2*1024*1024); err != nil || got != int64(2*1024*1024) {
+	if got, err := progCall(t.Context(), big, "big", 2*1024*1024); err != nil || got.Export() != int64(2*1024*1024) {
 		t.Errorf("2MB in a 4MB heap: %#v, %v", got, err)
 	}
 }
@@ -405,27 +443,27 @@ func TestDefineFunction(t *testing.T) {
 	ctx := context.Background()
 	in := newT(t)
 
-	if err := in.DefineFunction(ctx, "shout", func(args []any) (any, error) {
-		s, ok := args[0].(string)
-		if !ok {
-			return nil, fmt.Errorf("want str, got %T", args[0])
+	if err := in.DefineFunction(ctx, "shout", func(_ context.Context, args []Value) (Value, error) {
+		s, err := args[0].AsString()
+		if err != nil {
+			return Value{}, err
 		}
-		return strings.ToUpper(s), nil
+		return Str(strings.ToUpper(s)), nil
 	}); err != nil {
 		t.Fatal(err)
 	}
 
 	// Callable from an expression, from a script, and as a value passed around.
-	if got, err := in.Eval(ctx, `shout("hi")`); err != nil || got != "HI" {
+	if got, err := in.Eval(ctx, `shout("hi")`); err != nil || got.Export() != "HI" {
 		t.Errorf("shout(\"hi\") = %#v, %v", got, err)
 	}
-	if _, err := in.Exec(ctx, `
+	if err := in.Exec(ctx, `
 def twice(s):
     return shout(s) + shout(s)
 `); err != nil {
 		t.Fatal(err)
 	}
-	if got, err := in.Call(ctx, "twice", "ab"); err != nil || got != "ABAB" {
+	if got, err := in.Call(ctx, "twice", "ab"); err != nil || got.Export() != "ABAB" {
 		t.Errorf("twice(\"ab\") = %#v, %v", got, err)
 	}
 }
@@ -434,7 +472,7 @@ func TestDefineFunctionArgumentsAndResults(t *testing.T) {
 	ctx := context.Background()
 	in := newT(t)
 
-	if err := in.DefineFunction(ctx, "echo", func(args []any) (any, error) {
+	if err := in.DefineFunction(ctx, "echo", func(_ context.Context, args []Value) (Value, error) {
 		return args[0], nil
 	}); err != nil {
 		t.Fatal(err)
@@ -459,7 +497,7 @@ func TestDefineFunctionArgumentsAndResults(t *testing.T) {
 			t.Errorf("%s: %v", tc.expr, err)
 			continue
 		}
-		if !reflect.DeepEqual(got, tc.want) {
+		if !reflect.DeepEqual(got.Export(), tc.want) {
 			t.Errorf("%s = %#v, want %#v", tc.expr, got, tc.want)
 		}
 	}
@@ -474,10 +512,10 @@ func TestDefineFunctionErrors(t *testing.T) {
 		wantType string
 		wantMsg  string
 	}{
-		{"plain error", func([]any) (any, error) { return nil, errors.New("boom") }, "HostError", "boom"},
-		{"Raise names a builtin", func([]any) (any, error) { return nil, Raise("KeyError", "missing") }, "KeyError", "missing"},
-		{"Raise with unknown class", func([]any) (any, error) { return nil, Raise("Nope", "x") }, "HostError", "x"},
-		{"panic", func([]any) (any, error) { panic("kaboom") }, "HostError", "host function panicked"},
+		{"plain error", func(context.Context, []Value) (Value, error) { return Value{}, errors.New("boom") }, "HostError", "boom"},
+		{"Raise names a builtin", func(context.Context, []Value) (Value, error) { return Value{}, Raise("KeyError", "missing") }, "KeyError", "missing"},
+		{"Raise with unknown class", func(context.Context, []Value) (Value, error) { return Value{}, Raise("Nope", "x") }, "HostError", "x"},
+		{"panic", func(context.Context, []Value) (Value, error) { panic("kaboom") }, "HostError", "host function panicked"},
 	}
 
 	for _, tc := range tests {
@@ -500,10 +538,10 @@ func TestDefineFunctionErrors(t *testing.T) {
 			}
 
 			// Guest code can catch it, and the instance survives.
-			if _, err := in.Exec(ctx, fmt.Sprintf(catchAs, tc.wantType)); err != nil {
+			if err := in.Exec(ctx, fmt.Sprintf(catchAs, tc.wantType)); err != nil {
 				t.Fatalf("guest could not catch %s: %v", tc.wantType, err)
 			}
-			if got, err := in.Eval(ctx, "ok"); err != nil || got != true {
+			if got, err := in.Eval(ctx, "ok"); err != nil || got.Export() != true {
 				t.Errorf("except %s did not fire: %#v, %v", tc.wantType, got, err)
 			}
 		})
@@ -521,9 +559,9 @@ func TestDefineFunctionSurvivesClone(t *testing.T) {
 	in := newT(t)
 
 	calls := 0
-	if err := in.DefineFunction(ctx, "tick", func([]any) (any, error) {
+	if err := in.DefineFunction(ctx, "tick", func(context.Context, []Value) (Value, error) {
 		calls++
-		return int64(calls), nil
+		return Int(int64(calls)), nil
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -538,7 +576,7 @@ func TestDefineFunctionSurvivesClone(t *testing.T) {
 	defer clone.Close()
 
 	// The clone reaches the same Go closure, so the counter keeps advancing.
-	if got, err := clone.Eval(ctx, "tick()"); err != nil || got != int64(2) {
+	if got, err := clone.Eval(ctx, "tick()"); err != nil || got.Export() != int64(2) {
 		t.Errorf("tick() on clone = %#v, %v; want 2", got, err)
 	}
 }
@@ -547,24 +585,144 @@ func TestHostErrorHierarchy(t *testing.T) {
 	ctx := context.Background()
 	in := newT(t)
 
-	if err := in.DefineFunction(ctx, "f", func([]any) (any, error) {
-		return nil, errors.New("boom")
+	if err := in.DefineFunction(ctx, "f", func(context.Context, []Value) (Value, error) {
+		return Value{}, errors.New("boom")
 	}); err != nil {
 		t.Fatal(err)
 	}
 
 	// NOTE: HostErrors are subclasses of RuntimeError
 	for _, class := range []string{"HostError", "RuntimeError", "Exception"} {
-		if _, err := in.Exec(ctx, fmt.Sprintf(catchAs, class)); err != nil {
+		if err := in.Exec(ctx, fmt.Sprintf(catchAs, class)); err != nil {
 			t.Fatalf("except %s: %v", class, err)
 		}
-		if got, err := in.Eval(ctx, "ok"); err != nil || got != true {
+		if got, err := in.Eval(ctx, "ok"); err != nil || got.Export() != true {
 			t.Errorf("except %s did not catch HostError: %#v, %v", class, got, err)
 		}
 	}
 
 	// It is still narrower than RuntimeError: a plain RuntimeError is not one.
-	if got, err := in.Eval(ctx, "isinstance(RuntimeError('x'), HostError)"); err != nil || got != false {
+	if got, err := in.Eval(ctx, "isinstance(RuntimeError('x'), HostError)"); err != nil || got.Export() != false {
 		t.Errorf("RuntimeError is not a HostError: %#v, %v", got, err)
+	}
+}
+
+func TestRelease(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		expr string
+	}{
+		{"object", "track(Thing())"},
+		{"dict", `{"thing": track(Thing()), "n": 1}`},
+		{"list", `[1, track(Thing())]`},
+		{"nested", `{"inner": [track(Thing())]}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			in := newT(t)
+			ctx := t.Context()
+
+			if err := in.Exec(ctx, releaseSetup); err != nil {
+				t.Fatal(err)
+			}
+
+			got, err := in.Eval(ctx, tc.expr)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			// Collecting while the host still holds the handle must not take it.
+			if err := in.Exec(ctx, "gc.collect()"); err != nil {
+				t.Fatal(err)
+			}
+			if v, err := in.Eval(ctx, "alive() is None"); err != nil || v.Export() != false {
+				t.Fatalf("collected an object the host still holds: %#v, %v", v, err)
+			}
+
+			if err := in.Release(ctx, got); err != nil {
+				t.Fatal(err)
+			}
+			if err := in.Exec(ctx, "gc.collect()"); err != nil {
+				t.Fatal(err)
+			}
+
+			if v, err := in.Eval(ctx, "alive() is None"); err != nil || v.Export() != true {
+				t.Fatalf("the object survived release: %#v, %v", v, err)
+			}
+
+			// Release, not Go's collector, must be what removed the pin.
+			runtime.KeepAlive(got)
+		})
+	}
+}
+
+func TestReleaseCallable(t *testing.T) {
+	in := newT(t)
+	ctx := t.Context()
+
+	if err := in.Exec(ctx, releaseSetup); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := in.Eval(ctx, "track(lambda x: x * 2)")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	doubler, err := in.AsCallable(got)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out, err := doubler.Call(ctx, Int(21)); err != nil || out.Export() != int64(42) {
+		t.Fatalf("lambda(21) = %#v, %v; want 42", out, err)
+	}
+
+	if err := in.Release(ctx, got); err != nil {
+		t.Fatal(err)
+	}
+	if err := in.Exec(ctx, "gc.collect()"); err != nil {
+		t.Fatal(err)
+	}
+
+	if v, err := in.Eval(ctx, "alive() is None"); err != nil || v.Export() != true {
+		t.Fatalf("the function survived release: %#v, %v", v, err)
+	}
+	if out, err := doubler.Call(ctx, Int(21)); err == nil {
+		t.Fatalf("lambda(21) = %#v after release, want a stale reference", out)
+	}
+}
+
+func TestCancellationDoesNotOutliveItsOperation(t *testing.T) {
+	in := newT(t)
+
+	var seen error
+	err := in.DefineFunction(t.Context(), "probe", func(ctx context.Context, _ []Value) (Value, error) {
+		select {
+		case <-ctx.Done():
+			seen = ctx.Err()
+		case <-time.After(100 * time.Millisecond):
+			seen = nil
+		}
+		return None(), nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := in.Exec(t.Context(), "probe()"); err != nil {
+		t.Fatal(err)
+	}
+	if seen != nil {
+		t.Fatalf("the callback context was cancelled before anything asked: %v", seen)
+	}
+
+	// Cancelling an idle interpreter is documented as harmless: the request is
+	// cleared when the next call begins.
+	in.Cancel()
+
+	if err := in.Exec(t.Context(), "probe()"); err != nil {
+		t.Fatalf("the interpreter was unusable after an idle Cancel: %v", err)
+	}
+	if seen != nil {
+		t.Errorf("a later callback inherited the earlier cancellation: %v", seen)
 	}
 }

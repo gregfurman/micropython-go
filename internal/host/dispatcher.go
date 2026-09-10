@@ -1,113 +1,129 @@
 package host
 
 import (
+	"context"
 	"fmt"
-	"io"
 	"maps"
-	"sync/atomic"
 
 	"github.com/gregfurman/micropython-go/internal/host/codec"
 	"github.com/gregfurman/micropython-go/internal/host/memory"
+	"github.com/gregfurman/micropython-go/internal/value"
 )
 
-// TODO: this should probably be folded into the Module approach
+// callbackArenaCapacity mirrors HOST_CALLBACK_ARENA_CAPACITY in build/hostfn.c:
+// the scratch span the guest lends a callback for its arguments. It is a
+// separate span with a separate owner from the result region, so it gets its
+// own bound rather than borrowing defaultValueArenaCapacity, which the two
+// happen to share today.
+const callbackArenaCapacity = 16 * 1024
 
-type dispatcher struct {
-	mem   *memory.Memory
-	codec *codec.Codec
-
-	registry map[int32]HostFunc
-	counter  int32
-
-	out       io.Writer
-	cancelled atomic.Bool
-}
-
-func (d *dispatcher) Poll() int32 {
-	if d.cancelled.Load() {
-		return 1
-	}
-	return 0
-}
-
-func (d *dispatcher) Invoke(funcID, argsPtr, numArgs, outPtr int32) {
-	defer func() {
-		if r := recover(); r != nil {
-			d.writeErrAt(outPtr, fmt.Errorf("host function panicked: %v", r))
-		}
-	}()
-	if err := d.dispatch(funcID, argsPtr, numArgs, outPtr); err != nil {
-		d.writeErrAt(outPtr, err)
+// callbackArgsError checks the span the guest says it wrote its arguments into.
+// A transfer is at least a header, since that is what the region opens with.
+func callbackArgsError(size int32) error {
+	switch {
+	case size > callbackArenaCapacity:
+		return fmt.Errorf("callback arguments use %d bytes, capacity is %d", size, callbackArenaCapacity)
+	case size >= codec.TransferSize:
+		return nil
+	default:
+		return fmt.Errorf("callback arguments use %d bytes, want at least %d", size, codec.TransferSize)
 	}
 }
 
-func (d *dispatcher) Stdout(ptr, n int32) {
-	b, err := d.mem.View(ptr, n)
-	if err != nil {
-		return
+func (i *Module) dispatch(funcID, argsPtr, argsSize, outPtr, outCapacity int32) error {
+	if err := callbackArgsError(argsSize); err != nil {
+		return err
 	}
-	d.out.Write(b)
-}
-
-func (d *dispatcher) dispatch(funcID, argsPtr, numArgs, outPtr int32) error {
-	fn, ok := d.registry[funcID]
+	fn, ok := i.registry[funcID]
 	if !ok {
+		// The arguments still have to be given back, but the rejection is what
+		// the caller needs to hear: a ledger that will not parse is a symptom
+		// of the same call, not a second failure worth reporting instead.
+		if err := i.codec.ReleaseRefs(argsPtr, argsSize); err != nil {
+			return fmt.Errorf("unknown host func %d (releasing arguments: %w)", funcID, err)
+		}
 		return fmt.Errorf("unknown host func %d", funcID)
 	}
-	if numArgs < 0 || numArgs > maxHostArgs {
-		return fmt.Errorf("bad arg count %d (max %d)", numArgs, maxHostArgs)
+
+	decoded, err := i.codec.Decode(argsPtr, argsSize)
+	if err != nil {
+		return fmt.Errorf("callback arguments: %w", err)
 	}
-	if _, err := d.mem.View(argsPtr, numArgs*codec.ValueSize); err != nil {
-		return fmt.Errorf("args block: %w", err)
+	args, ok := decoded.(value.TupleValue)
+	if !ok || len(args) > maxHostArgs {
+		return fmt.Errorf("invalid callback argument tuple (max %d arguments)", maxHostArgs)
 	}
 
-	if _, err := d.mem.View(outPtr, codec.ValueSize); err != nil {
-		return fmt.Errorf("return slot: %w", err)
-	}
+	ctx, cancel := i.Context(context.Background())
+	defer cancel()
 
-	if err := d.codec.Encode(outPtr, nil); err != nil {
-		return fmt.Errorf("return slot: %w", err)
-	}
-
-	args := make([]any, numArgs)
-	for k := range numArgs {
-		v, err := d.codec.Consume(argsPtr + k*codec.ValueSize)
-		if err != nil {
-			for rest := k + 1; rest < numArgs; rest++ {
-				_, _ = d.codec.Consume(argsPtr + rest*codec.ValueSize)
-			}
-			return fmt.Errorf("arg %d: %w", k, err)
-		}
-		args[k] = v
-	}
-
-	out, err := fn(args)
+	out, err := fn(ctx, args)
 	if err != nil {
 		return err
 	}
-	return d.codec.Encode(outPtr, out)
+
+	arena, root, err := i.returnArena(outPtr, outCapacity)
+	if err != nil {
+		return err
+	}
+	return i.codec.EncodeInto(arena, root, out)
 }
 
-func (d *dispatcher) register(fn HostFunc) int32 {
-	d.counter++
-	d.registry[d.counter] = fn
-	return d.counter
+// returnArena views the region the guest lends a host callback for its return
+// value. The guest owns the span and reclaims it when the trampoline returns,
+// so the arena never spills to the heap: the whole tree has to fit.
+//
+// The root record sits at the front, matching what the C side reads back, and
+// is reserved first so nested payloads land after it.
+func (i *Module) returnArena(outPtr, outCapacity int32) (*memory.Arena, int32, error) {
+	if outCapacity < codec.ValueSize {
+		return nil, 0, fmt.Errorf("return arena too small: %d", outCapacity)
+	}
+	if _, err := i.mem.View(outPtr, outCapacity); err != nil {
+		return nil, 0, fmt.Errorf("return arena: %w", err)
+	}
+
+	arena := i.mem.ArenaAt(outPtr, outCapacity)
+	root, err := arena.New(codec.ValueSize)
+	if err != nil {
+		return nil, 0, err
+	}
+	return arena, root, nil
+}
+
+func (i *Module) register(fn HostFunc) int32 {
+	i.counter++
+	i.registry[i.counter] = fn
+	return i.counter
 }
 
 // restore rebinds the registry to the one a snapshot captured. Guest memory
 // refers to host functions by id, so restoring memory without also restoring
 // the registry would leave those ids dangling.
-func (d *dispatcher) restore(registry map[int32]HostFunc, counter int32) {
-	d.registry = maps.Clone(registry)
-	if d.registry == nil {
-		d.registry = make(map[int32]HostFunc)
+func (i *Module) restore(registry map[int32]HostFunc, counter int32) {
+	i.registry = maps.Clone(registry)
+	if i.registry == nil {
+		i.registry = make(map[int32]HostFunc)
 	}
-	d.counter = counter
+	i.counter = counter
 }
 
-func (d *dispatcher) writeErrAt(ptr int32, err error) {
-	if e := d.codec.EncodeError(ptr, err); e != nil {
-		// fallback to just raise a regular Exception
-		_ = d.codec.EncodeEmptyError(ptr)
+// writeErr replaces whatever a failed callback left in the return region with
+// the exception to raise. Each attempt takes a fresh view of the region, which
+// rewinds the bump pointer the way output_arena_reset does on the C side.
+func (i *Module) writeErr(outPtr, outCapacity int32, err error) {
+	arena, root, aerr := i.returnArena(outPtr, outCapacity)
+	if aerr != nil {
+		return
 	}
+	if e := i.codec.EncodeErrorInto(arena, root, err); e == nil {
+		return
+	}
+
+	// The text did not fit. Fall back to a bare exception, which always does.
+	arena, root, aerr = i.returnArena(outPtr, outCapacity)
+	if aerr != nil {
+		return
+	}
+	_ = i.codec.EncodeEmptyErrorInto(arena, root)
 }
