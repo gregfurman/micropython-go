@@ -37,11 +37,15 @@ type netGrant struct {
 }
 
 // ProgramOption configures a Program. Every Option is also a ProgramOption.
+// [WithMaxIdle] controls the pool; the other options also apply to instances.
 type ProgramOption interface {
 	apply(*options)
 }
 
 // Option configures an Instance or a Program.
+// Access is opt-in: use [WithFS], [WithEnv], [WithTCPAccess], [WithUDPAccess],
+// [WithDNSResolver], [WithStdout], and [WithHostFunc] to expose host resources.
+// [WithSource], [WithGlobals], and [WithHeapSize] configure execution.
 type Option interface {
 	ProgramOption
 	instanceOption()
@@ -56,7 +60,7 @@ type programOptionFunc func(*options)
 
 func (f programOptionFunc) apply(o *options) { f(o) }
 
-// WithHeapSize sets the Python heap size in bytes; zero uses 128 KiB.
+// WithHeapSize sets the Python heap size in bytes. The default and zero use 128 KiB.
 // This is not a limit on total interpreter or host memory.
 // Invalid sizes fail at construction. Exhausting the heap raises MemoryError.
 func WithHeapSize(bytes int) Option {
@@ -66,7 +70,7 @@ func WithHeapSize(bytes int) Option {
 }
 
 // WithMaxIdle limits idle interpreters retained by a Program, not active runs.
-// Zero uses runtime.NumCPU; negative values fail at construction.
+// The default and zero use runtime.NumCPU; negative values fail at construction.
 func WithMaxIdle(n int) ProgramOption {
 	return programOptionFunc(func(o *options) {
 		o.maxIdle = n
@@ -75,6 +79,8 @@ func WithMaxIdle(n int) ProgramOption {
 }
 
 // WithHostFunc binds fn to a Python global before source execution.
+// No Go callbacks are registered by default. The callback controls what host
+// resources Python can access through it.
 // Repeated names use the last binding. Programs and clones share the Go closure,
 // which must support concurrent calls; its state is not rewound. See [HostFunc].
 func WithHostFunc(name string, fn HostFunc) Option {
@@ -87,6 +93,7 @@ func WithHostFunc(name string, fn HostFunc) Option {
 }
 
 // WithSource runs src after binding globals and host functions at initialization.
+// By default, no initialization script runs. Repeated use replaces the script.
 // For a [Program], the resulting Python state is the starting point for each run.
 func WithSource(src string) Option {
 	return optionFunc(func(o *options) {
@@ -98,7 +105,7 @@ func WithSource(src string) Option {
 type Globals = map[string]any
 
 // WithGlobals sets initial Python globals using [Instance.Set] conversion rules.
-// Repeated use replaces the entire map.
+// No caller-supplied globals are set by default. Repeated use replaces the map.
 func WithGlobals(g Globals) Option {
 	return optionFunc(func(o *options) {
 		o.globals = g
@@ -140,7 +147,8 @@ func (o *options) validate() error {
 	return nil
 }
 
-// WithStdout directs Python output to w; the default is io.Discard.
+// WithStdout sends Python's print output to w. By default, or with nil, it is discarded.
+// Repeated use replaces the writer.
 // The caller owns w. Programs and clones share it without synchronization,
 // so it must support concurrent writes when used concurrently.
 func WithStdout(w io.Writer) Option {
@@ -149,12 +157,14 @@ func WithStdout(w io.Writer) Option {
 	})
 }
 
-// WithFS mounts filesystem at Python's root. Nil denies access; last call wins.
+// WithFS exposes filesystem at Python's root for files and imports.
+// Access is denied by default or with nil. Repeated use replaces the filesystem.
 // Open files are closed on rewind or instance close, but the caller owns the
 // filesystem. Programs and clones share it; filesystem changes are not rewound.
 //
 // The fs.FS interface provides read access. Backends can grant writes with
 // [OpenFileFS], [MkdirFS], [UnlinkFS], [RmdirFS], and [RenameFS].
+// Use [ReadOnly] to hide those write capabilities.
 //
 // The backend must confine symlinks and support concurrent use by independent
 // instances. os.DirFS alone does not prevent symlinks escaping its directory.
@@ -188,13 +198,13 @@ const AnyAddress = network.AnyAddress
 
 // WithTCPAccess permits outbound TCP to an IPv4 address, CIDR block, or
 // [AnyAddress], on port 1-65535. Hostnames and IPv6 are not supported.
+// Connections are denied by default. Grants are additive and order-independent.
 //
 //	WithTCPAccess("192.0.2.10", 443)
 //	WithTCPAccess("10.0.0.0/8", 5432)
 //	WithTCPAccess(AnyAddress, 443)
 //
-// Grants are additive and order-independent. Without grants, connections are
-// denied. DNS requires [WithDNSResolver]. Invalid grants fail at construction.
+// DNS requires [WithDNSResolver]. Invalid grants fail at construction.
 // This opens no sockets; port 443 permits TCP traffic, not just HTTPS.
 func WithTCPAccess(address string, port int) Option {
 	return optionFunc(func(o *options) {
@@ -203,6 +213,7 @@ func WithTCPAccess(address string, port int) Option {
 }
 
 // WithUDPAccess permits outbound UDP on the same terms as [WithTCPAccess].
+// Connections are denied by default. Repeated use adds grants.
 // Python must connect the socket first. sendto may only name the connected
 // peer; recvfrom returns that peer. Unconnected datagrams are unsupported.
 func WithUDPAccess(address string, port int) Option {
@@ -212,7 +223,7 @@ func WithUDPAccess(address string, port int) Option {
 }
 
 // WithDNSResolver supplies and enables name resolution for socket.getaddrinfo.
-// Without it, resolution is denied. Nil fails at construction; use
+// Resolution is denied by default. Nil fails at construction; use
 // net.DefaultResolver explicitly to use the host resolver. Last call wins.
 //
 //	WithTCPAccess(AnyAddress, 443)

@@ -6,5 +6,10 @@
 //
 // Calls accept Go values and return [Value] results. Use [Value.Export] for
 // ordinary Go data or the As methods for checked, type-specific access.
-// Filesystem access, networking, and output are configured through options.
+//
+// Host access is opt-in. Use [WithFS] for files, [WithEnv] for environment
+// variables, [WithStdout] for output, and [WithHostFunc] for Go callbacks.
+// [WithTCPAccess] and [WithUDPAccess] grant outbound connections;
+// [WithDNSResolver] separately enables DNS. These options work with both
+// instances and programs. They do not impose a hard CPU or total-memory limit.
 package micropython

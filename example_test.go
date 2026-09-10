@@ -1,10 +1,13 @@
 package micropython_test
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"log"
+	"testing/fstest"
+	"time"
 
 	micropython "github.com/gregfurman/micropython-go"
 )
@@ -31,6 +34,61 @@ func Example() {
 
 	// Output:
 	// 20
+}
+
+func ExampleNewInstance_readOnlyFiles() {
+	ctx := context.Background()
+	files := fstest.MapFS{
+		"message.txt": &fstest.MapFile{Data: []byte("hello")},
+	}
+	var output bytes.Buffer
+
+	in, err := micropython.NewInstance(ctx,
+		micropython.WithFS(micropython.ReadOnly(files)),
+		micropython.WithEnv("STAGE", "sandbox"),
+		micropython.WithStdout(&output),
+		micropython.WithHeapSize(256*1024),
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer in.Close()
+
+	if err := in.Exec(ctx, `
+import os
+with open('message.txt') as f:
+    print(os.getenv('STAGE'), f.read())
+`); err != nil {
+		log.Fatal(err)
+	}
+	fmt.Print(output.String())
+	// Output: sandbox hello
+}
+
+func ExampleNewInstance_sandbox() {
+	ctx := context.Background()
+	deadline, cancel := context.WithTimeout(ctx, time.Second)
+	defer cancel()
+
+	in, err := micropython.NewInstance(deadline,
+		micropython.WithEnv("APP_MODE", "agent"),
+		micropython.WithHeapSize(256*1024),
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer in.Close()
+
+	result, err := in.Eval(deadline, "sum(range(101))")
+	if err != nil {
+		log.Fatal(err)
+	}
+	n, err := result.AsInt()
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(n)
+	// Output: 5050
 }
 
 func ExampleProgram_Run() {
