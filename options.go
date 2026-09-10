@@ -56,7 +56,8 @@ type programOptionFunc func(*options)
 
 func (f programOptionFunc) apply(o *options) { f(o) }
 
-// WithHeapSize sets the Python heap size in bytes; zero uses the default.
+// WithHeapSize sets the Python heap size in bytes; zero uses 128 KiB.
+// This is not a limit on total interpreter or host memory.
 // Invalid sizes fail at construction. Exhausting the heap raises MemoryError.
 func WithHeapSize(bytes int) Option {
 	return optionFunc(func(o *options) {
@@ -65,7 +66,7 @@ func WithHeapSize(bytes int) Option {
 }
 
 // WithMaxIdle limits idle interpreters retained by a Program, not active runs.
-// Zero uses runtime.NumCPU; negative values fail at compilation.
+// Zero uses runtime.NumCPU; negative values fail at construction.
 func WithMaxIdle(n int) ProgramOption {
 	return programOptionFunc(func(o *options) {
 		o.maxIdle = n
@@ -86,7 +87,7 @@ func WithHostFunc(name string, fn HostFunc) Option {
 }
 
 // WithSource runs src after binding globals and host functions at initialization.
-// A nonempty source argument to [Compile] overrides this option.
+// For a [Program], the resulting Python state is the starting point for each run.
 func WithSource(src string) Option {
 	return optionFunc(func(o *options) {
 		o.sourceScript = src
@@ -152,7 +153,7 @@ func WithStdout(w io.Writer) Option {
 // Open files are closed on rewind or instance close, but the caller owns the
 // filesystem. Programs and clones share it; filesystem changes are not rewound.
 //
-// Standard fs.FS implementations are read-only. Backends can grant writes with
+// The fs.FS interface provides read access. Backends can grant writes with
 // [OpenFileFS], [MkdirFS], [UnlinkFS], [RmdirFS], and [RenameFS].
 //
 // The backend must confine symlinks and support concurrent use by independent
@@ -161,9 +162,8 @@ func WithFS(filesystem fs.FS) Option {
 	return optionFunc(func(o *options) { o.filesystem = filesystem })
 }
 
-// WithEnv sets one variable in the environment os.getenv reads; the default is
-// none. Calls are additive, the last value for a name wins, and order is not
-// preserved.
+// WithEnv sets a variable for Python's os.getenv. The environment starts empty.
+// Calls are additive; the last value for a name wins.
 //
 // The Go process environment is never inherited. Python's os.putenv and
 // os.unsetenv affect only this instance. Clones copy the current variables;

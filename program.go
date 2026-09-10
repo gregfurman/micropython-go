@@ -11,7 +11,7 @@ import (
 
 // Program pools interpreters initialized from a common Python state.
 // Runs are safe to execute concurrently and do not retain each other's Python
-// state changes. Call Close when done.
+// state changes. Call [Program.Close] when done.
 type Program struct {
 	snap *api.Snapshot
 
@@ -22,48 +22,84 @@ type Program struct {
 	closed bool
 }
 
-// OwnedInstance provides interpreter operations during [Program.Run].
-// It must not be retained or used after the callback returns.
-type OwnedInstance struct {
+// BorrowedInstance provides interpreter operations during [Program.Run].
+// It must not be copied or used after the callback returns. All goroutines
+// using it must finish before the callback returns.
+type BorrowedInstance struct {
 	wrapped *Instance
+	mu      sync.Mutex
+	closed  bool
 }
 
+// ErrRunReturned is reported by a [BorrowedInstance] used after its
+// [Program.Run] callback returned.
+var ErrRunReturned = errors.New("micropython: BorrowedInstance used after Run returned")
+
 // Call invokes a Python global function; see [Instance.Call].
-func (o *OwnedInstance) Call(ctx context.Context, name string, args ...any) (Value, error) {
+func (o *BorrowedInstance) Call(ctx context.Context, name string, args ...any) (Value, error) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	if o.closed {
+		return Value{}, ErrRunReturned
+	}
+
 	return o.wrapped.Call(ctx, name, args...)
 }
 
 // Eval evaluates a Python expression; see [Instance.Eval].
-func (o *OwnedInstance) Eval(ctx context.Context, expr string) (Value, error) {
+func (o *BorrowedInstance) Eval(ctx context.Context, expr string) (Value, error) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	if o.closed {
+		return Value{}, ErrRunReturned
+	}
 	return o.wrapped.Eval(ctx, expr)
 }
 
 // Get reads a Python global; see [Instance.Get].
-func (o *OwnedInstance) Get(ctx context.Context, name string) (Value, error) {
+func (o *BorrowedInstance) Get(ctx context.Context, name string) (Value, error) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	if o.closed {
+		return Value{}, ErrRunReturned
+	}
+
 	return o.wrapped.Get(ctx, name)
 }
 
 // Set binds a Python global; see [Instance.Set].
-func (o *OwnedInstance) Set(ctx context.Context, name string, v any) error {
+func (o *BorrowedInstance) Set(ctx context.Context, name string, v any) error {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	if o.closed {
+		return ErrRunReturned
+	}
+
 	return o.wrapped.Set(ctx, name, v)
 }
 
 // Exec runs Python statements; see [Instance.Exec].
-func (o *OwnedInstance) Exec(ctx context.Context, src string) error {
+func (o *BorrowedInstance) Exec(ctx context.Context, src string) error {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	if o.closed {
+		return ErrRunReturned
+	}
+
 	return o.wrapped.Exec(ctx, src)
 }
 
-// Compile applies opts, runs src, and snapshots the resulting state for a Program.
-// A nonempty src overrides [WithSource]; an empty src uses it if provided.
-// The caller must close the Program when done.
-// Initialization must close files, directory iterators, and sockets before the
-// state is snapshotted. Filesystem changes are not included in the snapshot.
-func Compile(ctx context.Context, src string, opts ...ProgramOption) (*Program, error) {
+// NewProgram initializes Python using opts and saves the state for later runs.
+// Initialization must close files, directory iterators, and sockets before
+// the state is saved. The caller must close the Program when done.
+func NewProgram(ctx context.Context, opts ...ProgramOption) (*Program, error) {
 	// TODO(gregfurman): Consider catering for warm and cold starts
 	opt := newOptions(opts)
-	if src != "" {
-		opt.sourceScript = src
-	}
 	if err := opt.validate(); err != nil {
 		return nil, err
 	}
@@ -89,8 +125,8 @@ func Compile(ctx context.Context, src string, opts ...ProgramOption) (*Program, 
 	}, nil
 }
 
-// Instance creates a standalone interpreter from the compiled state.
-// It is not pooled: state persists across calls, and the caller must close it.
+// Instance creates a standalone interpreter from the Program's initialized state.
+// It keeps state between calls. The caller must close it separately.
 func (p *Program) Instance(ctx context.Context) (*Instance, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -106,18 +142,14 @@ func (p *Program) Instance(ctx context.Context) (*Instance, error) {
 	return fromSnapshot(p.snap)
 }
 
-// Run lends an interpreter to fn, then rewinds or discards it, even on error
-// or panic. Cleanup failures are joined with fn's error; otherwise it is
-// returned unchanged. Panics propagate after cleanup.
-// External effects, including changes made by Go callbacks, are not rewound.
-// Open files and sockets are closed when the interpreter is returned.
+// Run calls fn with a borrowed interpreter, then resets or closes it.
+// It returns callback and cleanup errors. External effects are not undone.
 //
-// Use the callback's context: it inherits ctx and is canceled when fn exits.
-// Cancellation is cooperative; Run waits for fn but not its goroutines.
-// Finish all interpreter-using work before returning. Do not retain the
-// OwnedInstance or use guest handles afterward, including handles nested in
-// exported containers. Only detached Go data may outlive the run.
-func (p *Program) Run(ctx context.Context, fn func(ctx context.Context, in *OwnedInstance) error) (err error) {
+// Canceling ctx requests interruption of the current Python operation; see
+// [Instance.Cancel]. Pass ctx to borrowed methods so later operations also
+// observe cancellation. The callback must handle cancellation of its own Go work.
+// The [BorrowedInstance] is valid only until fn returns.
+func (p *Program) Run(ctx context.Context, fn func(in *BorrowedInstance) error) (err error) {
 	if fn == nil {
 		return errors.New("micropython: Run needs a function to run")
 	}
@@ -135,14 +167,23 @@ func (p *Program) Run(ctx context.Context, fn func(ctx context.Context, in *Owne
 		}
 	}()
 
-	if err := ctx.Err(); err != nil {
-		return err
-	}
-
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	return fn(ctx, &OwnedInstance{wrapped: in})
+	stop := context.AfterFunc(ctx, func() {
+		in.Cancel()
+	})
+
+	defer stop()
+
+	lent := &BorrowedInstance{wrapped: in}
+	defer func() {
+		lent.mu.Lock()
+		lent.closed = true
+		lent.mu.Unlock()
+	}()
+
+	return fn(lent)
 }
 
 // Close closes idle interpreters and rejects new work with [ErrClosed].

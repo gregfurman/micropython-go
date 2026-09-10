@@ -2,8 +2,11 @@ package util
 
 import (
 	"context"
+	"errors"
 	"sync"
 )
+
+var ErrShutdownTriggered = errors.New("shutdown signal was triggered")
 
 type Signaller struct {
 	mu sync.RWMutex
@@ -46,7 +49,7 @@ func (s *Signaller) StopChan() <-chan struct{} {
 }
 
 func (s *Signaller) Context(ctx context.Context) (context.Context, context.CancelFunc) {
-	ctx, cancel := context.WithCancel(ctx)
+	ctx, cancel := context.WithCancelCause(ctx)
 	stop := s.StopChan()
 
 	go func() {
@@ -54,8 +57,10 @@ func (s *Signaller) Context(ctx context.Context) (context.Context, context.Cance
 		case <-ctx.Done():
 		case <-stop:
 		}
-		cancel()
+		cancel(ErrShutdownTriggered)
 	}()
 
-	return ctx, cancel
+	return ctx, func() {
+		cancel(ErrShutdownTriggered)
+	}
 }

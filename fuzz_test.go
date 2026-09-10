@@ -152,7 +152,7 @@ func FuzzProgram(f *testing.F) {
 	f.Add("", "f", []byte{})
 
 	f.Fuzz(func(t *testing.T, src, name string, seed []byte) {
-		p, err := Compile(context.Background(), src)
+		p, err := NewProgram(context.Background(), WithSource(src))
 		if err != nil {
 			// Source that does not load is an ordinary answer, not a crash.
 			return

@@ -32,7 +32,7 @@ def handle(req):
 
 func benchProgram(b *testing.B) *Program {
 	b.Helper()
-	p, err := Compile(context.Background(), benchSrc)
+	p, err := NewProgram(context.Background(), WithSource(benchSrc))
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -92,7 +92,7 @@ func BenchmarkStartup(b *testing.B) {
 	b.Run("Compile", func(b *testing.B) {
 		b.ReportAllocs()
 		for b.Loop() {
-			p, err := Compile(ctx, benchSrc)
+			p, err := NewProgram(ctx, WithSource(benchSrc))
 			if err != nil {
 				b.Fatal(err)
 			}
@@ -376,7 +376,7 @@ func BenchmarkManyPrograms(b *testing.B) {
 		b.Run(fmt.Sprintf("%d programs", n), func(b *testing.B) {
 			programs := make([]*Program, n)
 			for i := range programs {
-				p, err := Compile(ctx, benchSrc)
+				p, err := NewProgram(ctx, WithSource(benchSrc))
 				if err != nil {
 					b.Fatal(err)
 				}

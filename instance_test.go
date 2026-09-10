@@ -146,7 +146,7 @@ func TestEvalImport(t *testing.T) {
 }
 
 func TestGlobals(t *testing.T) {
-	p, err := Compile(context.Background(), `
+	p, err := NewProgram(context.Background(), WithSource(`
 def run():
     return [
         NAME,
@@ -159,19 +159,17 @@ def run():
         NOTHING,
         sorted(UNIQUE),
     ]
-`,
-		WithGlobals(Globals{
-			"NAME":    Str("service"),
-			"LIMITS":  Dict(Item{Key: Str("retries"), Val: Int(3)}),
-			"TAGS":    List(Str("b"), Str("a")),
-			"COUNTS":  Tuple(Int(1), Int(2)),
-			"FLAG":    Bool(true),
-			"RATIO":   Float(0.5),
-			"RAW":     Bytes([]byte("hi")),
-			"NOTHING": None(),
-			"UNIQUE":  Set(Int(2), Int(1), Int(2)),
-		}),
-	)
+`), WithGlobals(Globals{
+		"NAME":    Str("service"),
+		"LIMITS":  Dict(Item{Key: Str("retries"), Val: Int(3)}),
+		"TAGS":    List(Str("b"), Str("a")),
+		"COUNTS":  Tuple(Int(1), Int(2)),
+		"FLAG":    Bool(true),
+		"RATIO":   Float(0.5),
+		"RAW":     Bytes([]byte("hi")),
+		"NOTHING": None(),
+		"UNIQUE":  Set(Int(2), Int(1), Int(2)),
+	}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -199,7 +197,7 @@ func TestValueLiftMatchesRoundTrip(t *testing.T) {
 		Dict(Item{Key: Str("k"), Val: Int(1)}),
 	}
 
-	p, err := Compile(context.Background(), "def echo(v):\n    return v\n")
+	p, err := NewProgram(context.Background(), WithSource("def echo(v):\n    return v\n"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -293,7 +291,7 @@ func TestPythonValuesPassedBack(t *testing.T) {
 }
 
 func TestExceptionLowers(t *testing.T) {
-	p, err := Compile(context.Background(), `
+	p, err := NewProgram(context.Background(), WithSource(`
 def raise_it():
     raise BAD
 
@@ -308,7 +306,7 @@ def unknown():
         raise ODD
     except RuntimeError as e:
         return "fallback:" + str(e)
-`, WithGlobals(Globals{
+`), WithGlobals(Globals{
 		"BAD": Exception("ValueError", "bad input"),
 		// A type the guest has never heard of falls back to HostError, which
 		// subclasses RuntimeError, rather than failing twice on the way to
@@ -337,7 +335,7 @@ def unknown():
 }
 
 func TestBuiltValueAsCallArgument(t *testing.T) {
-	p, err := Compile(context.Background(), "def echo(v):\n    return v\n")
+	p, err := NewProgram(context.Background(), WithSource("def echo(v):\n    return v\n"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -407,7 +405,7 @@ func TestInstanceCancel(t *testing.T) {
 func TestWithHeapSize(t *testing.T) {
 	src := "def big(n):\n    return len(bytearray(n))\n"
 
-	small, err := Compile(context.Background(), src, WithHeapSize(128*1024))
+	small, err := NewProgram(context.Background(), WithSource(src), WithHeapSize(128*1024))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -431,7 +429,7 @@ func TestWithHeapSize(t *testing.T) {
 		t.Errorf("after MemoryError: %#v, %v", got, err)
 	}
 
-	big, err := Compile(context.Background(), src, WithHeapSize(4*1024*1024))
+	big, err := NewProgram(context.Background(), WithSource(src), WithHeapSize(4*1024*1024))
 	if err != nil {
 		t.Fatal(err)
 	}

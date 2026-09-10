@@ -15,6 +15,8 @@ var errZeroValue = errors.New("micropython: the zero Value holds nothing to conv
 // Value represents copied Python data or a handle owned by an interpreter.
 // Use Export for Go data or the As methods for checked, type-specific access.
 // The zero Value is invalid; use [None] for Python None.
+// Data copied from a [Program.Run] survives the run; handles returned by that
+// run, including those nested in collections, do not.
 type Value struct {
 	val value.Value
 }
@@ -101,6 +103,7 @@ func (v Value) String() string {
 
 // Of converts Go data to a Value. Nil becomes None; []byte becomes bytes.
 // Scalars and collections use native conversions; other types use JSON.
+// Unsigned integers must fit in int64; use [BigInt] for larger integers.
 // Use builders such as [Tuple] when the Python type matters.
 // Conversion failures produce an invalid Value, reported when passed to Python.
 func Of(v any) Value {
@@ -274,6 +277,7 @@ func (v Value) IsNone() bool {
 	return ok
 }
 
+// AsBool returns a Python bool as a Go bool, or an error for other types.
 func (v Value) AsBool() (bool, error) {
 	x, ok := v.val.(value.Bool)
 	if !ok {
@@ -304,6 +308,8 @@ func (v Value) AsInt() (int64, error) {
 	}
 }
 
+// AsBigInt returns a Python integer, or an error for other types.
+// The result may share storage with v; copy it before modifying it.
 func (v Value) AsBigInt() (*big.Int, error) {
 	switch x := v.val.(type) {
 	case value.Int:
@@ -317,6 +323,8 @@ func (v Value) AsBigInt() (*big.Int, error) {
 	}
 }
 
+// AsFloat returns a Python float as a float64, or an error for other types.
+// It does not convert integers to floats.
 func (v Value) AsFloat() (float64, error) {
 	x, ok := v.val.(value.Float)
 	if !ok {
@@ -325,6 +333,7 @@ func (v Value) AsFloat() (float64, error) {
 	return float64(x), nil
 }
 
+// AsString returns a Python str as a Go string, or an error for other types.
 func (v Value) AsString() (string, error) {
 	x, ok := v.val.(value.Str)
 	if !ok {
@@ -333,6 +342,7 @@ func (v Value) AsString() (string, error) {
 	return string(x), nil
 }
 
+// AsBytes copies Python bytes into a Go slice, or returns an error for other types.
 func (v Value) AsBytes() ([]byte, error) {
 	x, ok := v.val.(value.Bytes)
 	if !ok {
@@ -388,6 +398,7 @@ func Dict(entries ...Item) Value {
 
 // ---------------------------------------------------------------------
 
+// AsList returns a new slice of a Python list's elements, or an error for other types.
 func (v Value) AsList() ([]Value, error) {
 	x, ok := v.val.(value.ListValue)
 	if !ok {
@@ -396,6 +407,7 @@ func (v Value) AsList() ([]Value, error) {
 	return wrapValues(x), nil
 }
 
+// AsTuple returns a new slice of a Python tuple's elements, or an error for other types.
 func (v Value) AsTuple() ([]Value, error) {
 	x, ok := v.val.(value.TupleValue)
 	if !ok {
@@ -404,6 +416,8 @@ func (v Value) AsTuple() ([]Value, error) {
 	return wrapValues(x), nil
 }
 
+// AsSet returns a new slice of a Python set's elements, or an error for other types.
+// Element order is unspecified.
 func (v Value) AsSet() ([]Value, error) {
 	x, ok := v.val.(value.SetValue)
 	if !ok {
@@ -412,6 +426,8 @@ func (v Value) AsSet() ([]Value, error) {
 	return wrapValues(x), nil
 }
 
+// AsFrozenSet returns a new slice of a Python frozenset's elements.
+// It returns an error for other types. Element order is unspecified.
 func (v Value) AsFrozenSet() ([]Value, error) {
 	x, ok := v.val.(value.FrozenSetValue)
 	if !ok {
@@ -420,7 +436,8 @@ func (v Value) AsFrozenSet() ([]Value, error) {
 	return wrapValues(x), nil
 }
 
-// AsDict returns dictionary entries in received order without converting keys.
+// AsDict returns a new slice of dictionary entries without converting keys.
+// It preserves received order and returns an error for other types.
 func (v Value) AsDict() ([]Item, error) {
 	entries, ok := v.val.(value.DictValue)
 	if !ok {

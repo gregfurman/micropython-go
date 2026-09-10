@@ -24,7 +24,7 @@ def score(row):
 func main() {
 	ctx := context.Background()
 
-	p, err := micropython.Compile(ctx, src, micropython.WithMaxIdle(4))
+	p, err := micropython.NewProgram(ctx, micropython.WithSource(src), micropython.WithMaxIdle(4))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -43,7 +43,7 @@ func main() {
 			// callback. Copy out what is needed before it returns: the
 			// interpreter is rewound to the compiled state afterwards.
 			var out map[string]any
-			if err := p.Run(ctx, func(ctx context.Context, in *micropython.OwnedInstance) error {
+			if err := p.Run(ctx, func(in *micropython.BorrowedInstance) error {
 				got, err := in.Call(ctx, "score", row)
 				if err != nil {
 					return err

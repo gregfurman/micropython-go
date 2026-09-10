@@ -19,25 +19,52 @@ func Example() {
 	}
 	defer in.Close()
 
-	if err := in.Exec(ctx, "def scale(xs, by):\n    return [x * by for x in xs]\n"); err != nil {
+	if err := in.Exec(ctx, "double = lambda x: x * 2"); err != nil {
 		log.Fatal(err)
 	}
 
-	got, err := in.Call(ctx, "scale", []int64{1, 2, 3}, 10)
+	got, err := in.Call(ctx, "double", 10)
 	if err != nil {
 		log.Fatal(err)
 	}
 	fmt.Println(got.Export())
 
 	// Output:
-	// [10 20 30]
+	// 20
+}
+
+func ExampleProgram_Run() {
+	ctx := context.Background()
+	p, err := micropython.NewProgram(ctx, micropython.WithSource(`
+def score(row):
+    return {"id": row["id"], "total": row["a"] * 2 + row["b"]}
+`))
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer p.Close()
+
+	var out map[string]any
+	err = p.Run(ctx, func(in *micropython.BorrowedInstance) error {
+		got, err := in.Call(ctx, "score", map[string]any{"id": "r-1", "a": 4, "b": 5})
+		if err != nil {
+			return err
+		}
+		out = got.Export().(map[string]any)
+		return nil
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(out["id"], out["total"])
+	// Output: r-1 13
 }
 
 // A Go slice could be a list, a tuple or a set, so the builders say which.
 func ExampleValue() {
 	ctx := context.Background()
 
-	p, err := micropython.Compile(ctx, "def kind(v):\n    return type(v).__name__\n")
+	p, err := micropython.NewProgram(ctx, micropython.WithSource("def kind(v):\n    return type(v).__name__\n"))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -48,7 +75,7 @@ func ExampleValue() {
 		micropython.Tuple(micropython.Int(1), micropython.Int(2)),
 	} {
 		var got micropython.Value
-		if err := p.Run(ctx, func(ctx context.Context, in *micropython.OwnedInstance) error {
+		if err := p.Run(ctx, func(in *micropython.BorrowedInstance) error {
 			v, err := in.Call(ctx, "kind", v)
 			got = v
 			return err
@@ -68,10 +95,10 @@ func ExampleValue() {
 func ExampleWithGlobals() {
 	ctx := context.Background()
 
-	p, err := micropython.Compile(ctx, `
+	p, err := micropython.NewProgram(ctx, micropython.WithSource(`
 def describe():
     return "%s allows %d retries" % (NAME, LIMITS["retries"])
-`, micropython.WithGlobals(micropython.Globals{
+`), micropython.WithGlobals(micropython.Globals{
 		"NAME":   micropython.Str("service"),
 		"LIMITS": micropython.Dict(micropython.Item{Key: micropython.Str("retries"), Val: micropython.Int(3)}),
 	}))
@@ -81,7 +108,7 @@ def describe():
 	defer p.Close()
 
 	var got micropython.Value
-	if err := p.Run(ctx, func(ctx context.Context, in *micropython.OwnedInstance) error {
+	if err := p.Run(ctx, func(in *micropython.BorrowedInstance) error {
 		v, err := in.Call(ctx, "describe")
 		got = v
 		return err
@@ -104,9 +131,12 @@ func ExampleInstance_DefineFunction() {
 	}
 	defer in.Close()
 
-	rates := map[string]float64{"EUR": 1.09}
+	rates := map[string]float64{"EUR": 1.09, "GBP": 1.27} // Example rates.
 
 	err = in.DefineFunction(ctx, "usd", func(_ context.Context, args []micropython.Value) (micropython.Value, error) {
+		if len(args) != 1 {
+			return micropython.Value{}, micropython.Raise("TypeError", "usd expects one currency code")
+		}
 		code, err := args[0].AsString()
 		if err != nil {
 			return micropython.Value{}, err
@@ -142,14 +172,14 @@ func ExampleInstance_DefineFunction() {
 func ExamplePythonError() {
 	ctx := context.Background()
 
-	p, err := micropython.Compile(ctx, "def lookup(key):\n    return {\"a\": 1}[key]\n")
+	p, err := micropython.NewProgram(ctx, micropython.WithSource("def lookup(key):\n    return {\"a\": 1}[key]\n"))
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer p.Close()
 
 	var exc *micropython.PythonError
-	err = p.Run(ctx, func(ctx context.Context, in *micropython.OwnedInstance) error {
+	err = p.Run(ctx, func(in *micropython.BorrowedInstance) error {
 		_, err := in.Call(ctx, "lookup", "missing")
 		return err
 	})
@@ -158,7 +188,7 @@ func ExamplePythonError() {
 	}
 
 	var got micropython.Value
-	if err := p.Run(ctx, func(ctx context.Context, in *micropython.OwnedInstance) error {
+	if err := p.Run(ctx, func(in *micropython.BorrowedInstance) error {
 		v, err := in.Call(ctx, "lookup", "a")
 		got = v
 		return err

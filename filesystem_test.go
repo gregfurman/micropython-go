@@ -101,12 +101,12 @@ with open('/result.txt', 'rb') as f:
 `); err != nil {
 		t.Fatal(err)
 	}
-	program, err := Compile(ctx, "", WithFS(backend))
+	program, err := NewProgram(ctx, WithFS(backend))
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer program.Close()
-	if err := program.Run(ctx, func(ctx context.Context, in *OwnedInstance) error {
+	if err := program.Run(ctx, func(in *BorrowedInstance) error {
 		return in.Exec(ctx, "f = open('result.txt', 'a')\nf.write('!')")
 	}); err != nil {
 		t.Fatal(err)
@@ -149,7 +149,7 @@ func TestProgramReportsFileCleanupErrors(t *testing.T) {
 		for _, result := range []error{nil, callbackErr} {
 			t.Run(disposition+"/"+fmt.Sprint(result), func(t *testing.T) {
 				backend := &trackedFS{FS: fstest.MapFS{"file": {}}, closeErr: commitErr}
-				p, err := Compile(t.Context(), "", WithFS(backend))
+				p, err := NewProgram(t.Context(), WithFS(backend))
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -157,8 +157,8 @@ func TestProgramReportsFileCleanupErrors(t *testing.T) {
 				if disposition == "discard" {
 					p.maxIdle = 0
 				}
-				err = p.Run(t.Context(), func(ctx context.Context, in *OwnedInstance) error {
-					if err := in.Exec(ctx, "f = open('file')"); err != nil {
+				err = p.Run(t.Context(), func(in *BorrowedInstance) error {
+					if err := in.Exec(t.Context(), "f = open('file')"); err != nil {
 						return err
 					}
 					if disposition == "closed program" {
@@ -181,7 +181,7 @@ func TestProgramReportsFileCleanupErrors(t *testing.T) {
 
 func TestProgramCleanupPreservesPanic(t *testing.T) {
 	backend := &trackedFS{FS: fstest.MapFS{"file": {}}, closeErr: errors.New("close failed")}
-	p, err := Compile(t.Context(), "", WithFS(backend))
+	p, err := NewProgram(t.Context(), WithFS(backend))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -194,8 +194,8 @@ func TestProgramCleanupPreservesPanic(t *testing.T) {
 			t.Error("panic left a live file or pooled interpreter")
 		}
 	}()
-	_ = p.Run(t.Context(), func(ctx context.Context, in *OwnedInstance) error {
-		if err := in.Exec(ctx, "f = open('file')"); err != nil {
+	_ = p.Run(t.Context(), func(in *BorrowedInstance) error {
+		if err := in.Exec(t.Context(), "f = open('file')"); err != nil {
 			t.Fatal(err)
 		}
 		panic("callback panic")
@@ -205,7 +205,7 @@ func TestProgramCleanupPreservesPanic(t *testing.T) {
 func TestProgramCloseReportsFileErrors(t *testing.T) {
 	commitErr := errors.New("commit failed")
 	backend := &trackedFS{FS: fstest.MapFS{"file": {}}, closeErr: commitErr}
-	p, err := Compile(t.Context(), "", WithFS(backend))
+	p, err := NewProgram(t.Context(), WithFS(backend))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -299,13 +299,13 @@ func TestFilesystemLifecycle(t *testing.T) {
 	if backend.live.Load() != 0 {
 		t.Fatal("Close leaked an open file")
 	}
-	program, err := Compile(ctx, "", WithFS(backend))
+	program, err := NewProgram(ctx, WithFS(backend))
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer program.Close()
 	for range 2 {
-		if err := program.Run(ctx, func(ctx context.Context, in *OwnedInstance) error {
+		if err := program.Run(ctx, func(in *BorrowedInstance) error {
 			return in.Exec(ctx, "f = open('hello')\nassert f.read() == 'hello'")
 		}); err != nil {
 			t.Fatal(err)
@@ -314,7 +314,7 @@ func TestFilesystemLifecycle(t *testing.T) {
 			t.Fatal("Run leaked an open file")
 		}
 	}
-	if p, err := Compile(ctx, "f = open('hello')", WithFS(backend)); err == nil {
+	if p, err := NewProgram(ctx, WithSource("f = open('hello')"), WithFS(backend)); err == nil {
 		p.Close()
 		t.Fatal("Compile captured an open file")
 	}

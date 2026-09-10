@@ -1,7 +1,6 @@
 package micropython
 
 import (
-	"context"
 	"strings"
 	"testing"
 )
@@ -78,7 +77,7 @@ func TestEnvRejectedAtConstruction(t *testing.T) {
 	}
 
 	// Programs validate the same way.
-	if p, err := Compile(t.Context(), "", WithEnv("A=B", "v")); err == nil {
+	if p, err := NewProgram(t.Context(), WithEnv("A=B", "v")); err == nil {
 		p.Close()
 		t.Error("Compile accepted a bad variable")
 	}
@@ -105,18 +104,18 @@ func TestEnvRejectsMalformedNames(t *testing.T) {
 
 // Rewind restores initialization-time variables, including Python's changes.
 func TestEnvIsRewoundWithTheInstance(t *testing.T) {
-	program, err := Compile(t.Context(), `
+	program, err := NewProgram(t.Context(), WithSource(`
 import os
 os.putenv('STAGE', 'compiled')
-`, WithEnv("STAGE", "configured"), WithMaxIdle(1))
+`), WithEnv("STAGE", "configured"), WithMaxIdle(1))
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { program.Close() })
 
 	for range 2 {
-		if err := program.Run(t.Context(), func(ctx context.Context, in *OwnedInstance) error {
-			return in.Exec(ctx, `
+		if err := program.Run(t.Context(), func(in *BorrowedInstance) error {
+			return in.Exec(t.Context(), `
 assert os.getenv('STAGE') == 'compiled'
 assert os.getenv('ADDED') is None
 os.putenv('STAGE', 'run')

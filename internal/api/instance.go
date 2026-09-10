@@ -125,6 +125,12 @@ func (i *Instance) Cancel() {
 	}
 }
 
+func (i *Instance) CancelWithReason(err error) {
+	if rt := i.rt.Load(); rt != nil {
+		rt.Cancel()
+	}
+}
+
 func (i *Instance) Err() error {
 	if t := i.trap.Load(); t != nil {
 		return t
@@ -219,6 +225,10 @@ func (i *Instance) acquire(ctx context.Context) error {
 
 func (i *Instance) release() { <-i.lock }
 
+func (i *Instance) Context(ctx context.Context) (context.Context, context.CancelFunc) {
+	return i.rt.Load().Context(ctx)
+}
+
 func (i *Instance) run(ctx context.Context, fn func(*host.Module) error) (err error) {
 	if err := i.acquire(ctx); err != nil {
 		return err
@@ -240,8 +250,10 @@ func (i *Instance) run(ctx context.Context, fn func(*host.Module) error) (err er
 	rt.Begin()
 	opCtx, cancel := rt.Context(ctx)
 	defer cancel()
+
 	rt.SetNetworkContext(opCtx)
 	defer rt.SetNetworkContext(nil)
+
 	done := make(chan struct{})
 	stop := context.AfterFunc(ctx, func() {
 		rt.Cancel()

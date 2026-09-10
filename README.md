@@ -6,16 +6,20 @@
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/gregfurman/micropython-go.svg)](https://pkg.go.dev/github.com/gregfurman/micropython-go)
 
-`micropython-go` is a CGO-free embeddable interpreter for [MicroPython](https://github.com/micropython/micropython).
+`micropython-go` embeds [MicroPython](https://github.com/micropython/micropython)
+in Go applications without CGO. Run Python scripts, exchange values, and call
+Go functions from Python.
 
-It uses a custom [WebAssembly](https://webassembly.org/) (WASM) build of MicroPython, transpiled to native Go code using [wasm2go](https://github.com/ncruces/wasm2go).
+It uses a custom WebAssembly build of MicroPython, translated to native Go code
+with [wasm2go](https://github.com/ncruces/wasm2go).
 
 > [!IMPORTANT]
-> This project is still experimental. Until a tagged (and stable) version is
-> released, both the public API and the internal modules are subject to
-> breaking changes.
+> This project is experimental. The API may change before a stable release.
 
 ## Installation
+
+Requires Go 1.27 or later. You do not need the WebAssembly build tools to use
+the SDK.
 
 ```bash
 go get github.com/gregfurman/micropython-go
@@ -61,22 +65,23 @@ func main() {
 
 ## Examples
 
-Each example is a runnable program checked against its expected output, so
-`go test ./examples/...` fails when one drifts from the library.
+Run the examples with `go run`. Their output is checked by
+`go test ./examples/...`.
 
 | Example                             | Shows                                                   |
 | ----------------------------------- | ------------------------------------------------------- |
 | [basic](./examples/basic)           | `Exec`, `Call`, `Eval` and `Get` against one `Instance` |
-| [program](./examples/program)       | Compiling once, then serving calls in parallel          |
+| [program](./examples/program)       | Initializing once and running callbacks in parallel     |
 | [values](./examples/values)         | Choosing which Python type an argument arrives as       |
 | [hostfunc](./examples/hostfunc)     | Calling back into Go, and raising a chosen exception    |
+| [channel](./examples/channel)       | Backing a host function with a Go channel               |
 | [callable](./examples/callable)     | Holding a Python function in Go and passing it back     |
 | [iterator](./examples/iterator)     | Pulling values out of a generator one at a time         |
 | [stdout](./examples/stdout)         | Collecting `print()` output, or streaming it            |
 | [errors](./examples/errors)         | Exceptions as Go errors, deadlines, and `Cancel`        |
-| [filesystem](./examples/filesystem) | Giving the guest files to read                          |
-| [network](./examples/network)       | Granting outbound TCP and DNS                           |
-| [memory](./examples/memory)         | Heap sizing and what an interpreter costs               |
+| [filesystem](./examples/filesystem) | Mounting an `fs.FS`, read-only and writable             |
+| [network](./examples/network)       | Granting outbound TCP to one address and port           |
+| [memory](./examples/memory)         | Sizing the Python heap, and `MemoryError`               |
 
 ```bash
 go run ./examples/basic
@@ -84,19 +89,9 @@ go run ./examples/basic
 
 ## Instances
 
-An `Instance` is one long-running interpreter. State persists between calls, and
-calls are fast because nothing is rewound between them.
-
-```go
-in, _ := micropython.NewInstance(ctx)
-defer in.Close()
-
-in.Exec(ctx, "total = 0")
-in.Exec(ctx, "total += 5")
-
-val, _ := in.Eval(ctx, "total * 2")
-fmt.Println(val.Export()) // 10
-```
+An `Instance` keeps Python state between calls. Use `Exec` for statements,
+`Eval` for expressions, `Call` for global functions, and `Get` or `Set` for
+global variables. Close the instance when you are done.
 
 It is safe to call from several goroutines, but a single interpreter runs one
 call at a time, so concurrent calls queue rather than overlap. For parallelism,
@@ -104,28 +99,26 @@ give each worker its own interpreter with `Clone`, or use a `Program`.
 
 ## Programs
 
-A `Program` compiles a script once and serves calls from a pool of interpreters.
+A `Program` initializes Python once and saves that state. Each `Run` borrows
+an interpreter from a pool and starts from the saved state, without rerunning
+the initialization script. Operations within one callback share Python state;
+separate runs do not retain each other's changes.
 
-Compiling boots one interpreter, runs the source, and snapshots its memory.
-Later interpreters are restored from that snapshot rather than booted, so each
-call starts from the post-script state without re-running the script. Two calls
-cannot see each other's changes to Python state.
-
-`Run` borrows an interpreter for the duration of a callback and rewinds it
-afterwards, so copy out what you need before returning:
+The snippets below assume an existing `ctx`. See the examples above for complete
+programs and imports.
 
 ```go
-p, err := micropython.Compile(ctx, `
+p, err := micropython.NewProgram(ctx, micropython.WithSource(`
 def score(row):
     return {"id": row["id"], "total": row["a"] * 2 + row["b"]}
-`)
+`))
 if err != nil {
 	log.Fatal(err)
 }
 defer p.Close()
 
 var out map[string]any
-err = p.Run(ctx, func(ctx context.Context, in *micropython.OwnedInstance) error {
+err = p.Run(ctx, func(in *micropython.BorrowedInstance) error {
 	got, err := in.Call(ctx, "score", map[string]any{"id": "r-1", "a": 4, "b": 5})
 	if err != nil {
 		return err
@@ -133,126 +126,91 @@ err = p.Run(ctx, func(ctx context.Context, in *micropython.OwnedInstance) error 
 	out = got.Export().(map[string]any)
 	return nil
 })
+if err != nil {
+	log.Fatal(err)
+}
 
-fmt.Printf("%#v\n", out)
-// map[string]interface {}{"id":"r-1", "total":13}
+fmt.Println(out["id"], out["total"]) // r-1 13
 ```
 
-`Instance` gives you the interpreter itself when you want to hold it longer.
+Do not copy or retain the borrowed instance. Any goroutines using it must finish
+before the callback returns. Copied data remains usable afterwards, but Python
+object handles do not. `Export()` can still contain handles inside collections;
+it does not detach those objects from the interpreter.
 
-`WithMaxIdle` bounds how many interpreters the pool keeps, not how many exist at
-once. A burst of concurrent calls builds as many as it needs and closes the
-surplus on release, so peak memory follows your concurrency.
+Use `Program.Instance` for a standalone interpreter that keeps state between
+calls. You must close it separately.
 
-Rewinding is not a rollback of the outside world. Anything a call did through a
-host function, a socket or a file has already happened.
+`WithMaxIdle` limits idle interpreters, not concurrent runs. Limit concurrency
+in your application to control peak memory use.
+
+Files, directory iterators, and sockets must be closed before initialization
+finishes. Resources opened during a run are closed during cleanup, and cleanup
+errors are returned by `Run`. File changes, output, and other external effects
+are not undone.
 
 ## Capturing stdout
 
-Nothing the guest prints escapes on its own. `print()` never reaches the
-process's stdout; without `WithStdout` it is discarded.
+Use `WithStdout` to send `print()` output to an `io.Writer`. Output is discarded
+by default.
 
 ```go
 var out bytes.Buffer
-in, _ := micropython.NewInstance(ctx, micropython.WithStdout(&out))
+in, err := micropython.NewInstance(ctx, micropython.WithStdout(&out))
+if err != nil {
+	log.Fatal(err)
+}
 defer in.Close()
 
-in.Exec(ctx, "print('hello')")
-out.String() // "hello\n"
+if err := in.Exec(ctx, "print('hello')"); err != nil {
+	log.Fatal(err)
+}
+fmt.Print(out.String()) // hello
 ```
 
-One sink serves the whole interpreter, and it is shared across calls, so reset
-between them to read one call's output on its own.
-
-Because it takes an `io.Writer`, the buffering decision stays yours. A pipe lets
-a goroutine read alongside a running script rather than after it:
-
-```go
-pr, pw := io.Pipe()
-in, _ := micropython.NewInstance(ctx, micropython.WithStdout(pw))
-
-go func() {
-	sc := bufio.NewScanner(pr)
-	for sc.Scan() {
-		log.Println("guest:", sc.Text())
-	}
-}()
-
-in.Exec(ctx, script)
-pw.Close() // the reader sees io.EOF
-```
+The caller owns the writer. Programs and clones share it, so concurrent runs
+need a writer that supports concurrent writes; `bytes.Buffer` does not.
+See the [stdout example](./examples/stdout) for streaming output through a pipe.
 
 ## Values
 
-Arguments and results are a `micropython.Value`. Plain Go values work too and
-convert by the same rules. Where Go has one type for two Python ones, the
-builders let you say which you meant:
+Pass ordinary Go values to `Call` and `Set`; `Call`, `Eval`, and `Get` return
+`micropython.Value`s.
+Use `WithGlobals` to supply configuration without inserting it into Python source.
 
-```go
-in.Call(ctx, "f", []any{1, 2})                           // list
-in.Call(ctx, "f", micropython.Tuple(micropython.Int(1))) // tuple
-```
+Conversion is recursive: `nil` becomes `None`, `[]byte` becomes `bytes`, other
+slices and arrays become lists, and maps usually become dictionaries.
+`map[string]struct{}` becomes a set. Unsigned integers must fit in `int64`;
+use `BigInt` for larger integers. Structs and other unsupported types use JSON
+conversion, which can fail.
 
-Conversion into Python is recursive and applies to anything you pass:
+Use builders such as `Tuple` and `Set` when you need a specific Python type.
+`Of` converts a Go value to a `Value` using the same rules.
 
-| Go                               | Python                                   |
-| -------------------------------- | ---------------------------------------- |
-| `nil`                            | `None`                                   |
-| `bool`                           | `bool`                                   |
-| all signed and unsigned integers | `int`                                    |
-| `float32`, `float64`             | `float`                                  |
-| `string`                         | `str`                                    |
-| `[]byte`                         | `bytes`                                  |
-| other slices and arrays          | `list`                                   |
-| maps                             | `dict`                                   |
-| pointers and interfaces          | whatever they hold, or `None` when nil   |
-| anything else, structs included  | JSON round trip, so a `dict` or a `list` |
+`Export()` returns ordinary Go data where possible. The `As` methods check for
+a specific Python type and return an error on mismatch. For example, `AsInt`
+reads an integer, while `AsFloat` requires a float. `AsDict` preserves dictionary
+keys that `Export()` might otherwise stringify.
 
-The builders name the Python type outright: `None`, `Bool`, `Int`, `BigInt`,
-`Float`, `Str`, `Bytes`, `List`, `Tuple`, `Set`, `FrozenSet` and `Dict`. `Of`
-takes a Go value and applies the table above.
+Functions, iterators, and other Python objects may be returned as handles.
+Use `Instance.AsCallable`, `Instance.AsIterator`, or `Instance.Resolve` to work
+with them. Handles belong to their original interpreter. `Instance.Release`
+optionally releases them early; copied data needs no release.
 
-On the way back, `Export` flattens to ordinary Go types, and the `As` methods
-convert precisely, reporting a mismatch instead of panicking:
-
-| Python                              | `Export`              | Typed accessor                              |
-| ----------------------------------- | --------------------- | ------------------------------------------- |
-| `None`                              | `nil`                 | `IsNone`                                    |
-| `bool`                              | `bool`                | `AsBool`                                    |
-| `int`                               | `int64` or `*big.Int` | `AsInt`, `AsBigInt`                         |
-| `float`                             | `float64`             | `AsFloat`                                   |
-| `str`                               | `string`              | `AsString`                                  |
-| `bytes`                             | `[]byte`              | `AsBytes`                                   |
-| `list`, `tuple`, `set`, `frozenset` | `[]any`               | `AsList`, `AsTuple`, `AsSet`, `AsFrozenSet` |
-| `dict`                              | `map[string]any`      | `AsDict`                                    |
-| anything else                       | an opaque handle      | `AsObject`, `AsCallable`, `AsIterator`      |
-
-A dict whose keys are not all strings exports as a `map[any]any`, and a key a Go
-map cannot hold, such as a tuple, is stringified to fit. `AsDict` hands back the
-pairs exactly as the guest sent them.
-
-Anything with no Go equivalent, such as a class, generator or lambda, crosses as
-an opaque handle rather than a copy. `AsCallable`, `AsIterator` and `Resolve`
-turn one back into something usable.
-
-Configuration is easier to bind than to splice into the source, where it would
-have to be quoted and escaped:
-
-```go
-p, _ := micropython.Compile(ctx, src, micropython.WithGlobals(micropython.Globals{
-	"NAME":   micropython.Str("service"),
-	"LIMITS": micropython.Dict(micropython.Item{Key: micropython.Str("retries"), Val: micropython.Int(3)}),
-}))
-```
+See the [values](./examples/values), [callable](./examples/callable), and
+[iterator](./examples/iterator) examples for conversions and object lifetimes.
 
 ## Calling Go from Python
 
-`DefineFunction` binds a Go function to a global Python name. Use `WithHostFunc`
-instead when module-level code needs to call it, or when the target is a
-`Program`, which registers the binding before it takes its snapshot.
+`DefineFunction` binds a Go function to a Python global. Use `WithHostFunc` to
+register it before initialization, including when creating a `Program`.
 
 ```go
-in.DefineFunction(ctx, "usd", func(_ context.Context, args []micropython.Value) (micropython.Value, error) {
+rates := map[string]float64{"EUR": 1.09, "GBP": 1.27} // Example rates.
+err = in.DefineFunction(ctx, "usd", func(_ context.Context, args []micropython.Value) (micropython.Value, error) {
+	if len(args) != 1 {
+		return micropython.Value{}, micropython.Raise("TypeError", "usd expects one currency code")
+	}
 	code, err := args[0].AsString()
 	if err != nil {
 		return micropython.Value{}, err
@@ -265,36 +223,26 @@ in.DefineFunction(ctx, "usd", func(_ context.Context, args []micropython.Value) 
 
 	return micropython.Float(rate), nil
 })
+if err != nil {
+	log.Fatal(err)
+}
 ```
 
-An error returned from a host function raises at the Python call site. `Raise`
-picks the class the guest catches. Anything else becomes `HostError`, a class
-this port adds under `RuntimeError` so guest code can catch host-boundary
-failures without also catching the interpreter's own errors. A panic is
-recovered and raised the same way rather than unwinding into the interpreter.
+Use `Raise` to return a Python exception. Ordinary Go errors and recovered
+panics become `HostError`, a subclass of `RuntimeError`.
 
-A `Program` registers the closure once, before its snapshot, so every pooled
-interpreter shares it. Whatever it closes over is Go state: the per-call rewind
-does not reset it, and pooled interpreters may be inside it at the same time.
+Programs and clones share Go callbacks and their captured state. Callbacks must
+support concurrent calls, and their Go state is not reset between runs. A callback
+must not synchronously call or close the interpreter that invoked it.
 
 ## Files, environment and network
 
-A guest starts with none of these. Each is granted by an option, and without one
-the corresponding Python call raises `OSError`.
+Filesystem access, outbound connections, and DNS are denied by default. The
+Python environment starts empty and never inherits the Go process environment.
 
-`WithFS` mounts an `fs.FS` at the guest's root, so `open()` and `import` can
-reach it:
-
-```go
-//go:embed scripts
-var scripts embed.FS
-
-in, _ := micropython.NewInstance(ctx, micropython.WithFS(scripts))
-in.Exec(ctx, "print(open('/scripts/config.json').read())")
-```
-
-An `fs.FS` is read-only. A backend grants writes by implementing the matching
-interface, so there is no flag to get wrong:
+`WithFS` exposes an `fs.FS` at Python's root for `open()` and file-based imports.
+The `fs.FS` interface provides read access. A backend can grant writes by
+implementing these additional interfaces:
 
 | Interface    | Grants                     |
 | ------------ | -------------------------- |
@@ -304,36 +252,41 @@ interface, so there is no flag to get wrong:
 | `RmdirFS`    | `os.rmdir`                 |
 | `RenameFS`   | `os.rename`                |
 
-`os.Root` from the standard library is the usual writable backend, since it
-confines symlinks to its directory. `ReadOnly` wraps a backend to hide those
-methods again.
+The [filesystem example](./examples/filesystem) shows embedded files and Python
+imports. Its [writable adapter](./examples/filesystem/writable_test.go) wraps
+`os.Root` with the method signatures the SDK requires. Backends must confine
+symlinks themselves; `os.DirFS` alone does not do this. `ReadOnly` hides a
+backend's write capabilities.
 
-`WithEnv` sets one variable that `os.getenv` reads. The environment is the
-instance's own and is never seeded from the Go process, so a variable reaches
-the guest only by being named here:
+`WithEnv("STAGE", "prod")` sets a variable for `os.getenv`. Missing variables
+return `None` or the supplied default. Python can change its own environment
+with `os.putenv` and `os.unsetenv`; Programs restore the initialized environment
+after each run.
+
+`WithTCPAccess` and `WithUDPAccess` permit outbound connections to an IPv4
+address, CIDR block, or `AnyAddress`, on one port. Grants are additive.
+Hostnames and IPv6 are not supported in access rules. DNS is enabled separately:
 
 ```go
-micropython.WithEnv("STAGE", "prod")
-```
-
-`WithTCPAccess` and `WithUDPAccess` permit outbound connections to an address,
-CIDR block, or `AnyAddress`, on one port. Grants are additive. Name resolution
-is separate and also off by default:
-
-```go
-in, _ := micropython.NewInstance(ctx,
+in, err := micropython.NewInstance(ctx,
 	micropython.WithTCPAccess(micropython.AnyAddress, 443),
 	micropython.WithDNSResolver(net.DefaultResolver),
 )
+if err != nil {
+	log.Fatal(err)
+}
+defer in.Close()
 ```
 
-Sockets are outbound only. `bind`, `listen` and `accept` raise `OSError`.
+`AnyAddress` includes private and loopback addresses. Port 443 permits TCP
+traffic, not just HTTPS, and DNS lookups are independent of connection grants.
+Sockets are outbound only; UDP requires a connected peer. See the
+[network example](./examples/network) for a narrower grant.
 
 ## Errors and cancellation
 
-A guest that raises comes back as an ordinary Go error and leaves the
-interpreter usable. Unwrap it to read which exception was raised, rather than
-matching on the message:
+A Python exception returns a Go error and normally leaves the interpreter
+usable. Use `errors.As` to inspect it:
 
 ```go
 var exc *micropython.PythonError
@@ -344,32 +297,26 @@ if _, err := in.Call(ctx, "lookup", "missing"); errors.As(err, &exc) {
 }
 ```
 
-A call stops when its context does, returning the context's error. An `Instance`
-can also be interrupted from another goroutine with `Cancel`, which raises
-`KeyboardInterrupt` in the running code.
+Pass a context with a deadline to interpreter operations to limit execution.
+Cancellation returns the operation context's error. `Instance.Cancel` requests
+a `KeyboardInterrupt` in the current Python operation.
 
-Both are best effort. The request lands at the next VM hook, so a guest inside
-one long C-level operation, such as a regex match or a big-integer multiply,
-does not stop until that finishes.
+Canceling a `Run` context also requests interruption of the current operation.
+Pass that context to the borrowed methods as well so later calls observe its
+cancellation. The Go callback must handle cancellation of its own work.
+
+Cancellation is best effort. Long C operations, blocking filesystem calls, and
+stdout writes can delay it. Host callbacks must cooperate with their context.
 
 ## Limitations
 
-MicroPython is not CPython, and this build is not a stock MicroPython either. It
-compiles at `MICROPY_CONFIG_ROM_LEVEL_MINIMUM` plus roughly forty explicit
-flags, so the surface is smaller than either. The [MicroPython
-docs](https://docs.micropython.org/en/latest/genrst/index.html) cover how
-MicroPython itself differs from CPython.
-
-The ones that catch people out:
+This build includes a subset of MicroPython's features and standard library.
+It is not a drop-in replacement for CPython.
 
 - **No `async` or `await`.** Both are a `SyntaxError` in this build.
-- **Some builtins are missing**, `min`, `max` and `enumerate` among them. Each
-  is a one-line flag in [`build/mpconfigport.h`](./build/mpconfigport.h).
-- **Recursion is bounded** to roughly 340-385 Python frames by the host C stack
-  (`MICROPY_C_STACK_SIZE`, 96 KiB). Overflowing raises a catchable
-  `RuntimeError`.
-- **Structs convert through JSON.** Scalars, maps and slices take a direct
-  path, so prefer maps on hot paths.
+- **Recursion is bounded.** Exceeding the limit raises `RuntimeError`.
+- **The heap limit is not a total memory limit.** `WithHeapSize` controls the
+  Python heap, not all interpreter and host allocations.
 
 ## Contributing
 
@@ -378,15 +325,12 @@ primarily in Go, and those parts were written with AI assistance.
 
 Go changes need nothing beyond `go test ./...`. Changing the C sources or the
 build configuration means recompiling the WebAssembly module and regenerating
-its Go translation, which needs
-[wasi-sdk](https://github.com/WebAssembly/wasi-sdk) 25+ and
-[Binaryen](https://github.com/WebAssembly/binaryen). Binaryen's
-`--spill-pointers` pass is what makes the generated module safe for Go's garbage
-collector.
+its Go translation, which needs [wasi-sdk](https://github.com/WebAssembly/wasi-sdk)
+and [Binaryen](https://github.com/WebAssembly/binaryen).
 
 ```bash
-git submodule update --init            # MicroPython v1.28.0
-export WASI_SDK=/path/to/wasi-sdk-25.0
+git submodule update --init
+export WASI_SDK=/path/to/wasi-sdk
 export BINARYEN=/path/to/binaryen
 ./build/build.sh                       # regenerates internal/micropython
 go test ./...

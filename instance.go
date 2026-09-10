@@ -187,7 +187,7 @@ func hostFunc(fn HostFunc) host.HostFunc {
 
 // Cancel requests a KeyboardInterrupt in the current Python execution.
 // It is safe from any goroutine and does not affect the next operation.
-// Interruption is best effort: long C-level operations may delay it.
+// Interruption is best effort: long C operations and blocking host I/O may delay it.
 func (i *Instance) Cancel() error {
 	if i.wrapped == nil {
 		return ErrInstanceNotInitialised
@@ -212,8 +212,8 @@ func (i *Instance) Call(ctx context.Context, name string, args ...any) (Value, e
 }
 
 // Clone copies the current Python state into a new, caller-owned Instance.
-// It briefly locks the source. Go callback closures and output writers are shared;
-// guest handles cannot be transferred between instances.
+// It locks the source while copying. Go callbacks, output writers, and filesystem
+// backends are shared; guest handles cannot be transferred between instances.
 // Close Python sockets, files, and directory iterators before cloning.
 func (i *Instance) Clone(ctx context.Context) (*Instance, error) {
 	if i.wrapped == nil {

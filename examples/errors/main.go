@@ -23,7 +23,7 @@ def spin():
 func main() {
 	ctx := context.Background()
 
-	p, err := micropython.Compile(ctx, src)
+	p, err := micropython.NewProgram(ctx, micropython.WithSource(src))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -32,7 +32,7 @@ func main() {
 	// A raise comes back as an ordinary Go error carrying the exception, so
 	// callers branch on the class rather than on the message.
 	var exc *micropython.PythonError
-	err = p.Run(ctx, func(ctx context.Context, in *micropython.OwnedInstance) error {
+	err = p.Run(ctx, func(in *micropython.BorrowedInstance) error {
 		_, err := in.Call(ctx, "lookup", "missing")
 		return err
 	})
@@ -42,7 +42,7 @@ func main() {
 
 	// The interpreter is unharmed: the failure was the guest's.
 	var got micropython.Value
-	if err := p.Run(ctx, func(ctx context.Context, in *micropython.OwnedInstance) error {
+	if err := p.Run(ctx, func(in *micropython.BorrowedInstance) error {
 		v, err := in.Call(ctx, "lookup", "a")
 		got = v
 		return err
@@ -56,8 +56,8 @@ func main() {
 	deadline, cancel := context.WithTimeout(ctx, 100*time.Millisecond)
 	defer cancel()
 
-	err = p.Run(deadline, func(ctx context.Context, in *micropython.OwnedInstance) error {
-		_, err := in.Call(ctx, "spin")
+	err = p.Run(deadline, func(in *micropython.BorrowedInstance) error {
+		_, err := in.Call(deadline, "spin")
 		return err
 	})
 	if errors.Is(err, context.DeadlineExceeded) {
