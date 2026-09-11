@@ -26,7 +26,7 @@ without compromising the host application.
 
 I wanted a sandboxed way for users to execute Python(-ic) code within a Go
 application, without the overhead of embedding CPython—and so `micropython-go`
-was born 🐍🦫
+was born 🐍🦫 [^1]
 
 - **Why MicroPython?** Designed initially for embedded systems and
   microcontrollers, MicroPython strikes a brilliant balance between resource
