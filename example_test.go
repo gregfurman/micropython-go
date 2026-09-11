@@ -6,6 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net"
+	"os"
+	"strings"
+	"testing"
 	"testing/fstest"
 	"time"
 
@@ -34,6 +38,116 @@ func Example() {
 
 	// Output:
 	// 20
+}
+
+func ExampleValue_AsInt() {
+	ctx := context.Background()
+	in, err := micropython.NewInstance(ctx)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer in.Close()
+
+	if err := in.Set(ctx, "numbers", []int{1, 2, 3}); err != nil {
+		log.Fatal(err)
+	}
+	got, err := in.Eval(ctx, "sum(numbers)")
+	if err != nil {
+		log.Fatal(err)
+	}
+	n, err := got.AsInt()
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(n)
+	// Output: 6
+}
+
+func ExampleNewInstance_startup() {
+	ctx := context.Background()
+
+	in, err := micropython.NewInstance(ctx,
+		micropython.WithGlobals(micropython.Globals{"LOCATION": "New York"}),
+		micropython.WithSource(`greeting = "Hello from " + LOCATION`),
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer in.Close()
+
+	got, err := in.Get(ctx, "greeting")
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(got.Export())
+	// Output: Hello from New York
+}
+
+func ExampleProgram_Run_basic() {
+	ctx := context.Background()
+	p, err := micropython.NewProgram(ctx,
+		micropython.WithSource("def double(x): return x * 2"),
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer p.Close()
+
+	err = p.Run(ctx, func(in *micropython.BorrowedInstance) error {
+		got, err := in.Call(ctx, "double", 10)
+		if err != nil {
+			return err
+		}
+		fmt.Println(got.Export())
+		return nil
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+	// Output: 20
+}
+
+func TestREADMESandbox(t *testing.T) {
+	ctx := t.Context()
+	dir := t.TempDir()
+	if err := os.WriteFile(dir+"/message.txt", []byte("hello"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer root.Close()
+
+	in, err := micropython.NewInstance(ctx,
+		micropython.WithStdout(os.Stdout),
+		micropython.WithEnv("ENV", "dev"),
+		micropython.WithFS(root.FS()),
+		micropython.WithTCPAccess("127.0.0.1", 8000),
+		micropython.WithTCPAccess(micropython.AnyAddress, 443),
+		micropython.WithDNSResolver(net.DefaultResolver),
+		micropython.WithHeapSize(256*1024),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer in.Close()
+
+	if err := in.Exec(ctx, `
+import os
+assert os.getenv("ENV") == "dev"
+with open("/message.txt") as f:
+    assert f.read() == "hello"
+try:
+    with open("/message.txt", "w"):
+        pass
+except OSError:
+    pass
+else:
+    raise AssertionError("filesystem must be read-only")
+`); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func ExampleNewInstance_readOnlyFiles() {
@@ -258,4 +372,87 @@ func ExamplePythonError() {
 	// Output:
 	// KeyError / missing
 	// 1
+}
+
+func ExampleOption_from_host() {
+	ctx := context.Background()
+
+	src := `def is_louder(greeting): return greeting.isupper()`
+
+	instance, err := micropython.NewInstance(ctx,
+		micropython.WithSource(src),
+		micropython.WithGlobals(micropython.Globals{
+			"LOCATION":      micropython.Str("New York"),
+			"SERVICE_COUNT": micropython.Int(42),
+		}),
+		micropython.WithHostFunc("louder",
+			func(ctx context.Context, args []micropython.Value) (micropython.Value, error) {
+				greet, err := args[0].AsString()
+				if err != nil {
+					return micropython.Value{}, err
+				}
+
+				return micropython.Str(strings.ToUpper(greet)), nil
+			}),
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer instance.Close()
+
+	result, err := instance.Eval(ctx, `(
+    f"{louder('hello from ' + LOCATION)} "
+    f"({SERVICE_COUNT} services), "
+    f"loud: {is_louder(louder('hi'))}"
+)`)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	out, err := result.AsString()
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(out)
+
+	// Output:
+	// HELLO FROM NEW YORK (42 services), loud: True
+}
+
+func ExampleOption_sandbox() {
+	ctx := context.Background()
+
+	root, _ := os.OpenRoot("./testdata/filesystem")
+	instance, err := micropython.NewInstance(ctx,
+		micropython.WithStdout(os.Stdout),                      // redirect all print() to host's STDOUT
+		micropython.WithEnv("ENV", "dev"),                      // the only variable os.getenv can see
+		micropython.WithFS(root.FS()),                          // provide read-only access to in-memory FS
+		micropython.WithTCPAccess("127.0.0.1", 8000),           // this address and port, outbound
+		micropython.WithTCPAccess(micropython.AnyAddress, 443), // any address, but only port 443
+		micropython.WithDNSResolver(net.DefaultResolver),       // needed for DNS resolution
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer instance.Close()
+
+	script := `
+import os
+
+print("env:", os.getenv("ENV"))
+print("mounted:", os.listdir("/"))
+
+with open("hello.txt") as f:
+    print("file:", f.read().strip())
+`
+
+	if err := instance.Exec(ctx, script); err != nil {
+		log.Fatal(err)
+	}
+
+	// Output:
+	// env: dev
+	// mounted: ['hello.txt']
+	// file: hello from the sandbox
 }
