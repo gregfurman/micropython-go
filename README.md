@@ -82,6 +82,16 @@ An `Instance` keeps Python state between calls. Create one with
 `NewInstance(ctx)` and close it when done. Calls are serialized; use separate
 instances for parallel execution.
 
+```go
+in, _ := micropython.NewInstance(ctx,
+	micropython.WithSource("def double(x): return x * 2"),
+)
+defer in.Close()
+
+got, _ := in.Call(ctx, "double", 10)
+fmt.Println(got.Export()) // 20
+```
+
 ### Program
 
 A `Program` initializes Python once and saves its state. Each `Run` borrows
@@ -116,9 +126,10 @@ Use options to set globals, register Go callbacks, and run initialization code.
 The same options work with `NewInstance` and `NewProgram`.
 
 ```go
+// Define your Go callback
 louder := func(_ context.Context, args []micropython.Value) (micropython.Value, error) {
 	if len(args) != 1 {
-		return micropython.Value{}, micropython.Raise("TypeError", "host_louder expects one string")
+		return micropython.Value{}, micropython.Raise("ValueError", "expected a single arg")
 	}
 	msg, err := args[0].AsString()
 	if err != nil {
@@ -126,6 +137,8 @@ louder := func(_ context.Context, args []micropython.Value) (micropython.Value, 
 	}
 	return micropython.Str(strings.ToUpper(msg)), nil
 }
+
+// Create an Instance
 in, _ := micropython.NewInstance(ctx,
 	micropython.WithGlobals(micropython.Globals{"LOCATION": "New York"}), // define a global
 	micropython.WithHostFunc("host_louder", louder),                      // expose a Go callback
