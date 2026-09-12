@@ -55,4 +55,6 @@ jobs:
       run: make wasm2go
 
     - name: Verify
-      run: git diff-index --quiet HEAD || { >&2 echo "Generated files in internal/micropython are out of date. Run 'make wasm2go' and commit the result."; exit 1; }
+      run: |
+        git add -A -- internal/micropython
+        git diff --cached --stat --exit-code -- internal/micropython || { >&2 echo "Generated files in internal/micropython are out of date. Run 'make wasm2go' and commit the result."; exit 1; }
