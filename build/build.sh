@@ -7,10 +7,6 @@ ROOT=..
 WASI_SDK="${WASI_SDK:-$ROOT/tools/wasi-sdk}/bin"
 BINARYEN="${BINARYEN:-$ROOT/tools/binaryen}/bin"
 
-# NOTE: we pin the source date of the micropython submodule within build. If this changes (i.e a version updates) then 
-# our build job should be regenerated.
-export SOURCE_DATE_EPOCH="${SOURCE_DATE_EPOCH:-$(git -C "$ROOT/micropython" log -1 --format=%ct)}"
-
 EXTMOD_SRCS="$ROOT/micropython/extmod/modjson.c \
 	$ROOT/micropython/extmod/modre.c \
 	$ROOT/micropython/extmod/modos.c \
@@ -24,6 +20,9 @@ go tool libc-gen -c-out "$ROOT/libc"
 
 trap 'rm -f micropython' EXIT
 
+MICROPY_GIT_TAG="${MICROPY_GIT_TAG:-$(git -C "$ROOT/micropython" describe --tags --exact-match)}" \
+MICROPY_GIT_HASH="${MICROPY_GIT_HASH:-$(git -C "$ROOT/micropython" rev-parse --short=7 HEAD)}" \
+SOURCE_DATE_EPOCH="${SOURCE_DATE_EPOCH:-$(git -C "$ROOT/micropython" log -1 --format=%ct)}" \
 make V=1 -f micropython_embed.mk \
 	ROOT="$ROOT" \
 	BUILD=build-embed \
