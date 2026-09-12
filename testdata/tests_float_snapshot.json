@@ -329,6 +329,11 @@
             "stdout": "-1e+01\n1e+02\n"
         }
     },
+    "micropython/tests/float/string_fstring.py": {
+        "recorded": {
+            "stdout": "  3.1\n  3.1\n"
+        }
+    },
     "micropython/tests/float/true_value.py": {
         "recorded": {
             "stdout": "float 0\ncomplex 0\n"
