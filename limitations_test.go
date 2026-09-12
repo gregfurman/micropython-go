@@ -17,11 +17,14 @@ import (
 
 func raises(t *testing.T, in *Instance, src string) *PythonError {
 	t.Helper()
+
 	err := in.Exec(context.Background(), src)
+
 	var exc *PythonError
 	if !errors.As(err, &exc) {
 		t.Fatalf("%s\n\tgave %v (%T), want a *PythonError", src, err, err)
 	}
+
 	return exc
 }
 
@@ -51,6 +54,7 @@ func TestLimitImportCannotReachRealFiles(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "sidecar.py"), []byte("VALUE = 1\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
+
 	t.Chdir(dir)
 
 	in := newT(t)
@@ -99,9 +103,11 @@ func TestLimitNoSysStreams(t *testing.T) {
 	if err := in.Exec(t.Context(), "import sys"); err != nil {
 		t.Fatalf("import sys: %v", err)
 	}
+
 	if got, err := in.Eval(t.Context(), "sys.platform"); err != nil || got.Export() != "wasi" {
 		t.Errorf("sys.platform = %#v, %v; want \"wasi\"", got, err)
 	}
+
 	for _, stream := range []string{"sys.stdout", "sys.stderr", "sys.stdin"} {
 		if got := raises(t, in, stream).Type(); got != "AttributeError" {
 			t.Errorf("%s raised %s, want AttributeError", stream, got)
@@ -113,10 +119,12 @@ func TestLimitPrintGoesToWithStdoutNotHostStdout(t *testing.T) {
 	// print() reaches the writer given to WithStdout, and (most importantly...)
 	// nothing reaches the host's stdout.
 	var out bytes.Buffer
+
 	in, err := NewInstance(t.Context(), WithStdout(&out))
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	t.Cleanup(func() { in.Close() })
 
 	onStdout := captureStdout(t, func() {
@@ -131,6 +139,7 @@ print("second", 2)
 	if want := "first\nsecond 2\n"; out.String() != want {
 		t.Errorf("WithStdout received %q, want %q", out.String(), want)
 	}
+
 	if onStdout != "" {
 		t.Errorf("the process's stdout received %q, want nothing", onStdout)
 	}
@@ -138,9 +147,11 @@ print("second", 2)
 	// The sink is shared across calls, so a caller wanting one Exec's output on
 	// its own resets between them.
 	out.Reset()
+
 	if err := in.Exec(t.Context(), `print("third")`); err != nil {
 		t.Fatal(err)
 	}
+
 	if got, want := out.String(), "third\n"; got != want {
 		t.Errorf("second Exec wrote %q, want %q", got, want)
 	}
@@ -148,14 +159,17 @@ print("second", 2)
 
 func captureStdout(t *testing.T, fn func()) string {
 	t.Helper()
+
 	r, w, err := os.Pipe()
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	orig := os.Stdout
 	os.Stdout = w
 
 	read := make(chan string, 1)
+
 	go func() {
 		b, _ := io.ReadAll(r)
 		read <- string(b)
@@ -164,7 +178,9 @@ func captureStdout(t *testing.T, fn func()) string {
 	fn()
 
 	os.Stdout = orig
+
 	w.Close()
+
 	return <-read
 }
 
@@ -217,10 +233,12 @@ func TestLimitStackDepth(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+
 			depth, ok := got.Export().(int64)
 			if !ok {
 				t.Fatalf("depth = %#v (%T), want int64", got, got)
 			}
+
 			if depth < minFrames || depth > maxFrames {
 				t.Errorf("recursed %d frames, outside the %d-%d the README documents",
 					depth, minFrames, maxFrames)
@@ -236,6 +254,7 @@ func TestLimitStackDepth(t *testing.T) {
 
 func TestLimitStructsGoThroughJSON(t *testing.T) {
 	ctx := context.Background()
+
 	in := newT(t)
 	if err := in.Exec(ctx, `
 def keys(v):
@@ -254,6 +273,7 @@ def get(v, k):
 		Omit   string  `json:"-"`
 		hidden string
 	}
+
 	arg := row{ID: "r-1", Count: 2, Ratio: 0.5, Omit: "x", hidden: "y"}
 	_ = arg.hidden
 
@@ -263,6 +283,7 @@ def get(v, k):
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	if want := []any{"count", "id", "ratio"}; fmt.Sprint(got) != fmt.Sprint(want) {
 		t.Errorf("struct keys = %#v, want %#v", got, want)
 	}
@@ -287,6 +308,7 @@ def get(v, k):
 	if v, err := in.Call(ctx, "keys", direct); err != nil || fmt.Sprint(v) != "[Count ID]" {
 		t.Errorf("map keys = %#v, %v; want [Count ID]", v, err)
 	}
+
 	if v, err := in.Call(ctx, "get", direct, "Count"); err != nil || v.Export() != int64(2) {
 		t.Errorf(`get(map, "Count") = %#v (%T), %v; want int64(2)`, v, v, err)
 	}
@@ -294,6 +316,7 @@ def get(v, k):
 
 func TestLimitUnmarshalableStructIsRejected(t *testing.T) {
 	ctx := context.Background()
+
 	in := newT(t)
 	if err := in.Exec(ctx, "def echo(v):\n    return v\n"); err != nil {
 		t.Fatal(err)
@@ -317,6 +340,7 @@ func TestLimitUnmarshalableStructIsRejected(t *testing.T) {
 // a reference to the same guest object instead, the way any other object does.
 func TestRefCycleGuest(t *testing.T) {
 	ctx := context.Background()
+
 	in := newT(t)
 	if err := in.Exec(ctx, "a = [1]\na.append(a)\ndef same(x):\n    return x is a\n"); err != nil {
 		t.Fatal(err)
@@ -326,10 +350,12 @@ func TestRefCycleGuest(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	items, err := val.AsList()
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	if len(items) != 2 || items[0].Export() != int64(1) {
 		t.Fatalf("a = %#v, want [1, a]", items)
 	}
@@ -348,10 +374,12 @@ func TestRefCycleGuest(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	inner, err := again.AsList()
 	if err != nil {
 		t.Fatalf("resolved cycle: %v", err)
 	}
+
 	if len(inner) != 2 || inner[0].Export() != int64(1) || inner[1].Type() != "list" {
 		t.Fatalf("resolved a = %#v, want [1, a]", inner)
 	}
@@ -361,6 +389,7 @@ func TestRefCycleGuest(t *testing.T) {
 	if err := in.Exec(ctx, "d = {}\nd['self'] = d\nb = []\nb.append([b])\n"); err != nil {
 		t.Fatal(err)
 	}
+
 	for _, expr := range []string{"d", "b"} {
 		if _, err := in.Eval(ctx, expr); err != nil {
 			t.Errorf("%s: %v", expr, err)
@@ -374,29 +403,37 @@ func TestRefCycleGuest(t *testing.T) {
 	if err := in.Exec(ctx, deep); err != nil {
 		t.Fatal(err)
 	}
+
 	nested, err := in.Eval(ctx, "z")
 	if err != nil {
 		t.Fatalf("deeply nested list: %v", err)
 	}
+
 	depth := 0
+
 	for {
 		items, err := nested.AsList()
 		if err != nil || len(items) == 0 {
 			break
 		}
+
 		nested = items[0]
 		depth++
 	}
+
 	if depth != 128 {
 		t.Errorf("copied out %d levels, want the %d the walk bounds itself to", depth, 128)
 	}
+
 	if _, err := nested.AsObject(); err != nil {
 		t.Fatalf("level %d is %#v, want a handle: %v", depth, nested, err)
 	}
+
 	rest, err := in.Resolve(ctx, nested)
 	if err != nil {
 		t.Fatalf("resolving the level at the bound: %v", err)
 	}
+
 	if _, err := rest.AsList(); err != nil {
 		t.Errorf("the handle does not read back as a list: %v", err)
 	}

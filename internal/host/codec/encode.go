@@ -38,6 +38,7 @@ func (c *Codec) EncodeInto(a *memory.Arena, ptr int32, v any) error {
 	if err != nil {
 		return err
 	}
+
 	return c.encodeValueInto(a, ptr, lowered)
 }
 
@@ -47,15 +48,18 @@ func (c *Codec) encodeValueInto(a *memory.Arena, ptr int32, v value.Value) (err 
 		if recovered == nil {
 			return
 		}
+
 		failure, ok := recovered.(encodeFailure)
 		if !ok {
 			panic(recovered)
 		}
+
 		err = failure.err
 	}()
 
 	e := &encoder{codec: c, arena: a}
 	e.put(ptr, e.encode(v))
+
 	return nil
 }
 
@@ -67,9 +71,11 @@ func (c *Codec) EncodeErrorInto(a *memory.Arena, ptr int32, target error) error 
 	if pyErr, ok := errors.AsType[*value.Exception](target); ok {
 		typ, msg = pyErr.Type(), pyErr.Message()
 	}
+
 	if strings.ContainsRune(typ, '\x04') {
 		return fmt.Errorf("exception type %q contains the field separator", typ)
 	}
+
 	return c.encodeValueInto(a, ptr, value.NewException(typ, msg))
 }
 
@@ -77,8 +83,11 @@ func (c *Codec) EncodeErrorInto(a *memory.Arena, ptr int32, target error) error 
 // when even the error text will not fit.
 func (c *Codec) EncodeEmptyErrorInto(a *memory.Arena, ptr int32) error {
 	e := &encoder{codec: c, arena: a}
+
 	defer func() { _ = recover() }()
+
 	e.put(ptr, Value{Kind: KindException})
+
 	return nil
 }
 
@@ -88,6 +97,7 @@ func (e *encoder) must(ptr int32, err error) int32 {
 	if err != nil {
 		e.fail(err)
 	}
+
 	return ptr
 }
 
@@ -99,6 +109,7 @@ func (e *encoder) encode(v value.Value) Value {
 	if e.depth > value.MaxDepth {
 		e.fail(fmt.Errorf("micropython: value nested deeper than %d levels", value.MaxDepth))
 	}
+
 	e.depth++
 	defer func() { e.depth-- }()
 
@@ -111,6 +122,7 @@ func (e *encoder) encode(v value.Value) Value {
 		if x {
 			word = 1
 		}
+
 		return Value{Kind: KindBool, W1: word}
 
 	case value.Int:
@@ -152,10 +164,12 @@ func (e *encoder) encode(v value.Value) Value {
 		if x.Handle() == nil {
 			e.fail(fmt.Errorf("micropython: %s is not bound to an interpreter", x.Type()))
 		}
+
 		id, err := e.codec.refs.Lookup(x.Handle())
 		if err != nil {
 			e.fail(err)
 		}
+
 		return Value{Kind: KindObject, W1: id}
 	}
 
@@ -164,7 +178,9 @@ func (e *encoder) encode(v value.Value) Value {
 	if err, ok := value.Lift(v).(error); ok {
 		e.fail(err)
 	}
+
 	e.fail(fmt.Errorf("micropython: cannot pass %s to Python", v.Type()))
+
 	return Value{}
 }
 
@@ -172,7 +188,9 @@ func (e *encoder) blob(kind Kind, data []byte) Value {
 	if len(data) == 0 {
 		return Value{Kind: kind}
 	}
+
 	ptr := e.must(e.arena.Bytes(data))
+
 	return Value{Kind: kind, W1: uint32(len(data)), W2: uint32(ptr)}
 }
 
@@ -183,6 +201,7 @@ func (e *encoder) seq(kind Kind, items []value.Value) Value {
 	if len(items) == 0 {
 		return Value{Kind: kind}
 	}
+
 	if len(items) > math.MaxInt32/ValueSize {
 		e.fail(fmt.Errorf("sequence too large: %d entries", len(items)))
 	}
@@ -191,6 +210,7 @@ func (e *encoder) seq(kind Kind, items []value.Value) Value {
 	for i, item := range items {
 		e.put(block+int32(i)*ValueSize, e.encode(item))
 	}
+
 	return Value{Kind: kind, W1: uint32(len(items)), W2: uint32(block)}
 }
 
@@ -200,6 +220,7 @@ func (e *encoder) dict(entries []value.Item) Value {
 	if len(entries) == 0 {
 		return Value{Kind: KindDict}
 	}
+
 	if len(entries) > math.MaxInt32/(2*ValueSize) {
 		e.fail(fmt.Errorf("dict too large: %d entries", len(entries)))
 	}
@@ -209,6 +230,7 @@ func (e *encoder) dict(entries []value.Item) Value {
 		e.put(block+int32(2*i)*ValueSize, e.encode(entry.Key))
 		e.put(block+int32(2*i+1)*ValueSize, e.encode(entry.Val))
 	}
+
 	return Value{Kind: KindDict, W1: uint32(len(entries)), W2: uint32(block)}
 }
 
@@ -217,5 +239,6 @@ func (e *encoder) put(ptr int32, v Value) {
 	if err != nil {
 		e.fail(err)
 	}
+
 	v.MarshalWords(buf)
 }

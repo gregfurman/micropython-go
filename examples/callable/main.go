@@ -24,6 +24,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	fmt.Println("callable:", got.IsCallable())
 
 	double, err := in.AsCallable(got)
@@ -35,6 +36,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	fmt.Println("double(21):", out)
 
 	// Passing it back hands Python the same function object, so builtins that
@@ -48,5 +50,6 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	fmt.Println("mapped:", mapped.Export())
 }

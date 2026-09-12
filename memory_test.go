@@ -21,18 +21,22 @@ const memSlack = 4096
 // starts with Begin.
 func guestFree(t *testing.T, in *Instance) int64 {
 	t.Helper()
+
 	ctx := context.Background()
 	if err := in.Exec(ctx, "gc.collect()"); err != nil {
 		t.Fatal(err)
 	}
+
 	v, err := in.Eval(ctx, "gc.mem_free()")
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	n, err := v.AsInt()
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	return n
 }
 
@@ -41,13 +45,16 @@ func guestFree(t *testing.T, in *Instance) int64 {
 // found them, so a bare runtime.GC can return before any ref was queued.
 func waitForCleanups(t *testing.T) {
 	t.Helper()
+
 	for range 3 {
 		done := make(chan struct{})
+
 		func() {
 			sentinel := new([64]byte)
 			runtime.AddCleanup(sentinel, func(c chan struct{}) { close(c) }, done)
 		}()
 		runtime.GC()
+
 		select {
 		case <-done:
 		case <-time.After(5 * time.Second):
@@ -58,10 +65,12 @@ func waitForCleanups(t *testing.T) {
 
 func newMemProbe(t *testing.T) *Instance {
 	t.Helper()
+
 	in := newT(t)
 	if err := in.Exec(context.Background(), "import gc"); err != nil {
 		t.Fatal(err)
 	}
+
 	return in
 }
 
@@ -69,6 +78,7 @@ func newMemProbe(t *testing.T) *Instance {
 // cleanups queued.
 func applyPendingReleases(t *testing.T, in *Instance) {
 	t.Helper()
+
 	if _, err := in.Eval(context.Background(), "1"); err != nil {
 		t.Fatal(err)
 	}
@@ -78,12 +88,15 @@ func applyPendingReleases(t *testing.T, in *Instance) {
 // does not leak on its own, so anything the host loses is the host's.
 func TestMemoryPureGuestEvalLoop(t *testing.T) {
 	in := newMemProbe(t)
+
 	base := guestFree(t, in)
 	if err := in.Exec(t.Context(), "for _ in range(500):\n    eval('lambda: 1')\n"); err != nil {
 		t.Fatal(err)
 	}
+
 	delta := guestFree(t, in) - base
 	t.Logf("pure guest, 500x eval('lambda: 1'):   delta=%+d", delta)
+
 	if delta < -memSlack {
 		t.Errorf("plain MicroPython lost %d bytes; the host is no longer the explanation", -delta)
 	}
@@ -93,14 +106,17 @@ func TestMemoryPureGuestEvalLoop(t *testing.T) {
 // a copyable result so no handle is ever minted.
 func TestMemoryHostEvalCopyableResult(t *testing.T) {
 	in := newMemProbe(t)
+
 	base := guestFree(t, in)
 	for range 500 {
 		if _, err := in.Eval(t.Context(), "1"); err != nil {
 			t.Fatal(err)
 		}
 	}
+
 	delta := guestFree(t, in) - base
 	t.Logf(`host, 500x Eval("1"), no handle:      delta=%+d`, delta)
+
 	if delta < -memSlack {
 		t.Errorf("a handle-free round trip cost %d bytes", -delta)
 	}
@@ -109,12 +125,14 @@ func TestMemoryHostEvalCopyableResult(t *testing.T) {
 // The limitation itself: handles minted faster than Go collects them.
 func TestMemoryHostEvalHandleResult(t *testing.T) {
 	in := newMemProbe(t)
+
 	base := guestFree(t, in)
 	for range 500 {
 		if _, err := in.Eval(t.Context(), "lambda: 1"); err != nil {
 			t.Fatal(err)
 		}
 	}
+
 	held := base - guestFree(t, in)
 
 	// Whatever is still held is dominated by the lambdas themselves, at 48
@@ -124,6 +142,7 @@ func TestMemoryHostEvalHandleResult(t *testing.T) {
 	// collector happened to run during the loop, so this only logs.
 	t.Logf(`host, 500x Eval("lambda: 1"): held=%d bytes (<= %d if none were released)`,
 		held, 500*(48+4))
+
 	if held <= 0 {
 		t.Fatal("expected deferred release to hold guest memory")
 	}
@@ -133,12 +152,14 @@ func TestMemoryHostEvalHandleResult(t *testing.T) {
 // attributable to release timing.
 func TestMemoryForcedGCRecoversMost(t *testing.T) {
 	in := newMemProbe(t)
+
 	base := guestFree(t, in)
 	for range 500 {
 		if _, err := in.Eval(t.Context(), "lambda: 1"); err != nil {
 			t.Fatal(err)
 		}
 	}
+
 	stalled := base - guestFree(t, in)
 
 	waitForCleanups(t)
@@ -147,6 +168,7 @@ func TestMemoryForcedGCRecoversMost(t *testing.T) {
 
 	t.Logf("without GC=%d bytes, after a forced GC=%d bytes (recovered %d)",
 		stalled, remaining, stalled-remaining)
+
 	if remaining >= stalled {
 		t.Error("forcing the Go collector recovered nothing")
 	}
@@ -156,24 +178,29 @@ func TestMemoryForcedGCRecoversMost(t *testing.T) {
 // reference table's high-water mark, at roughly 4 bytes per slot.
 func TestMemoryResidualScalesWithPeak(t *testing.T) {
 	var atPeak1, atPeak500 int64
+
 	for _, every := range []int{1, 10, 100, 500} {
 		in := newMemProbe(t)
+
 		base := guestFree(t, in)
 		for n := range 500 {
 			if _, err := in.Eval(t.Context(), "lambda: 1"); err != nil {
 				t.Fatal(err)
 			}
+
 			if (n+1)%every == 0 {
 				waitForCleanups(t)
 				applyPendingReleases(t, in)
 			}
 		}
+
 		waitForCleanups(t)
 		applyPendingReleases(t, in)
 
 		held := base - guestFree(t, in)
 		t.Logf("500 evals, released every %3d (peak ~%3d live): held=%d bytes",
 			every, every, held)
+
 		switch every {
 		case 1:
 			atPeak1 = held
@@ -181,9 +208,11 @@ func TestMemoryResidualScalesWithPeak(t *testing.T) {
 			atPeak500 = held
 		}
 	}
+
 	if atPeak1 > memSlack {
 		t.Errorf("releasing every iteration still held %d bytes", atPeak1)
 	}
+
 	if atPeak500 <= atPeak1 {
 		t.Error("residual did not grow with peak concurrent handles")
 	}
@@ -201,13 +230,16 @@ func TestMemoryStalledReleaseExhaustsASmallHeap(t *testing.T) {
 	defer in.Close()
 
 	in.Exec(t.Context(), "import gc")
+
 	for n := range 20000 {
 		if _, err := in.Eval(t.Context(), "lambda: 1"); err != nil {
 			t.Logf("MemoryError after %d iterations on a 64KB heap: %v", n, err)
 			return
 		}
+
 		in.Eval(t.Context(), "gc.collect()")
 	}
+
 	t.Error("20000 handles minted without a MemoryError: either release stopped" +
 		" depending on Go's collector, or the limitation no longer holds")
 }
@@ -226,6 +258,7 @@ func TestMemoryPromptReleaseSurvivesTheSameHeap(t *testing.T) {
 		if _, err := in.Eval(t.Context(), "lambda: 1"); err != nil {
 			t.Fatalf("failed at iteration %d despite releasing as we go: %v", n, err)
 		}
+
 		if (n+1)%50 == 0 {
 			waitForCleanups(t)
 			applyPendingReleases(t, in)

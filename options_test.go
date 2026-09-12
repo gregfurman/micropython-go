@@ -23,6 +23,7 @@ func TestDNSResolverLastCallWins(t *testing.T) {
 			if err == nil {
 				t.Cleanup(func() { in.Close() })
 			}
+
 			if (err != nil) != tc.wantErr {
 				t.Fatalf("got %v, want an error: %v", err, tc.wantErr)
 			}

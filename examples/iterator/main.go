@@ -51,10 +51,12 @@ def squares(n):
 		if err != nil {
 			log.Fatal(err)
 		}
+
 		if n > 9 {
 			fmt.Println("stopping at", n)
 			break
 		}
+
 		fmt.Println("square:", n)
 	}
 }

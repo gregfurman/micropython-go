@@ -35,6 +35,7 @@ func TestSnapshot(t *testing.T) {
 		}
 
 		suiteFile := path.Join("testdata", entry.Name())
+
 		contents, err := snapshotsFS.ReadFile(suiteFile)
 		if err != nil {
 			t.Fatalf("could not read %s: %v", entry.Name(), err)
@@ -67,9 +68,11 @@ func runSuite(t *testing.T, contents []byte) {
 			if why := skipReason(testPath); why != "" {
 				t.Skip(why)
 			}
+
 			t.Logf("running: %s", testPath)
 
 			var out bytes.Buffer
+
 			in, err := NewInstance(t.Context(), WithStdout(&out))
 			if err != nil {
 				t.Fatalf("could not create Instance: %v", err)
@@ -89,10 +92,13 @@ func runSuite(t *testing.T, contents []byte) {
 				} else {
 					errDetails = err.Error()
 				}
+
 				t.Log(out.String())
 				t.Errorf("Instance.Exec failed with exception:\n%s", errDetails)
+
 				return
 			}
+
 			if want, got := snap.Recorded.Stdout, out.String(); want != got {
 				t.Errorf("unexpected stdout:\nwant: %q\ngot:  %q", want, got)
 			}

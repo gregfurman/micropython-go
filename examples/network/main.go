@@ -49,6 +49,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	allowed, err := strconv.Atoi(port)
 	if err != nil {
 		log.Fatal(err)
@@ -71,6 +72,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	fmt.Println(body.Export())
 
 	// A port nobody granted is refused before a socket is opened, with the same
@@ -80,5 +82,6 @@ func main() {
 	if err := in.Exec(ctx, fmt.Sprintf("get(%q, %d, '/')", host, allowed+1)); !errors.As(err, &exc) {
 		log.Fatalf("expected a Python error, got %v", err)
 	}
+
 	fmt.Printf("ungranted port: %s %s\n", exc.Type(), exc.Message())
 }

@@ -11,21 +11,26 @@ import (
 // Four pages leaves room to stage a value past maxValueLength in guest memory.
 func newTestEnv(t *testing.T, vars map[string]string) *Environment {
 	t.Helper()
+
 	e := New(memory.New(4, 8), vars)
 	t.Cleanup(e.Close)
+
 	return e
 }
 
 func put(t *testing.T, e *Environment, ptr int32, value string) int32 {
 	t.Helper()
+
 	if err := e.mem.Write(ptr, []byte(value)); err != nil {
 		t.Fatal(err)
 	}
+
 	return int32(len(value))
 }
 
 func want(t *testing.T, got, expected int32) {
 	t.Helper()
+
 	if got != expected {
 		t.Fatalf("got %d, want %d", got, expected)
 	}
@@ -35,18 +40,22 @@ func want(t *testing.T, got, expected int32) {
 func read(t *testing.T, e *Environment, name string, capacity int32) (int32, string) {
 	t.Helper()
 	size := put(t, e, 0, name)
+
 	n := e.Xhost_env_get(0, size, 4096, capacity)
 	if n <= 0 {
 		return n, ""
 	}
+
 	written := n
 	if written > capacity {
 		return n, "" // Nothing was written; the caller is expected to retry.
 	}
+
 	b, err := e.mem.View(4096, written)
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	return n, string(b)
 }
 
@@ -56,9 +65,11 @@ func TestGetSetUnset(t *testing.T) {
 	if n, value := read(t, e, "STAGE", 64); n != 4 || value != "prod" {
 		t.Errorf("STAGE = %d, %q", n, value)
 	}
+
 	if n, value := read(t, e, "EMPTY", 64); n != 0 || value != "" {
 		t.Errorf("EMPTY = %d, %q", n, value)
 	}
+
 	if n, _ := read(t, e, "MISSING", 64); n != -abi.ENOENT {
 		t.Errorf("MISSING = %d, want ENOENT", n)
 	}
@@ -66,6 +77,7 @@ func TestGetSetUnset(t *testing.T) {
 	name := put(t, e, 0, "ADDED")
 	value := put(t, e, 512, "here")
 	want(t, e.Xhost_env_set(0, name, 512, value), 0)
+
 	if n, got := read(t, e, "ADDED", 64); n != 4 || got != "here" {
 		t.Errorf("ADDED = %d, %q", n, got)
 	}
@@ -73,11 +85,13 @@ func TestGetSetUnset(t *testing.T) {
 	// Setting an existing name replaces rather than appends.
 	replacement := put(t, e, 512, "x")
 	want(t, e.Xhost_env_set(0, name, 512, replacement), 0)
+
 	if n, got := read(t, e, "ADDED", 64); n != 1 || got != "x" {
 		t.Errorf("after replace = %d, %q", n, got)
 	}
 
 	want(t, e.Xhost_env_unset(0, name), 0)
+
 	if n, _ := read(t, e, "ADDED", 64); n != -abi.ENOENT {
 		t.Errorf("after unset = %d, want ENOENT", n)
 	}
@@ -92,9 +106,11 @@ func TestGetSizingProbe(t *testing.T) {
 
 	name := put(t, e, 0, "BIG")
 	want(t, e.Xhost_env_get(0, name, 4096, 128), 300)
+
 	if b, err := e.mem.View(4096, 1); err != nil || b[0] != 0 {
 		t.Fatalf("wrote into a buffer that could not hold the value: %v %v", b, err)
 	}
+
 	want(t, e.Xhost_env_get(0, name, 1<<20, 0), 300) // Unreachable pointer, unused.
 
 	n, value := read(t, e, "BIG", 300)
@@ -111,6 +127,7 @@ func TestNameAndValueValidation(t *testing.T) {
 		if got := e.Xhost_env_get(0, size, 4096, 64); got != -abi.EINVAL {
 			t.Errorf("get %q = %d, want EINVAL", name, got)
 		}
+
 		if got := e.Xhost_env_unset(0, size); got != -abi.EINVAL {
 			t.Errorf("unset %q = %d, want EINVAL", name, got)
 		}
@@ -149,6 +166,7 @@ func TestLimitsBoundTheMap(t *testing.T) {
 		size := put(t, e, 0, "name"+string(rune('a'+i%26))+string(rune('a'+i/26)))
 		want(t, e.Xhost_env_set(0, size, 512, value), 0)
 	}
+
 	if len(e.vars) != maxVariables {
 		t.Fatalf("filled to %d, want %d", len(e.vars), maxVariables)
 	}
@@ -168,15 +186,18 @@ func TestCopiesAtEveryBoundary(t *testing.T) {
 
 	configured["STAGE"] = "mutated"
 	configured["LATE"] = "added"
+
 	if n, value := read(t, e, "STAGE", 64); n != 4 || value != "prod" {
 		t.Errorf("caller's map reached the guest: %d, %q", n, value)
 	}
+
 	if n, _ := read(t, e, "LATE", 64); n != -abi.ENOENT {
 		t.Error("a key added after New reached the guest")
 	}
 
 	snapshot := e.Vars()
 	snapshot["STAGE"] = "scribbled"
+
 	if n, value := read(t, e, "STAGE", 64); n != 4 || value != "prod" {
 		t.Errorf("Vars aliased the live map: %d, %q", n, value)
 	}
@@ -190,9 +211,11 @@ func TestNilEnvironmentIsEmptyNotDenied(t *testing.T) {
 	if n, _ := read(t, e, "ANY", 64); n != -abi.ENOENT {
 		t.Errorf("nil environment = %d, want ENOENT", n)
 	}
+
 	name := put(t, e, 0, "OWN")
 	value := put(t, e, 512, "v")
 	want(t, e.Xhost_env_set(0, name, 512, value), 0)
+
 	if n, got := read(t, e, "OWN", 64); n != 1 || got != "v" {
 		t.Errorf("guest write into a nil map = %d, %q", n, got)
 	}
@@ -208,9 +231,11 @@ func TestResetRestoresConfiguredVars(t *testing.T) {
 	want(t, e.Xhost_env_set(0, added, 512, value), 0)
 
 	e.Reset(map[string]string{"STAGE": "prod"})
+
 	if n, got := read(t, e, "STAGE", 64); n != 4 || got != "prod" {
 		t.Errorf("STAGE after reset = %d, %q", n, got)
 	}
+
 	if n, _ := read(t, e, "GUEST", 64); n != -abi.ENOENT {
 		t.Error("a guest variable survived the reset")
 	}
@@ -228,6 +253,7 @@ func TestClosedEnvironmentRefusesEverything(t *testing.T) {
 	// Close is idempotent, and Reset brings the environment back.
 	e.Close()
 	e.Reset(map[string]string{"STAGE": "prod"})
+
 	if n, got := read(t, e, "STAGE", 64); n != 4 || got != "prod" {
 		t.Errorf("after reopen = %d, %q", n, got)
 	}

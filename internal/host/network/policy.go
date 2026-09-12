@@ -27,6 +27,7 @@ func (t Transport) String() string {
 	if t == UDP {
 		return "udp"
 	}
+
 	return "tcp"
 }
 
@@ -53,6 +54,7 @@ func (a *AllowList) Add(transport Transport, address string, port int) error {
 	if transport != TCP && transport != UDP {
 		return fmt.Errorf("unsupported transport %d", transport)
 	}
+
 	if port < 1 || port > 65535 {
 		return fmt.Errorf("%s access to %q: port %d is outside 1-65535", transport, address, port)
 	}
@@ -63,6 +65,7 @@ func (a *AllowList) Add(transport Transport, address string, port int) error {
 	}
 
 	a.grants = append(a.grants, grant{transport: transport, prefix: prefix, port: uint16(port)})
+
 	return nil
 }
 
@@ -79,12 +82,15 @@ func parseAddress(address string) (netip.Prefix, error) {
 		if err != nil {
 			return netip.Prefix{}, fmt.Errorf("%q is not a CIDR block", address)
 		}
+
 		if prefix.Addr().Is4In6() {
 			if prefix.Bits() < 96 {
 				return netip.Prefix{}, fmt.Errorf("mapped IPv4 prefix %q must have at least 96 bits", address)
 			}
+
 			prefix = netip.PrefixFrom(prefix.Addr().Unmap(), prefix.Bits()-96)
 		}
+
 		return prefix.Masked(), nil
 	}
 
@@ -92,6 +98,7 @@ func parseAddress(address string) (netip.Prefix, error) {
 	if err != nil {
 		return netip.Prefix{}, fmt.Errorf("%q is not an IP address or CIDR block, and hostnames are not supported", address)
 	}
+
 	addr = addr.Unmap()
 	if addr.Zone() != "" {
 		return netip.Prefix{}, fmt.Errorf("scoped address %q is unsupported", address)
@@ -106,9 +113,11 @@ func ValidateIPv4Address(address string) error {
 	if err != nil {
 		return err
 	}
+
 	if prefix.IsValid() && !prefix.Addr().Is4() {
 		return fmt.Errorf("IPv6 address %q is unsupported by the guest", address)
 	}
+
 	return nil
 }
 
@@ -116,16 +125,21 @@ func (a *AllowList) Allows(transport Transport, ip netip.Addr, port int) bool {
 	if !ip.IsValid() || ip.Zone() != "" {
 		return false
 	}
+
 	ip = ip.Unmap()
+
 	for _, g := range a.grants {
 		if g.transport != transport || int(g.port) != port {
 			continue
 		}
+
 		if g.prefix.IsValid() && !g.prefix.Contains(ip) {
 			continue
 		}
+
 		return true
 	}
+
 	return false
 }
 
@@ -137,17 +151,21 @@ func (a *AllowList) Dial(forward DialFunc) DialFunc {
 		if forward == nil {
 			return nil, ErrBlocked
 		}
+
 		transport, ok := transportOf(network)
 		if !ok {
 			return nil, ErrBlocked
 		}
+
 		endpoint, err := netip.ParseAddrPort(address)
 		if err != nil {
 			return nil, ErrBlocked
 		}
+
 		if !a.Allows(transport, endpoint.Addr(), int(endpoint.Port())) {
 			return nil, ErrBlocked
 		}
+
 		return forward(ctx, network, address)
 	}
 }
@@ -159,6 +177,7 @@ func transportOf(network string) (Transport, bool) {
 	case "udp", "udp4", "udp6":
 		return UDP, true
 	}
+
 	return 0, false
 }
 

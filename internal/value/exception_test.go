@@ -64,6 +64,7 @@ func TestException_Unwrap(t *testing.T) {
 		if errors.Is(e, ErrInterrupted) {
 			t.Errorf("did not expect error to match ErrInterrupted")
 		}
+
 		if unwrapped := e.Unwrap(); unwrapped != nil {
 			t.Errorf("expected Unwrap() to return nil, got %v", unwrapped)
 		}
@@ -80,12 +81,15 @@ func TestException_FromGuest(t *testing.T) {
 		if e.Type() != "KeyError" {
 			t.Errorf("Type() = %q, want %q", e.Type(), "KeyError")
 		}
+
 		if e.Message() != "missing key" {
 			t.Errorf("Message() = %q, want %q", e.Message(), "missing key")
 		}
+
 		if e.Raw() != rawTraceback {
 			t.Errorf("Raw() = %q, want %q", e.Raw(), rawTraceback)
 		}
+
 		if !errors.Is(e, ErrInterrupted) {
 			t.Error("expected exception to be marked as interrupted")
 		}
@@ -100,9 +104,11 @@ func TestException_FromGuest(t *testing.T) {
 		if e.Type() != "" {
 			t.Errorf("expected empty Type, got %q", e.Type())
 		}
+
 		if e.Raw() != rawTraceback {
 			t.Errorf("Raw() = %q, want %q", e.Raw(), rawTraceback)
 		}
+
 		if errors.Is(e, ErrInterrupted) {
 			t.Error("did not expect exception to be marked as interrupted")
 		}
@@ -113,6 +119,7 @@ func TestException_Lift(t *testing.T) {
 	e := NewException("TypeError", "bad type")
 
 	lifted := e.lift()
+
 	err, ok := lifted.(error)
 	if !ok {
 		t.Fatalf("lift() returned %T, want error interface", lifted)

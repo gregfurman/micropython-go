@@ -29,6 +29,7 @@ func Example_writableFilesystem() {
 		panic(err)
 	}
 	defer os.RemoveAll(dir)
+
 	root, err := os.OpenRoot(dir)
 	if err != nil {
 		panic(err)
@@ -36,18 +37,22 @@ func Example_writableFilesystem() {
 	defer root.Close()
 
 	ctx := context.Background()
+
 	in, err := micropython.NewInstance(ctx, micropython.WithFS(writableFS{root}))
 	if err != nil {
 		panic(err)
 	}
 	defer in.Close()
+
 	if err := in.Exec(ctx, "with open('result.txt', 'w') as f:\n    f.write('hello')"); err != nil {
 		panic(err)
 	}
+
 	data, err := root.ReadFile("result.txt")
 	if err != nil {
 		panic(err)
 	}
+
 	fmt.Println(string(data))
 	// Output: hello
 }

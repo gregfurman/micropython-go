@@ -75,7 +75,6 @@ func TestAllowListMatches(t *testing.T) {
 			t.Errorf("%s %s:%d allowed=%v, want %v", tc.transport, tc.ip, tc.port, got, tc.allowed)
 		}
 	}
-
 }
 
 func TestAllowListDeniesByDefault(t *testing.T) {
@@ -90,17 +89,21 @@ func TestMappedIPv4Prefix(t *testing.T) {
 	if err := list.Add(TCP, "::ffff:192.0.2.0/120", 443); err != nil {
 		t.Fatal(err)
 	}
+
 	for _, ip := range []string{"192.0.2.1", "::ffff:192.0.2.1"} {
 		if !list.Allows(TCP, netip.MustParseAddr(ip), 443) {
 			t.Errorf("mapped grant did not match %s", ip)
 		}
 	}
+
 	if list.Allows(TCP, netip.MustParseAddr("198.51.100.1"), 443) {
 		t.Fatal("mapped grant allowed an unrelated address")
 	}
+
 	if err := list.Add(TCP, "::ffff:192.0.2.0/80", 443); err == nil {
 		t.Fatal("accepted mapped prefix extending outside IPv4")
 	}
+
 	if err := list.Add(Transport(255), AnyAddress, 443); err == nil {
 		t.Fatal("accepted invalid transport")
 	}

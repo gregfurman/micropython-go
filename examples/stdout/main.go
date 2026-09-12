@@ -25,6 +25,7 @@ func collect() {
 	ctx := context.Background()
 
 	var out bytes.Buffer
+
 	in, err := micropython.NewInstance(ctx, micropython.WithStdout(&out))
 	if err != nil {
 		log.Fatal(err)
@@ -40,6 +41,7 @@ func collect() {
 	if _, err := in.Call(ctx, "greet", "world"); err != nil {
 		log.Fatal(err)
 	}
+
 	fmt.Print(out.String())
 }
 
@@ -49,6 +51,7 @@ func stream() {
 	ctx := context.Background()
 
 	pr, pw := io.Pipe()
+
 	in, err := micropython.NewInstance(ctx, micropython.WithStdout(pw))
 	if err != nil {
 		log.Fatal(err)
@@ -56,14 +59,13 @@ func stream() {
 	defer in.Close()
 
 	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+
+	wg.Go(func() {
 		sc := bufio.NewScanner(pr)
 		for sc.Scan() {
 			fmt.Println("read:", sc.Text())
 		}
-	}()
+	})
 
 	err = in.Exec(ctx, "for i in range(3):\n    print('tick', i)\n")
 

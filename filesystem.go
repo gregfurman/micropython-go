@@ -11,6 +11,7 @@ func ReadOnly(filesystem fs.FS) fs.FS {
 	if filesystem == nil {
 		return nil
 	}
+
 	return readOnlyFS{filesystem}
 }
 

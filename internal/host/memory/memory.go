@@ -63,18 +63,21 @@ func (m *Memory) Slice() *[]byte {
 // memory.grow expects.
 func (m *Memory) Grow(delta, max int64) int64 {
 	size := int64(len(m.buf))
+
 	old := size / PageSize
 	if delta == 0 {
 		return old
 	}
 
 	want := old + delta
+
 	max = min(max, m.max, int64(math.MaxInt)/PageSize)
 	if want > max || want < old {
 		return -1
 	}
 
 	m.buf = append(m.buf, make([]byte, want*PageSize-size)...)
+
 	return old
 }
 
@@ -92,7 +95,9 @@ func (m *Memory) Load(image []byte) error {
 			return fmt.Errorf("%w: cannot grow to %d bytes", ErrInvalidMemory, len(image))
 		}
 	}
+
 	copy(m.buf, image)
+
 	return nil
 }
 
@@ -100,10 +105,12 @@ func (m *Memory) view(ptr, length int32) ([]byte, bool) {
 	if ptr < 0 || length < 0 {
 		return nil, false
 	}
+
 	end := int64(ptr) + int64(length)
 	if end > int64(len(m.buf)) {
 		return nil, false
 	}
+
 	return m.buf[ptr:end:end], true
 }
 
@@ -112,6 +119,7 @@ func (m *Memory) View(ptr, length int32) ([]byte, error) {
 	if !ok {
 		return nil, fmt.Errorf("%w: [%d,+%d) of %d", ErrInvalidMemory, ptr, length, len(m.buf))
 	}
+
 	return b, nil
 }
 
@@ -119,14 +127,17 @@ func (m *Memory) Alloc(n int32) int32 {
 	if n <= 0 {
 		return 0
 	}
+
 	p := m.alloc(n)
 	if p == 0 {
 		return 0
 	}
+
 	if _, ok := m.view(p, n); !ok {
 		m.free(p)
 		return 0
 	}
+
 	return p
 }
 
@@ -141,6 +152,7 @@ func (m *Memory) Read(ptr, n int32) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return bytes.Clone(b), nil
 }
 
@@ -149,6 +161,7 @@ func (m *Memory) ReadString(ptr, n int32) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
 	return string(b), nil
 }
 
@@ -161,9 +174,10 @@ func (m *Memory) Write(ptr int32, b []byte) error {
 	if err != nil {
 		return fmt.Errorf("malloc returned out-of-range pointer %d: %w", ptr, err)
 	}
-	copy(buf, b)
-	return nil
 
+	copy(buf, b)
+
+	return nil
 }
 
 func (m *Memory) WriteCString(s string) (int32, func(), error) {
@@ -193,16 +207,20 @@ func (m *Memory) WriteBytes(b []byte) (int32, func(), error) {
 	if int64(len(b)) > math.MaxInt32 {
 		return 0, nil, fmt.Errorf("blob too large: %d bytes", len(b))
 	}
+
 	ptr := m.Alloc(int32(len(b)))
 	if ptr == 0 {
 		return 0, nil, ErrGuestOOM
 	}
+
 	buf, err := m.View(ptr, int32(len(b)))
 	if err != nil {
 		m.Free(ptr)
 		return 0, nil, fmt.Errorf("malloc returned out-of-range pointer %d: %w", ptr, err)
 	}
+
 	copy(buf, b)
+
 	return ptr, func() { m.Free(ptr) }, nil
 }
 

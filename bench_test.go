@@ -32,29 +32,37 @@ def handle(req):
 
 func benchProgram(b *testing.B) *Program {
 	b.Helper()
+
 	p, err := NewProgram(context.Background(), WithSource(benchSrc))
 	if err != nil {
 		b.Fatal(err)
 	}
+
 	b.Cleanup(func() { p.Close() })
+
 	return p
 }
 
 func benchInstance(b *testing.B) *Instance {
 	b.Helper()
+
 	in, err := NewInstance(context.Background())
 	if err != nil {
 		b.Fatal(err)
 	}
+
 	if err := in.Exec(context.Background(), benchSrc); err != nil {
 		b.Fatal(err)
 	}
+
 	b.Cleanup(func() { in.Close() })
+
 	return in
 }
 
 func BenchmarkInstanceAllocation(b *testing.B) {
 	b.ReportAllocs()
+
 	for b.Loop() {
 		in, _ := NewInstance(b.Context())
 		in.Close()
@@ -66,36 +74,43 @@ func BenchmarkStartup(b *testing.B) {
 
 	b.Run("NewInstance", func(b *testing.B) {
 		b.ReportAllocs()
+
 		for b.Loop() {
 			in, err := NewInstance(ctx)
 			if err != nil {
 				b.Fatal(err)
 			}
+
 			in.Close()
 		}
 	})
 
 	b.Run("NewInstance+Exec", func(b *testing.B) {
 		b.ReportAllocs()
+
 		for b.Loop() {
 			in, err := NewInstance(ctx)
 			if err != nil {
 				b.Fatal(err)
 			}
+
 			if err := in.Exec(ctx, benchSrc); err != nil {
 				b.Fatal(err)
 			}
+
 			in.Close()
 		}
 	})
 
 	b.Run("Compile", func(b *testing.B) {
 		b.ReportAllocs()
+
 		for b.Loop() {
 			p, err := NewProgram(ctx, WithSource(benchSrc))
 			if err != nil {
 				b.Fatal(err)
 			}
+
 			p.Close()
 		}
 	})
@@ -131,6 +146,7 @@ func BenchmarkCall(b *testing.B) {
 	for _, tc := range cases {
 		b.Run(tc.name, func(b *testing.B) {
 			b.ReportAllocs()
+
 			for b.Loop() {
 				if _, err := in.Call(ctx, tc.fn, tc.args...); err != nil {
 					b.Fatal(err)
@@ -148,6 +164,7 @@ func BenchmarkEvalExec(b *testing.B) {
 
 	b.Run("Eval expression", func(b *testing.B) {
 		b.ReportAllocs()
+
 		for b.Loop() {
 			if _, err := in.Eval(ctx, "1 + 1"); err != nil {
 				b.Fatal(err)
@@ -157,6 +174,7 @@ func BenchmarkEvalExec(b *testing.B) {
 
 	b.Run("Exec statement", func(b *testing.B) {
 		b.ReportAllocs()
+
 		for b.Loop() {
 			if err := in.Exec(ctx, "x = 1 + 1"); err != nil {
 				b.Fatal(err)
@@ -166,6 +184,7 @@ func BenchmarkEvalExec(b *testing.B) {
 
 	b.Run("Exec with output", func(b *testing.B) {
 		b.ReportAllocs()
+
 		for b.Loop() {
 			if err := in.Exec(ctx, "print('hello')"); err != nil {
 				b.Fatal(err)
@@ -179,6 +198,7 @@ func BenchmarkError(b *testing.B) {
 	ctx := context.Background()
 
 	b.ReportAllocs()
+
 	for b.Loop() {
 		if _, err := in.Call(ctx, "boom"); err == nil {
 			b.Fatal("expected an error")
@@ -193,6 +213,7 @@ func BenchmarkGuestWork(b *testing.B) {
 	for _, n := range []int64{100, 10_000, 1_000_000} {
 		b.Run(fmt.Sprintf("range %d", n), func(b *testing.B) {
 			b.ReportAllocs()
+
 			for b.Loop() {
 				if _, err := in.Call(ctx, "work", n); err != nil {
 					b.Fatal(err)
@@ -206,51 +227,62 @@ func BenchmarkCallable(b *testing.B) {
 	b.Run("operation=eval", func(b *testing.B) {
 		in := benchInstance(b)
 		ctx := context.Background()
+
 		b.ReportAllocs()
 		b.ResetTimer()
+
 		for b.Loop() {
 			val, _ := in.Eval(ctx, "add")
 			addFn, _ := in.AsCallable(val)
 			addFn.Call(ctx, 1, 2)
 		}
-		in.Close()
 
+		in.Close()
 	})
 
 	b.Run("operation=get", func(b *testing.B) {
 		in := benchInstance(b)
 		ctx := context.Background()
+
 		b.ReportAllocs()
 		b.ResetTimer()
+
 		for b.Loop() {
 			val, _ := in.Get(ctx, "add")
 			addFn, _ := in.AsCallable(val)
 			addFn.Call(ctx, 1, 2)
 		}
+
 		in.Close()
 	})
 
 	b.Run("operation=call_ref", func(b *testing.B) {
 		in := benchInstance(b)
 		ctx := context.Background()
+
 		b.ReportAllocs()
 		b.ResetTimer()
+
 		for b.Loop() {
 			back, _ := in.Call(ctx, "add")
 			callable, _ := in.AsCallable(back)
 			callable.Call(ctx, 1, 2)
 		}
+
 		in.Close()
 	})
 
 	b.Run("operation=call", func(b *testing.B) {
 		in := benchInstance(b)
 		ctx := context.Background()
+
 		b.ReportAllocs()
 		b.ResetTimer()
+
 		for b.Loop() {
 			in.Call(ctx, "add", 1, 2)
 		}
+
 		in.Close()
 	})
 }
@@ -264,7 +296,9 @@ func BenchmarkCancellationOverhead(b *testing.B) {
 
 	b.Run("background ctx", func(b *testing.B) {
 		ctx := context.Background()
+
 		b.ReportAllocs()
+
 		for b.Loop() {
 			if _, err := in.Call(ctx, "work", int64(10_000)); err != nil {
 				b.Fatal(err)
@@ -275,6 +309,7 @@ func BenchmarkCancellationOverhead(b *testing.B) {
 	b.Run("cancellable ctx", func(b *testing.B) {
 		ctx := b.Context()
 		b.ReportAllocs()
+
 		for b.Loop() {
 			if _, err := in.Call(ctx, "work", int64(10_000)); err != nil {
 				b.Fatal(err)
@@ -289,6 +324,7 @@ func BenchmarkProgramVsInstance(b *testing.B) {
 	b.Run("Instance.Call", func(b *testing.B) {
 		in := benchInstance(b)
 		b.ReportAllocs()
+
 		for b.Loop() {
 			if _, err := in.Call(ctx, "add", int64(1), int64(2)); err != nil {
 				b.Fatal(err)
@@ -299,6 +335,7 @@ func BenchmarkProgramVsInstance(b *testing.B) {
 	b.Run("Program.Call", func(b *testing.B) {
 		p := benchProgram(b)
 		b.ReportAllocs()
+
 		for b.Loop() {
 			if _, err := progCall(ctx, p, "add", int64(1), int64(2)); err != nil {
 				b.Fatal(err)
@@ -309,6 +346,7 @@ func BenchmarkProgramVsInstance(b *testing.B) {
 
 func BenchmarkParallel(b *testing.B) {
 	ctx := context.Background()
+
 	b.Logf("GOMAXPROCS=%d", runtime.GOMAXPROCS(0))
 
 	b.Run("Instance", func(b *testing.B) {
@@ -342,6 +380,7 @@ func BenchmarkHandler(b *testing.B) {
 	req := map[string]any{"body": `{"items": [1, 2, 3, 4, 5], "who": "bench"}`}
 
 	b.ReportAllocs()
+
 	for b.Loop() {
 		if _, err := progCall(ctx, p, "handle", req); err != nil {
 			b.Fatal(err)
@@ -381,6 +420,7 @@ func BenchmarkManyPrograms(b *testing.B) {
 					b.Fatal(err)
 				}
 				defer p.Close()
+
 				programs[i] = p
 			}
 
@@ -392,6 +432,7 @@ func BenchmarkManyPrograms(b *testing.B) {
 				if _, err := progCall(ctx, programs[i%n], "add", int64(1), int64(2)); err != nil {
 					b.Fatal(err)
 				}
+
 				i++
 			}
 		})
@@ -400,14 +441,18 @@ func BenchmarkManyPrograms(b *testing.B) {
 
 func newBenchInstanceWith(b *testing.B, src string) *Instance {
 	b.Helper()
+
 	in, err := NewInstance(context.Background())
 	if err != nil {
 		b.Fatal(err)
 	}
+
 	if err := in.Exec(context.Background(), src); err != nil {
 		b.Fatal(err)
 	}
+
 	b.Cleanup(func() { in.Close() })
+
 	return in
 }
 
@@ -416,6 +461,7 @@ func hundredInts() []any {
 	for i := range out {
 		out[i] = int64(i)
 	}
+
 	return out
 }
 

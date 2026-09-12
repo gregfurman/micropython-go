@@ -39,6 +39,7 @@ import config
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	fmt.Println("imported:", greeting.Export())
 
 	// open() reads the same mount.
@@ -46,6 +47,7 @@ import config
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	fmt.Println("read:", motd.Export())
 
 	// Writing needs a backend implementing OpenFileFS, which embed.FS does not,
@@ -55,5 +57,6 @@ import config
 	if err := in.Exec(ctx, `open('/testdata/motd.txt', 'w')`); !errors.As(err, &exc) {
 		log.Fatalf("expected a Python error, got %v", err)
 	}
+
 	fmt.Printf("write refused: %s %s\n", exc.Type(), exc.Message())
 }

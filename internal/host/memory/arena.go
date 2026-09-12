@@ -39,10 +39,12 @@ func (m *Memory) NewArena(size int32) (*Arena, error) {
 	if size < 0 {
 		return nil, fmt.Errorf("%w: arena size %d", ErrInvalidMemory, size)
 	}
+
 	ptr := m.Alloc(size)
 	if ptr == 0 && size != 0 {
 		return nil, ErrGuestOOM
 	}
+
 	return &Arena{mem: m, base: ptr, size: size, owns: true}, nil
 }
 
@@ -59,13 +61,16 @@ func (a *Arena) Free() {
 	if a == nil || a.mem == nil {
 		return
 	}
+
 	for _, ptr := range a.ptrs {
 		a.mem.Free(ptr)
 	}
+
 	a.ptrs = nil
 	if a.owns {
 		a.mem.Free(a.base)
 	}
+
 	a.mem = nil
 }
 
@@ -76,10 +81,12 @@ func (a *Arena) Free() {
 //	defer arena.Mark()()
 func (a *Arena) Mark() (reset func()) {
 	ptrs, next := len(a.ptrs), a.next
+
 	return func() {
 		for _, ptr := range a.ptrs[ptrs:] {
 			a.mem.Free(ptr)
 		}
+
 		a.ptrs = a.ptrs[:ptrs]
 		a.next = next
 	}
@@ -108,7 +115,9 @@ func (a *Arena) New(size int32) (int32, error) {
 	if ptr == 0 && size != 0 {
 		return 0, ErrGuestOOM
 	}
+
 	a.ptrs = append(a.ptrs, ptr)
+
 	return ptr, nil
 }
 
@@ -118,16 +127,20 @@ func (a *Arena) Bytes(b []byte) (int32, error) {
 	if len(b) == 0 {
 		return 0, nil
 	}
+
 	if int64(len(b)) > math.MaxInt32 {
 		return 0, fmt.Errorf("blob too large: %d bytes", len(b))
 	}
+
 	ptr, err := a.New(int32(len(b)))
 	if err != nil {
 		return 0, err
 	}
+
 	if err := a.mem.Write(ptr, b); err != nil {
 		return 0, err
 	}
+
 	return ptr, nil
 }
 
@@ -143,27 +156,32 @@ func (a *Arena) CString(s string) (int32, error) {
 	if int64(len(s))+1 > math.MaxInt32 {
 		return 0, fmt.Errorf("string too large: %d bytes", len(s))
 	}
+
 	ptr, err := a.New(int32(len(s)) + 1)
 	if err != nil {
 		return 0, err
 	}
+
 	buf, err := a.View(ptr, int32(len(s))+1)
 	if err != nil {
 		return 0, err
 	}
+
 	copy(buf, s)
 	buf[len(s)] = 0
+
 	return ptr, nil
 }
 
 // View exposes arena bytes without a staging copy. Borrowed arenas restrict
 // reads and writes to their span; owning arenas also allow heap spills.
 func (a *Arena) View(ptr, length int32) ([]byte, error) {
-	if !a.owns && !(ptr == 0 && length == 0) {
+	if !a.owns && (ptr != 0 || length != 0) {
 		if length < 0 || ptr < a.base || int64(ptr)+int64(length) > int64(a.base)+int64(a.size) {
 			return nil, fmt.Errorf("%w: [%d,+%d) outside arena", ErrInvalidMemory, ptr, length)
 		}
 	}
+
 	return a.mem.View(ptr, length)
 }
 

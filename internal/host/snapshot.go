@@ -37,5 +37,6 @@ func (s *Snapshot) Restore() (*Module, error) {
 	if err := i.Restore(s); err != nil {
 		return nil, err
 	}
+
 	return i, nil
 }

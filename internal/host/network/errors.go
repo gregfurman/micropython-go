@@ -89,8 +89,7 @@ func errnoOf(err error) int32 {
 
 	// py/mperrno.h carries no EAI_ codes, so every name that fails to resolve
 	// reaches Python as the same OSError regardless of why.
-	var dns *net.DNSError
-	if errors.As(err, &dns) {
+	if _, ok := errors.AsType[*net.DNSError](err); ok {
 		return -abi.EHOSTUNREACH
 	}
 

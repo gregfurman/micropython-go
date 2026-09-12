@@ -49,9 +49,11 @@ func TestExceptions(t *testing.T) {
 			if !errors.As(err, &exc) {
 				t.Fatalf("%s() returned %v (%T), want *Exception", tt.fn, err, err)
 			}
+
 			if exc.Type() != tt.typ {
 				t.Errorf("Type = %q, want %q", exc.Type(), tt.typ)
 			}
+
 			if exc.Message() != tt.msg {
 				t.Errorf("Message = %q, want %q", exc.Message(), tt.msg)
 			}
@@ -59,6 +61,7 @@ func TestExceptions(t *testing.T) {
 			if !strings.Contains(exc.Error(), tt.typ) {
 				t.Errorf("Error() does not mention %q: %s", tt.typ, exc)
 			}
+
 			if !strings.Contains(exc.Raw(), tt.fn) {
 				t.Errorf("traceback does not mention %q:\n%s", tt.fn, exc.Raw())
 			}
@@ -70,6 +73,7 @@ func TestExceptions(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+
 		if want := "Exception: Exception: this is an exception"; got.Export() != want {
 			t.Errorf("got %q, want %q", got, want)
 		}
@@ -80,6 +84,7 @@ func TestExceptions(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+
 		if got.Export() != int64(2) {
 			t.Errorf("1 + 1 = %#v", got)
 		}

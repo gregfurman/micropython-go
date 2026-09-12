@@ -10,6 +10,7 @@ func TestEnvReachesOSGetenv(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	t.Cleanup(func() { in.Close() })
 
 	for _, tc := range []struct {
@@ -39,11 +40,13 @@ func TestEnvReachesOSGetenv(t *testing.T) {
 		if err := in.Exec(t.Context(), "import os"); err != nil {
 			t.Fatal(err)
 		}
+
 		got, err := in.Eval(t.Context(), tc.src)
 		if err != nil {
 			t.Errorf("%s: %v", tc.src, err)
 			continue
 		}
+
 		if got.Export() != tc.want {
 			t.Errorf("%s = %#v, want %#v", tc.src, got.Export(), tc.want)
 		}
@@ -63,8 +66,10 @@ func TestEnvRejectedAtConstruction(t *testing.T) {
 		if err == nil {
 			in.Close()
 			t.Errorf("WithEnv(%q, %q) was accepted", tc.name, tc.value)
+
 			continue
 		}
+
 		if !strings.Contains(err.Error(), "environment variable") {
 			t.Errorf("WithEnv(%q, %q): %v", tc.name, tc.value, err)
 		}
@@ -88,6 +93,7 @@ func TestEnvRejectsMalformedNames(t *testing.T) {
 	if err := in.Exec(t.Context(), "import os"); err != nil {
 		t.Fatal(err)
 	}
+
 	for _, src := range []string{
 		`os.getenv('')`,
 		`os.putenv('', 'v')`,
@@ -111,6 +117,7 @@ os.putenv('STAGE', 'compiled')
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	t.Cleanup(func() { program.Close() })
 
 	for range 2 {
@@ -132,18 +139,24 @@ func TestEnvCloneCopiesCurrentVariables(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	t.Cleanup(func() { _ = in.Close() })
+
 	if err := in.Exec(t.Context(), "import os; os.putenv('STAGE', 'snapshot')"); err != nil {
 		t.Fatal(err)
 	}
+
 	clone, err := in.Clone(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	t.Cleanup(func() { _ = clone.Close() })
+
 	if err := clone.Exec(t.Context(), "assert os.getenv('STAGE') == 'snapshot'; os.putenv('STAGE', 'clone')"); err != nil {
 		t.Fatal(err)
 	}
+
 	if err := in.Exec(t.Context(), "assert os.getenv('STAGE') == 'snapshot'"); err != nil {
 		t.Fatal(err)
 	}
