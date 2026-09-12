@@ -43,6 +43,7 @@ func Validate(name, value string) error {
 	case !validValue(value):
 		return fmt.Errorf("value of %s contains NUL", name)
 	}
+
 	return nil
 }
 
@@ -79,10 +80,12 @@ func (e *Environment) view(ptr, size int32) ([]byte, int32) {
 	if e.mem == nil {
 		return nil, -abi.EFAULT
 	}
+
 	b, err := e.mem.View(ptr, size)
 	if err != nil {
 		return nil, -abi.EFAULT
 	}
+
 	return b, 0
 }
 
@@ -90,14 +93,17 @@ func (e *Environment) name(ptr, size int32) (string, int32) {
 	if e.closed {
 		return "", -abi.EBADF
 	}
+
 	b, status := e.view(ptr, size)
 	if status != 0 {
 		return "", status
 	}
+
 	name := string(b)
 	if !validName(name) {
 		return "", -abi.EINVAL
 	}
+
 	return name, 0
 }
 
@@ -109,21 +115,27 @@ func (e *Environment) Xhost_env_get(ptr, size, valuePtr, valueCap int32) int32 {
 	if status != 0 {
 		return status
 	}
+
 	if valueCap < 0 {
 		return -abi.EINVAL
 	}
+
 	value, ok := e.vars[name]
 	if !ok {
 		return -abi.ENOENT
 	}
+
 	if len(value) > int(valueCap) {
 		return int32(len(value))
 	}
+
 	out, status := e.view(valuePtr, int32(len(value)))
 	if status != 0 {
 		return status
 	}
+
 	copy(out, value)
+
 	return int32(len(value))
 }
 
@@ -132,26 +144,33 @@ func (e *Environment) Xhost_env_set(ptr, size, valuePtr, valueSize int32) int32 
 	if status != 0 {
 		return status
 	}
+
 	b, status := e.view(valuePtr, valueSize)
 	if status != 0 {
 		return status
 	}
+
 	if len(b) > maxValueLength {
 		return -abi.ENOMEM
 	}
+
 	value := string(b) // Own a copy; guest memory is borrowed for this call.
 	if !validValue(value) {
 		return -abi.EINVAL
 	}
+
 	if _, replacing := e.vars[name]; !replacing {
 		if len(e.vars) >= maxVariables {
 			return -abi.ENOMEM
 		}
+
 		if e.vars == nil {
 			e.vars = make(map[string]string)
 		}
 	}
+
 	e.vars[name] = value
+
 	return 0
 }
 
@@ -161,6 +180,8 @@ func (e *Environment) Xhost_env_unset(ptr, size int32) int32 {
 	if status != 0 {
 		return status
 	}
+
 	delete(e.vars, name)
+
 	return 0
 }

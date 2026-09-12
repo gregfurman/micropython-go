@@ -41,6 +41,7 @@ func (c *Codec) Decode(ptr, size int32) (value.Value, error) {
 		codec: c, arena: c.mem.ArenaAt(ptr, size),
 		refs: ids, remaining: size / ValueSize,
 	}
+
 	return d.decodeAt(ptr, 0)
 }
 
@@ -51,7 +52,9 @@ func (c *Codec) ReleaseRefs(ptr, size int32) error {
 	if err != nil {
 		return err
 	}
+
 	c.releaseRefs(ids)
+
 	return nil
 }
 
@@ -65,19 +68,24 @@ func (c *Codec) readRefs(ptr, size int32) ([]uint32, error) {
 	if ptr < 0 || ptr%4 != 0 || size < TransferSize {
 		return nil, fmt.Errorf("invalid result region: [%d,+%d)", ptr, size)
 	}
+
 	b, err := c.mem.View(ptr, size)
 	if err != nil {
 		return nil, err
 	}
+
 	refsPtr := binary.LittleEndian.Uint32(b[ValueSize:])
+
 	count := binary.LittleEndian.Uint32(b[ValueSize+4:])
 	if count == 0 && refsPtr == 0 {
 		return nil, nil
 	}
+
 	start := int64(refsPtr) - int64(ptr)
 	if count == 0 || refsPtr%4 != 0 || start < TransferSize || start+int64(count)*4 > int64(size) {
 		return nil, errors.New("invalid reference ledger")
 	}
+
 	ids := make([]uint32, count)
 	for i := range ids {
 		ids[i] = binary.LittleEndian.Uint32(b[start+int64(i)*4:])
@@ -87,6 +95,7 @@ func (c *Codec) readRefs(ptr, size int32) ([]uint32, error) {
 	}
 	// Object membership checks use binary search, not another ownership map.
 	slices.Sort(ids)
+
 	return ids, nil
 }
 
@@ -94,12 +103,15 @@ func (d *decoder) decodeAt(ptr int32, depth int) (value.Value, error) {
 	if ptr%4 != 0 {
 		return nil, fmt.Errorf("unaligned value pointer %d", ptr)
 	}
+
 	b, err := d.arena.View(ptr, ValueSize)
 	if err != nil {
 		return nil, err
 	}
+
 	var v Value
 	v.UnmarshalWords(b)
+
 	return d.decode(v, depth)
 }
 
@@ -107,9 +119,11 @@ func (d *decoder) decode(v Value, depth int) (value.Value, error) {
 	if depth > maxDecodeDepth {
 		return nil, fmt.Errorf("value nested deeper than %d levels", maxDecodeDepth)
 	}
+
 	if d.remaining == 0 {
 		return nil, errors.New("value tree exceeds result record limit")
 	}
+
 	d.remaining--
 
 	switch v.Kind {
@@ -135,6 +149,7 @@ func (d *decoder) decode(v Value, depth int) (value.Value, error) {
 		}
 
 		s := string(b)
+
 		n, ok := new(big.Int).SetString(s, 10)
 		if !ok {
 			return nil, fmt.Errorf("bad bigint %q", s)
@@ -147,6 +162,7 @@ func (d *decoder) decode(v Value, depth int) (value.Value, error) {
 		if err != nil {
 			return nil, err
 		}
+
 		return value.Str(string(b)), nil
 
 	case KindBytes:
@@ -154,8 +170,10 @@ func (d *decoder) decode(v Value, depth int) (value.Value, error) {
 		if err != nil {
 			return nil, err
 		}
+
 		out := make(value.Bytes, len(b))
 		copy(out, b)
+
 		return out, nil
 
 	case KindException:
@@ -178,6 +196,7 @@ func (d *decoder) decode(v Value, depth int) (value.Value, error) {
 		if err != nil {
 			return nil, err
 		}
+
 		switch v.Kind {
 		case KindTuple:
 			return value.TupleValue(items), nil
@@ -196,19 +215,23 @@ func (d *decoder) decode(v Value, depth int) (value.Value, error) {
 		if err != nil {
 			return nil, err
 		}
+
 		entries := make(value.DictValue, 0, len(flat)/2)
 		for i := 0; i+1 < len(flat); i += 2 {
 			entries = append(entries, value.Item{Key: flat[i], Val: flat[i+1]})
 		}
+
 		return entries, nil
 
 	case KindObject:
 		if v.W1 == 0 {
 			return nil, errors.New("object has no reference")
 		}
+
 		if _, ok := slices.BinarySearch(d.refs, v.W1); !ok {
 			return nil, fmt.Errorf("reference %d is absent from result ledger", v.W1)
 		}
+
 		ref, err := d.codec.refs.Retain(v.W1)
 		if err != nil {
 			return nil, err
@@ -257,6 +280,7 @@ func (d *decoder) class(w2 uint32) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
 	return string(name), nil
 }
 
@@ -264,27 +288,34 @@ func (d *decoder) decodeBlock(v Value, count int64, depth int) ([]value.Value, e
 	if count == 0 {
 		return nil, nil
 	}
+
 	if count < 0 || count > math.MaxInt32/ValueSize {
 		return nil, fmt.Errorf("container of %d entries out of range", v.W1)
 	}
+
 	if v.W2 == 0 {
 		return nil, fmt.Errorf("container of %d entries has no payload", v.W1)
 	}
 
 	block := int32(v.W2)
+
 	if count > int64(d.remaining) {
 		return nil, errors.New("container exceeds result record limit")
 	}
+
 	if _, err := d.arena.View(block, int32(count)*ValueSize); err != nil {
 		return nil, err
 	}
+
 	items := make([]value.Value, count)
 	for i := range items {
 		item, err := d.decodeAt(block+int32(i)*ValueSize, depth+1)
 		if err != nil {
 			return nil, err
 		}
+
 		items[i] = item
 	}
+
 	return items, nil
 }

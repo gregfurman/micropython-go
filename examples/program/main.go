@@ -43,12 +43,15 @@ func main() {
 			// callback. Copy out what is needed before it returns: the
 			// interpreter is rewound to the compiled state afterwards.
 			var out map[string]any
+
 			if err := p.Run(ctx, func(in *micropython.BorrowedInstance) error {
 				got, err := in.Call(ctx, "score", row)
 				if err != nil {
 					return err
 				}
+
 				out = got.Export().(map[string]any)
+
 				return nil
 			}); err != nil {
 				log.Fatal(err)
@@ -62,9 +65,11 @@ func main() {
 				out["id"], out["total"], out["calls"]))
 		})
 	}
+
 	wg.Wait()
 
 	sort.Strings(results)
+
 	for _, r := range results {
 		fmt.Println(r)
 	}
@@ -87,5 +92,6 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	fmt.Println("detached instance calls:", calls)
 }

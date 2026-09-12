@@ -83,6 +83,7 @@ func TestRoundTrip(t *testing.T) {
 			if err != nil {
 				t.Fatalf("echo(%#v): %v", tt.send, err)
 			}
+
 			if !equalValue(got.Export(), tt.want) {
 				t.Errorf("echo(%#v) = %#v (%T), want %#v (%T)", tt.send, got, got, tt.want, tt.want)
 			}
@@ -122,6 +123,7 @@ func TestRoundTripFromPython(t *testing.T) {
 			if err != nil {
 				t.Fatalf("%s: %v", tt.expr, err)
 			}
+
 			if !equalValue(got.Export(), tt.want) {
 				t.Errorf("%s = %#v (%T), want %#v (%T)", tt.expr, got, got, tt.want, tt.want)
 			}
@@ -151,6 +153,7 @@ func TestRoundTripRejects(t *testing.T) {
 			if _, err := in.Call(t.Context(), "echo", tt.send); err == nil {
 				t.Errorf("echo(%#v) was accepted", tt.send)
 			}
+
 			if err := in.Err(); err != nil {
 				t.Fatalf("interpreter died: %v", err)
 			}
@@ -173,6 +176,7 @@ func TestRoundTripValuesWithNoGoEquivalent(t *testing.T) {
 			if _, err := got.AsObject(); err != nil {
 				t.Fatalf("%s = %#v, want an opaque handle: %v", expr, got, err)
 			}
+
 			if got.Type() == "" {
 				t.Errorf("%s = %+v, want Type set", expr, got)
 			}
@@ -186,9 +190,11 @@ func TestRoundTripValuesWithNoGoEquivalent(t *testing.T) {
 			if err != nil {
 				t.Fatalf("%s: %v", expr, err)
 			}
+
 			if !got.IsCallable() {
 				t.Fatalf("%s = %#v, want a callable", expr, got)
 			}
+
 			if _, err := in.AsCallable(got); err != nil {
 				t.Errorf("%s: AsCallable: %v", expr, err)
 			}
@@ -223,6 +229,7 @@ def collect_garbage():
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	if !held.IsCallable() {
 		t.Fatalf("make_adder() = %#v, want a callable", held)
 	}
@@ -235,10 +242,12 @@ def collect_garbage():
 	if err != nil {
 		t.Fatalf("the held value lost its guest reference: %v", err)
 	}
+
 	got, err := fn.Call(t.Context(), 2)
 	if err != nil {
 		t.Fatalf("calling the held value after collection: %v", err)
 	}
+
 	if got.Export() != int64(42) {
 		t.Errorf("held callable returned %#v, want 42", got.Export())
 	}
@@ -277,6 +286,7 @@ func TestCompositeDictKeys(t *testing.T) {
 			if err != nil {
 				t.Fatalf("%s: %v", expr, err)
 			}
+
 			if _, ok := got.Export().(map[any]any); !ok {
 				t.Errorf("%s = %#v (%T), want map[any]any", expr, got, got)
 			}
@@ -304,12 +314,14 @@ func TestBigIntsDoNotTruncate(t *testing.T) {
 		}
 
 		var text string
+
 		switch v := got.Export().(type) {
 		case int64:
 			text = big.NewInt(v).String()
 		default:
 			text = stringOf(v)
 		}
+
 		if text != tc.want {
 			t.Errorf("%-16s = %v (%T), want %s", tc.expr, got, got, tc.want)
 		}
@@ -374,7 +386,6 @@ class MyNumbers:
 				if err != nil {
 					t.Fatalf("unexpected error when executing before script: %s", err)
 				}
-
 			}
 
 			val, err := in.Eval(t.Context(), tt.expr)
@@ -392,6 +403,7 @@ class MyNumbers:
 			}
 
 			var got []any
+
 			for val, err := range gen.Iter(t.Context()) {
 				if err != nil {
 					t.Fatalf("failed to generate next iteration: %v", err)
@@ -405,7 +417,6 @@ class MyNumbers:
 				t.Errorf("expected: %+v, got %+v", tt.want, got)
 				return
 			}
-
 		})
 	}
 }
@@ -439,7 +450,6 @@ func TestCallable(t *testing.T) {
 				if err != nil {
 					t.Fatalf("unexpected error when executing before script: %s", err)
 				}
-
 			}
 
 			val, err := in.Eval(t.Context(), tt.expr)
@@ -465,7 +475,6 @@ func TestCallable(t *testing.T) {
 				t.Errorf("expected: %+v, got %+v", tt.want, got)
 				return
 			}
-
 		})
 	}
 }
@@ -474,6 +483,7 @@ func stringOf(v any) string {
 	if s, ok := v.(interface{ String() string }); ok {
 		return s.String()
 	}
+
 	return ""
 }
 
@@ -498,12 +508,14 @@ func equalValue(got, want any) bool {
 		if !ok || len(g) != len(w) {
 			return false
 		}
+
 		for k, wv := range w {
 			gv, ok := g[k]
 			if !ok || !equalValue(gv, wv) {
 				return false
 			}
 		}
+
 		return true
 
 	case map[any]any:
@@ -511,14 +523,17 @@ func equalValue(got, want any) bool {
 		if !ok || len(g) != len(w) {
 			return false
 		}
+
 		for k, wv := range w {
 			gv, ok := g[k]
 			if !ok || !equalValue(gv, wv) {
 				return false
 			}
 		}
+
 		return true
 	}
+
 	return reflect.DeepEqual(got, want)
 }
 
@@ -526,11 +541,13 @@ func sameSequence(got, want []any) bool {
 	if len(got) != len(want) {
 		return false
 	}
+
 	for i := range want {
 		if !equalValue(got[i], want[i]) {
 			return false
 		}
 	}
+
 	return true
 }
 
@@ -538,19 +555,24 @@ func sameElements(got, want []any) bool {
 	if len(got) != len(want) {
 		return false
 	}
+
 	key := func(items []any) []string {
 		out := make([]string, len(items))
 		for i, v := range items {
 			out[i] = fmt.Sprintf("%T/%v", v, v)
 		}
+
 		sort.Strings(out)
+
 		return out
 	}
+
 	return reflect.DeepEqual(key(got), key(want))
 }
 
 func TestNestedValuesConvert(t *testing.T) {
 	in := newT(t)
+
 	ctx := t.Context()
 	if err := in.Exec(ctx, "def echo(v):\n    return v\n"); err != nil {
 		t.Fatal(err)
@@ -581,6 +603,7 @@ func TestNestedValuesConvert(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+
 			if !reflect.DeepEqual(got.Export(), tc.want) {
 				t.Errorf("echo(%#v) = %#v, want %#v", tc.arg, got.Export(), tc.want)
 			}
@@ -594,9 +617,11 @@ func TestZeroValue(t *testing.T) {
 	if got := zero.Type(); got != "invalid" {
 		t.Errorf("Type = %q, want invalid", got)
 	}
+
 	if got := zero.Export(); got != nil {
 		t.Errorf("Export = %#v, want nil", got)
 	}
+
 	if got := zero.String(); got != "<invalid>" {
 		t.Errorf("String = %q, want <invalid>", got)
 	}

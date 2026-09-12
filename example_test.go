@@ -34,6 +34,7 @@ func Example() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	fmt.Println(got.Export())
 
 	// Output:
@@ -42,6 +43,7 @@ func Example() {
 
 func ExampleValue_AsInt() {
 	ctx := context.Background()
+
 	in, err := micropython.NewInstance(ctx)
 	if err != nil {
 		log.Fatal(err)
@@ -51,14 +53,17 @@ func ExampleValue_AsInt() {
 	if err := in.Set(ctx, "numbers", []int{1, 2, 3}); err != nil {
 		log.Fatal(err)
 	}
+
 	got, err := in.Eval(ctx, "sum(numbers)")
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	n, err := got.AsInt()
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	fmt.Println(n)
 	// Output: 6
 }
@@ -79,12 +84,14 @@ func ExampleNewInstance_startup() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	fmt.Println(got.Export())
 	// Output: Hello from New York
 }
 
 func ExampleProgram_Run_basic() {
 	ctx := context.Background()
+
 	p, err := micropython.NewProgram(ctx,
 		micropython.WithSource("def double(x): return x * 2"),
 	)
@@ -98,7 +105,9 @@ func ExampleProgram_Run_basic() {
 		if err != nil {
 			return err
 		}
+
 		fmt.Println(got.Export())
+
 		return nil
 	})
 	if err != nil {
@@ -109,10 +118,12 @@ func ExampleProgram_Run_basic() {
 
 func TestREADMESandbox(t *testing.T) {
 	ctx := t.Context()
+
 	dir := t.TempDir()
 	if err := os.WriteFile(dir+"/message.txt", []byte("hello"), 0600); err != nil {
 		t.Fatal(err)
 	}
+
 	root, err := os.OpenRoot(dir)
 	if err != nil {
 		t.Fatal(err)
@@ -155,6 +166,7 @@ func ExampleNewInstance_readOnlyFiles() {
 	files := fstest.MapFS{
 		"message.txt": &fstest.MapFile{Data: []byte("hello")},
 	}
+
 	var output bytes.Buffer
 
 	in, err := micropython.NewInstance(ctx,
@@ -175,12 +187,14 @@ with open('message.txt') as f:
 `); err != nil {
 		log.Fatal(err)
 	}
+
 	fmt.Print(output.String())
 	// Output: sandbox hello
 }
 
 func ExampleNewInstance_sandbox() {
 	ctx := context.Background()
+
 	deadline, cancel := context.WithTimeout(ctx, time.Second)
 	defer cancel()
 
@@ -197,16 +211,19 @@ func ExampleNewInstance_sandbox() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	n, err := result.AsInt()
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	fmt.Println(n)
 	// Output: 5050
 }
 
 func ExampleProgram_Run() {
 	ctx := context.Background()
+
 	p, err := micropython.NewProgram(ctx, micropython.WithSource(`
 def score(row):
     return {"id": row["id"], "total": row["a"] * 2 + row["b"]}
@@ -217,17 +234,21 @@ def score(row):
 	defer p.Close()
 
 	var out map[string]any
+
 	err = p.Run(ctx, func(in *micropython.BorrowedInstance) error {
 		got, err := in.Call(ctx, "score", map[string]any{"id": "r-1", "a": 4, "b": 5})
 		if err != nil {
 			return err
 		}
+
 		out = got.Export().(map[string]any)
+
 		return nil
 	})
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	fmt.Println(out["id"], out["total"])
 	// Output: r-1 13
 }
@@ -247,13 +268,16 @@ func ExampleValue() {
 		micropython.Tuple(micropython.Int(1), micropython.Int(2)),
 	} {
 		var got micropython.Value
+
 		if err := p.Run(ctx, func(in *micropython.BorrowedInstance) error {
 			v, err := in.Call(ctx, "kind", v)
 			got = v
+
 			return err
 		}); err != nil {
 			log.Fatal(err)
 		}
+
 		fmt.Println(got)
 	}
 
@@ -280,13 +304,16 @@ def describe():
 	defer p.Close()
 
 	var got micropython.Value
+
 	if err := p.Run(ctx, func(in *micropython.BorrowedInstance) error {
 		v, err := in.Call(ctx, "describe")
 		got = v
+
 		return err
 	}); err != nil {
 		log.Fatal(err)
 	}
+
 	fmt.Println(got)
 
 	// Output:
@@ -309,14 +336,17 @@ func ExampleInstance_DefineFunction() {
 		if len(args) != 1 {
 			return micropython.Value{}, micropython.Raise("TypeError", "usd expects one currency code")
 		}
+
 		code, err := args[0].AsString()
 		if err != nil {
 			return micropython.Value{}, err
 		}
+
 		rate, ok := rates[code]
 		if !ok {
 			return micropython.Value{}, micropython.Raise("KeyError", code)
 		}
+
 		return micropython.Float(rate), nil
 	})
 	if err != nil {
@@ -327,6 +357,7 @@ func ExampleInstance_DefineFunction() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	fmt.Println(got)
 
 	var exc *micropython.PythonError
@@ -350,23 +381,25 @@ func ExamplePythonError() {
 	}
 	defer p.Close()
 
-	var exc *micropython.PythonError
 	err = p.Run(ctx, func(in *micropython.BorrowedInstance) error {
 		_, err := in.Call(ctx, "lookup", "missing")
 		return err
 	})
-	if errors.As(err, &exc) {
+	if exc, ok := errors.AsType[*micropython.PythonError](err); ok {
 		fmt.Println(exc.Type(), "/", exc.Message())
 	}
 
 	var got micropython.Value
+
 	if err := p.Run(ctx, func(in *micropython.BorrowedInstance) error {
 		v, err := in.Call(ctx, "lookup", "a")
 		got = v
+
 		return err
 	}); err != nil {
 		log.Fatal(err)
 	}
+
 	fmt.Println(got)
 
 	// Output:
@@ -405,7 +438,6 @@ func ExampleOption_from_host() {
     f"({SERVICE_COUNT} services), "
     f"loud: {is_louder(louder('hi'))}"
 )`)
-
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -414,6 +446,7 @@ func ExampleOption_from_host() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	fmt.Println(out)
 
 	// Output:
@@ -424,6 +457,7 @@ func ExampleOption_sandbox() {
 	ctx := context.Background()
 
 	root, _ := os.OpenRoot("./testdata/filesystem")
+
 	instance, err := micropython.NewInstance(ctx,
 		micropython.WithStdout(os.Stdout),                      // redirect all print() to host's STDOUT
 		micropython.WithEnv("ENV", "dev"),                      // the only variable os.getenv can see

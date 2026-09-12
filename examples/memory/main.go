@@ -32,8 +32,8 @@ func main() {
 		}
 
 		got, err := in.Call(ctx, "build", int64(2000))
-		switch {
-		case err == nil:
+		switch err {
+		case nil:
 			// The list stays in the guest: only its length crosses, so this
 			// measures the Python heap rather than the transfer region.
 			fmt.Printf("%3dKiB heap: built %v items\n", heap/1024, got.Export())
@@ -45,14 +45,17 @@ func main() {
 			if !errors.As(err, &exc) {
 				log.Fatal(err)
 			}
+
 			fmt.Printf("%3dKiB heap: %s\n", heap/1024, exc.Type())
 
 			alive, err := in.Eval(ctx, "1 + 1")
 			if err != nil {
 				log.Fatal(err)
 			}
+
 			fmt.Println("             still usable:", alive.Export())
 		}
+
 		in.Close()
 	}
 }

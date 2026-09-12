@@ -39,6 +39,7 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
+
 		fmt.Println("readings:", got)
 	}
 
@@ -53,6 +54,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	fmt.Printf("average: %.1fC\n", f)
 
 	// Get reads a global by name without compiling an expression.
@@ -60,5 +62,6 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	fmt.Println("exported:", all.Export())
 }

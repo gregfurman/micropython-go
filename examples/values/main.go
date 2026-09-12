@@ -48,6 +48,7 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
+
 		fmt.Printf("Of(%#v) -> %v\n", v, got)
 	}
 
@@ -64,6 +65,7 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
+
 		fmt.Println("built ->", got)
 	}
 
@@ -73,6 +75,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	fmt.Printf("export: %v\n", got.Export())
 
 	entries, err := got.AsDict()
@@ -84,6 +87,7 @@ func main() {
 	sort.Slice(entries, func(i, j int) bool {
 		return entries[i].Key.String() < entries[j].Key.String()
 	})
+
 	for _, e := range entries {
 		fmt.Printf("  %v: %v (%s)\n", e.Key, e.Val, e.Val.Type())
 	}

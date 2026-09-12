@@ -35,6 +35,7 @@ func (m *Module) _mp_hal_delay_ms(ms int32) {
 		if remaining <= 0 || m._env.Xhost_poll() != 0 {
 			return
 		}
+
 		time.Sleep(min(remaining, delaySlice))
 	}
 }
@@ -43,6 +44,7 @@ func (m *Module) _mp_hal_delay_us(us int32) {
 	if us <= 0 {
 		return
 	}
+
 	if d := time.Duration(us) * time.Microsecond; d < delaySlice {
 		time.Sleep(d)
 		return

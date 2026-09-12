@@ -19,6 +19,7 @@ func Lift(v Value) any { return v.lift() }
 // and values. String keys give a `map[string]any`, anything else a `map[any]any`.
 func Map(kv []any) any {
 	strings := true
+
 	for i := 0; i+1 < len(kv); i += 2 {
 		if _, ok := kv[i].(string); !ok {
 			strings = false
@@ -31,6 +32,7 @@ func Map(kv []any) any {
 		for i := 0; i+1 < len(kv); i += 2 {
 			out[kv[i].(string)] = kv[i+1]
 		}
+
 		return out
 	}
 
@@ -38,6 +40,7 @@ func Map(kv []any) any {
 	for i := 0; i+1 < len(kv); i += 2 {
 		out[MapKey(kv[i])] = kv[i+1]
 	}
+
 	return out
 }
 
@@ -47,6 +50,7 @@ func MapKey(v any) any {
 		// HACK: just return as string representation if used as a map key...
 		return fmt.Sprintf("%T%v", v, v)
 	}
+
 	return v
 }
 
@@ -55,6 +59,7 @@ func lift[S ~[]Value](s S) []any {
 	for i, v := range s {
 		out[i] = v.lift()
 	}
+
 	return out
 }
 
@@ -98,6 +103,7 @@ func NewBigInt(n *big.Int) Value {
 	if n == nil {
 		return BigInt{n: new(big.Int)}
 	}
+
 	return BigInt{n: new(big.Int).Set(n)}
 }
 
@@ -111,6 +117,7 @@ func (n BigInt) lift() any {
 	if n.n == nil {
 		return new(big.Int)
 	}
+
 	return new(big.Int).Set(n.n)
 }
 
@@ -141,6 +148,7 @@ func NewFrozenSet(items ...Value) Value {
 func NewDict(entries ...Item) Value {
 	out := make(DictValue, len(entries))
 	copy(out, entries)
+
 	return out
 }
 
@@ -177,6 +185,7 @@ func (d DictValue) lift() any {
 	for _, entry := range d {
 		kv = append(kv, entry.Key.lift(), entry.Val.lift())
 	}
+
 	return Map(kv)
 }
 
@@ -198,6 +207,7 @@ func (r *Ref) ID() uint32 {
 	if r == nil {
 		return 0
 	}
+
 	return r.id
 }
 
@@ -205,6 +215,7 @@ func (r *Ref) Owner() any {
 	if r == nil {
 		return nil
 	}
+
 	return r.owner
 }
 
@@ -240,6 +251,7 @@ func (o Object) Type() string {
 	if o.class == "" {
 		return "object"
 	}
+
 	return o.class
 }
 

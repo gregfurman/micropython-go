@@ -61,7 +61,9 @@ func (o *OwnedReferences) Acquire(addr uint32) int32 {
 		if o.slots[index].count == math.MaxUint32 {
 			return invalidRefID
 		}
+
 		o.slots[index].count++
+
 		return int32(o.refID(index))
 	}
 
@@ -71,6 +73,7 @@ func (o *OwnedReferences) Acquire(addr uint32) int32 {
 	}
 
 	o.byAddr[addr] = index
+
 	return int32(o.refID(index))
 }
 
@@ -112,9 +115,11 @@ func (o *OwnedReferences) Release(id uint32) bool {
 	if !o.drop(id) {
 		return false
 	}
+
 	if o.release != nil {
 		o.release(id)
 	}
+
 	return true
 }
 
@@ -122,6 +127,7 @@ func (o *OwnedReferences) Release(id uint32) bool {
 // object in the guest, however many handles were sharing it.
 func (o *OwnedReferences) Free(id uint32) bool {
 	o.mu.Lock()
+
 	index, slot, ok := o.slotFor(id)
 	if !ok {
 		o.mu.Unlock()
@@ -133,12 +139,14 @@ func (o *OwnedReferences) Free(id uint32) bool {
 	slot.addr = 0
 	slot.count = 0
 	slot.gen = nextGeneration(slot.gen)
+
 	o.free = append(o.free, index)
 	o.mu.Unlock()
 
 	if o.release != nil {
 		o.release(id)
 	}
+
 	return true
 }
 
@@ -148,6 +156,7 @@ func (o *OwnedReferences) FreeHandle(ref *value.Ref) bool {
 	if ref == nil || ref.Owner() != o {
 		return false
 	}
+
 	return o.Free(ref.ID())
 }
 
@@ -172,6 +181,7 @@ func (o *OwnedReferences) drop(id uint32) bool {
 
 	slot.addr = 0
 	slot.gen = nextGeneration(slot.gen)
+
 	o.free = append(o.free, index)
 
 	return true
@@ -182,6 +192,7 @@ func nextGeneration(gen uint32) uint32 {
 	if gen == 0 {
 		return firstRefGeneration
 	}
+
 	return gen
 }
 
@@ -207,15 +218,18 @@ func (o *OwnedReferences) slotFor(id uint32) (uint32, *refSlot, bool) {
 // acquisition separately, so a handle can outlive the result arena.
 func (o *OwnedReferences) Retain(id uint32) (*value.Ref, error) {
 	o.mu.Lock()
+
 	_, slot, ok := o.slotFor(id)
 	if !ok {
 		o.mu.Unlock()
 		return nil, ErrStaleRef
 	}
+
 	if slot.count == math.MaxUint32 {
 		o.mu.Unlock()
 		return nil, ErrRefOverflow
 	}
+
 	slot.count++
 	o.mu.Unlock()
 

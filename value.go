@@ -30,6 +30,7 @@ func (v Value) Type() string {
 	if v.val == nil {
 		return "invalid"
 	}
+
 	return v.val.Type()
 }
 
@@ -41,6 +42,7 @@ func (v Value) Export() any {
 	if v.val == nil {
 		return nil
 	}
+
 	return exported(value.Lift(v.val))
 }
 
@@ -63,12 +65,14 @@ func exported(v any) any {
 		for k, item := range x {
 			out[k] = exported(item)
 		}
+
 		return out
 	case map[any]any:
 		out := make(map[any]any, len(x))
 		for k, item := range x {
 			out[exported(k)] = exported(item)
 		}
+
 		return out
 
 	default:
@@ -81,6 +85,7 @@ func exportedSlice(items []any) []any {
 	for i, item := range items {
 		out[i] = exported(item)
 	}
+
 	return out
 }
 
@@ -95,6 +100,7 @@ func (v Value) String() string {
 		if x {
 			return "True"
 		}
+
 		return "False"
 	default:
 		return fmt.Sprint(value.Lift(v.val))
@@ -132,6 +138,7 @@ func unwrapArgs(args []any) []any {
 	for i, arg := range args {
 		out[i] = unwrapAny(arg)
 	}
+
 	return out
 }
 
@@ -144,6 +151,7 @@ func unwrapAny(v any) any {
 			// converts to a refusal the encoder reports instead.
 			return value.Invalid(errZeroValue)
 		}
+
 		return x.val
 	case Object:
 		return x.unwrap()
@@ -161,18 +169,21 @@ func unwrapAny(v any) any {
 		for i, item := range x {
 			out[i] = unwrapAny(item)
 		}
+
 		return out
 	case map[string]any:
 		out := make(map[string]any, len(x))
 		for k, item := range x {
 			out[k] = unwrapAny(item)
 		}
+
 		return out
 	case map[any]any:
 		out := make(map[any]any, len(x))
 		for k, item := range x {
 			out[unwrapAny(k)] = unwrapAny(item)
 		}
+
 		return out
 
 	default:
@@ -201,9 +212,11 @@ func (i Iterator) Iter(ctx context.Context) iter.Seq2[Value, error] {
 				yield(Value{}, err)
 				return
 			}
+
 			if !more {
 				return
 			}
+
 			if !yield(wrapValue(out), nil) {
 				return
 			}
@@ -227,6 +240,7 @@ func (i *Instance) AsIterator(v Value) (Iterator, error) {
 	if !ok || it.Ref() == 0 || !it.IsIterable() {
 		return Iterator{}, conversionError(v, "iterator")
 	}
+
 	return Iterator{i: it, in: i}, nil
 }
 
@@ -266,6 +280,7 @@ func Str(s string) Value {
 func Bytes(b []byte) Value {
 	out := make([]byte, len(b))
 	copy(out, b)
+
 	return wrapValue(value.Bytes(out))
 }
 
@@ -283,6 +298,7 @@ func (v Value) AsBool() (bool, error) {
 	if !ok {
 		return false, conversionError(v, "bool")
 	}
+
 	return bool(x), nil
 }
 
@@ -301,6 +317,7 @@ func (v Value) AsInt() (int64, error) {
 				n,
 			)
 		}
+
 		return n.Int64(), nil
 
 	default:
@@ -330,6 +347,7 @@ func (v Value) AsFloat() (float64, error) {
 	if !ok {
 		return 0, conversionError(v, "float")
 	}
+
 	return float64(x), nil
 }
 
@@ -339,6 +357,7 @@ func (v Value) AsString() (string, error) {
 	if !ok {
 		return "", conversionError(v, "str")
 	}
+
 	return string(x), nil
 }
 
@@ -351,6 +370,7 @@ func (v Value) AsBytes() ([]byte, error) {
 
 	out := make([]byte, len(x))
 	copy(out, x)
+
 	return out, nil
 }
 
@@ -404,6 +424,7 @@ func (v Value) AsList() ([]Value, error) {
 	if !ok {
 		return nil, conversionError(v, "list")
 	}
+
 	return wrapValues(x), nil
 }
 
@@ -413,6 +434,7 @@ func (v Value) AsTuple() ([]Value, error) {
 	if !ok {
 		return nil, conversionError(v, "tuple")
 	}
+
 	return wrapValues(x), nil
 }
 
@@ -423,6 +445,7 @@ func (v Value) AsSet() ([]Value, error) {
 	if !ok {
 		return nil, conversionError(v, "set")
 	}
+
 	return wrapValues(x), nil
 }
 
@@ -433,6 +456,7 @@ func (v Value) AsFrozenSet() ([]Value, error) {
 	if !ok {
 		return nil, conversionError(v, "frozenset")
 	}
+
 	return wrapValues(x), nil
 }
 
@@ -462,6 +486,7 @@ func unwrap(items []Value) []value.Value {
 	for i, v := range items {
 		out[i] = v.val
 	}
+
 	return out
 }
 
@@ -470,6 +495,7 @@ func wrapValues[S ~[]value.Value](items S) []Value {
 	for i, item := range items {
 		out[i] = wrapValue(item)
 	}
+
 	return out
 }
 
@@ -552,6 +578,7 @@ func (v Value) AsObject() (Object, error) {
 	if !ok {
 		return Object{}, conversionError(v, "object")
 	}
+
 	return Object{obj: x}, nil
 }
 
@@ -581,15 +608,19 @@ func walk(v Value, fn func(v Value) bool) bool {
 	if items, err := v.AsList(); err == nil {
 		return walkAll(items, fn)
 	}
+
 	if items, err := v.AsTuple(); err == nil {
 		return walkAll(items, fn)
 	}
+
 	if items, err := v.AsSet(); err == nil {
 		return walkAll(items, fn)
 	}
+
 	if items, err := v.AsFrozenSet(); err == nil {
 		return walkAll(items, fn)
 	}
+
 	if entries, err := v.AsDict(); err == nil {
 		for _, entry := range entries {
 			if !walk(entry.Key, fn) || !walk(entry.Val, fn) {
@@ -607,5 +638,6 @@ func walkAll(items []Value, fn func(v Value) bool) bool {
 			return false
 		}
 	}
+
 	return true
 }

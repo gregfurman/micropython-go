@@ -55,6 +55,7 @@ func (o *BorrowedInstance) Eval(ctx context.Context, expr string) (Value, error)
 	if o.closed {
 		return Value{}, ErrRunReturned
 	}
+
 	return o.wrapped.Eval(ctx, expr)
 }
 
@@ -103,6 +104,7 @@ func NewProgram(ctx context.Context, opts ...ProgramOption) (*Program, error) {
 	if err := opt.validate(); err != nil {
 		return nil, err
 	}
+
 	if opt.maxIdle == 0 {
 		opt.maxIdle = max(runtime.NumCPU(), 1)
 	}
@@ -114,8 +116,7 @@ func NewProgram(ctx context.Context, opts ...ProgramOption) (*Program, error) {
 
 	snap, err := in.wrapped.Snapshot(ctx)
 	if err != nil {
-		in.Close()
-		return nil, err
+		return nil, errors.Join(err, in.Close())
 	}
 
 	return &Program{
@@ -135,6 +136,7 @@ func (p *Program) Instance(ctx context.Context) (*Instance, error) {
 	p.mu.Lock()
 	closed := p.closed
 	p.mu.Unlock()
+
 	if closed {
 		return nil, ErrClosed
 	}
@@ -153,6 +155,7 @@ func (p *Program) Run(ctx context.Context, fn func(in *BorrowedInstance) error) 
 	if fn == nil {
 		return errors.New("micropython: Run needs a function to run")
 	}
+
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -171,7 +174,7 @@ func (p *Program) Run(ctx context.Context, fn func(in *BorrowedInstance) error) 
 	defer cancel()
 
 	stop := context.AfterFunc(ctx, func() {
-		in.Cancel()
+		_ = in.Cancel()
 	})
 
 	defer stop()
@@ -198,6 +201,7 @@ func (p *Program) Close() error {
 	for _, in := range free {
 		err = errors.Join(err, in.Close())
 	}
+
 	return err
 }
 
@@ -224,6 +228,7 @@ func (p *Program) acquire() (*Instance, error) {
 		if in.Err() == nil {
 			return in, nil
 		}
+
 		if err := in.Close(); err != nil {
 			return nil, err
 		}
@@ -261,5 +266,6 @@ func (p *Program) release(in *Instance) error {
 	if !keep {
 		return in.Close()
 	}
+
 	return nil
 }

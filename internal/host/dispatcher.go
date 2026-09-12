@@ -34,6 +34,7 @@ func (i *Module) dispatch(funcID, argsPtr, argsSize, outPtr, outCapacity int32) 
 	if err := callbackArgsError(argsSize); err != nil {
 		return err
 	}
+
 	fn, ok := i.registry[funcID]
 	if !ok {
 		// The arguments still have to be given back, but the rejection is what
@@ -42,6 +43,7 @@ func (i *Module) dispatch(funcID, argsPtr, argsSize, outPtr, outCapacity int32) 
 		if err := i.codec.ReleaseRefs(argsPtr, argsSize); err != nil {
 			return fmt.Errorf("unknown host func %d (releasing arguments: %w)", funcID, err)
 		}
+
 		return fmt.Errorf("unknown host func %d", funcID)
 	}
 
@@ -49,6 +51,7 @@ func (i *Module) dispatch(funcID, argsPtr, argsSize, outPtr, outCapacity int32) 
 	if err != nil {
 		return fmt.Errorf("callback arguments: %w", err)
 	}
+
 	args, ok := decoded.(value.TupleValue)
 	if !ok || len(args) > maxHostArgs {
 		return fmt.Errorf("invalid callback argument tuple (max %d arguments)", maxHostArgs)
@@ -66,6 +69,7 @@ func (i *Module) dispatch(funcID, argsPtr, argsSize, outPtr, outCapacity int32) 
 	if err != nil {
 		return err
 	}
+
 	return i.codec.EncodeInto(arena, root, out)
 }
 
@@ -79,21 +83,25 @@ func (i *Module) returnArena(outPtr, outCapacity int32) (*memory.Arena, int32, e
 	if outCapacity < codec.ValueSize {
 		return nil, 0, fmt.Errorf("return arena too small: %d", outCapacity)
 	}
+
 	if _, err := i.mem.View(outPtr, outCapacity); err != nil {
 		return nil, 0, fmt.Errorf("return arena: %w", err)
 	}
 
 	arena := i.mem.ArenaAt(outPtr, outCapacity)
+
 	root, err := arena.New(codec.ValueSize)
 	if err != nil {
 		return nil, 0, err
 	}
+
 	return arena, root, nil
 }
 
 func (i *Module) register(fn HostFunc) int32 {
 	i.counter++
 	i.registry[i.counter] = fn
+
 	return i.counter
 }
 
@@ -105,6 +113,7 @@ func (i *Module) restore(registry map[int32]HostFunc, counter int32) {
 	if i.registry == nil {
 		i.registry = make(map[int32]HostFunc)
 	}
+
 	i.counter = counter
 }
 
@@ -116,6 +125,7 @@ func (i *Module) writeErr(outPtr, outCapacity int32, err error) {
 	if aerr != nil {
 		return
 	}
+
 	if e := i.codec.EncodeErrorInto(arena, root, err); e == nil {
 		return
 	}
@@ -125,5 +135,6 @@ func (i *Module) writeErr(outPtr, outCapacity int32, err error) {
 	if aerr != nil {
 		return
 	}
+
 	_ = i.codec.EncodeEmptyErrorInto(arena, root)
 }

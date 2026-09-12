@@ -3,13 +3,6 @@ set -euo pipefail
 
 cd -P -- "$(dirname -- "$0")"
 
-WASM_ONLY=false
-case "${1:-}" in
-    --wasm-only) WASM_ONLY=true ;;
-    "") ;;
-    *) echo "usage: $0 [--wasm-only]" >&2; exit 2 ;;
-esac
-
 ROOT=..
 WASI_SDK="${WASI_SDK:-$ROOT/tools/wasi-sdk}/bin"
 BINARYEN="${BINARYEN:-$ROOT/tools/binaryen}/bin"
@@ -76,9 +69,6 @@ BUILTINS="$("$WASI_SDK/clang" -print-resource-dir)/lib/wasm32-unknown-wasi/libcl
 	--enable-reference-types --enable-bulk-memory \
 	--enable-extended-const
 
-if "$WASM_ONLY"; then
-    exit 0
-fi
 trap 'rm -f micropython micropython.wasm' EXIT
 
 go tool libc-gen -wasm micropython.wasm \

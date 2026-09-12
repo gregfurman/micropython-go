@@ -46,6 +46,7 @@ func newInstance(ctx context.Context, opt *options) (*Instance, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
+
 	if err := opt.validate(); err != nil {
 		return nil, err
 	}
@@ -54,6 +55,7 @@ func newInstance(ctx context.Context, opt *options) (*Instance, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	in, err := api.New(int32(opt.heapBytes), opt.stdout, networkConfig, opt.filesystem, opt.vars)
 	if err != nil {
 		return nil, err
@@ -61,22 +63,19 @@ func newInstance(ctx context.Context, opt *options) (*Instance, error) {
 
 	for _, key := range slices.Sorted(maps.Keys(opt.globals)) {
 		if err := in.Set(ctx, key, unwrapAny(opt.globals[key])); err != nil {
-			in.Close()
-			return nil, err
+			return nil, errors.Join(err, in.Close())
 		}
 	}
 
 	for _, name := range slices.Sorted(maps.Keys(opt.hostFuncs)) {
 		if err := in.DefineFunction(ctx, name, hostFunc(opt.hostFuncs[name])); err != nil {
-			in.Close()
-			return nil, err
+			return nil, errors.Join(err, in.Close())
 		}
 	}
 
 	if src := opt.sourceScript; src != "" {
 		if err := in.Exec(ctx, src); err != nil {
-			in.Close()
-			return nil, err
+			return nil, errors.Join(err, in.Close())
 		}
 	}
 
@@ -89,6 +88,7 @@ func (i *Instance) Set(ctx context.Context, name string, v any) error {
 	if i.wrapped == nil {
 		return ErrInstanceNotInitialised
 	}
+
 	return i.wrapped.Set(ctx, name, unwrapAny(v))
 }
 
@@ -140,11 +140,13 @@ func (i *Instance) Release(ctx context.Context, vals ...Value) error {
 	}
 
 	var refs []*value.Ref
+
 	for _, val := range vals {
 		walk(val, func(v Value) bool {
 			if obj, err := v.AsObject(); err == nil {
 				refs = append(refs, obj.handle())
 			}
+
 			return true
 		})
 	}
@@ -192,7 +194,9 @@ func (i *Instance) Cancel() error {
 	if i.wrapped == nil {
 		return ErrInstanceNotInitialised
 	}
+
 	i.wrapped.Cancel()
+
 	return nil
 }
 
@@ -234,6 +238,7 @@ func (i *Instance) Close() error {
 	if i.wrapped == nil {
 		return ErrInstanceNotInitialised
 	}
+
 	return i.wrapped.Close()
 }
 
@@ -258,6 +263,7 @@ func (i *Instance) Exec(ctx context.Context, src string) error {
 	if i.wrapped == nil {
 		return ErrInstanceNotInitialised
 	}
+
 	return i.wrapped.Exec(ctx, src)
 }
 
@@ -266,6 +272,7 @@ func (i *Instance) Err() error {
 	if i.wrapped == nil {
 		return ErrInstanceNotInitialised
 	}
+
 	return i.wrapped.Err()
 }
 
@@ -274,6 +281,7 @@ func fromSnapshot(s *api.Snapshot) (*Instance, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return &Instance{wrapped: instance}, nil
 }
 
@@ -281,5 +289,6 @@ func (i *Instance) restore(s *api.Snapshot) error {
 	if i.wrapped == nil {
 		return ErrInstanceNotInitialised
 	}
+
 	return i.wrapped.Restore(context.Background(), s)
 }

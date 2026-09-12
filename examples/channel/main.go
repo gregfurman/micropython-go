@@ -38,6 +38,7 @@ func main() {
 	in, err := micropython.NewInstance(ctx,
 		micropython.WithHostFunc("emit", func(context.Context, []micropython.Value) (micropython.Value, error) {
 			var batch []micropython.Value
+
 			for {
 				select {
 				case r := <-queue:
@@ -69,6 +70,7 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
+
 		fmt.Println(got.Export())
 	}
 }

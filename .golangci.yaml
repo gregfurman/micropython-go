@@ -1,0 +1,35 @@
+version: "2"
+run:
+  timeout: 10m
+
+linters:
+  enable:
+    # Ensures neat newline spacing, especially since coding harnesses are bad at this.
+    - wsl_v5
+    # Fails if code hasn't been modernized with 'make fix'
+    - modernize
+  settings:
+    wsl_v5:
+      allow-first-in-block: true
+      allow-whole-block: false
+      branch-max-lines: 2
+  exclusions:
+    rules:
+      - linters:
+          - ineffassign # because of GC tests
+          - errcheck # because of resource Closing
+        path: _test\.go$
+      - linters:
+          - errcheck # deferred Close is noise in code meant to be read
+        path: examples/
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    gofmt:
+      simplify: true
+    goimports:
+      local-prefixes:
+        - github.com/gregfurman/micropython-go

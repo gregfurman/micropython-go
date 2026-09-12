@@ -132,6 +132,11 @@ func (i *Module) SetNetworkContext(ctx context.Context) {
 	i.network.SetContext(ctx)
 }
 
+// ClearNetworkContext unsets it, leaving later imports on Background.
+func (i *Module) ClearNetworkContext() {
+	i.network.ClearContext()
+}
+
 // ReleasePendingRefs applies queued releases while no guest call is in flight.
 // Callers must hold the instance lock. This does not run either collector.
 func (i *Module) ReleasePendingRefs() {
@@ -174,6 +179,7 @@ func (i *Module) consumeArena(outPtr, used int32) (value.Value, error) {
 	if err := transferError(used); err != nil {
 		return nil, err
 	}
+
 	return i.codec.Decode(outPtr, used)
 }
 
@@ -196,6 +202,7 @@ func (i *Module) args(args []any) (int32, error) {
 	if len(args) == 0 {
 		return 0, nil
 	}
+
 	if len(args) > math.MaxInt32/codec.ValueSize {
 		return 0, fmt.Errorf("too many arguments: %d", len(args))
 	}
@@ -204,11 +211,13 @@ func (i *Module) args(args []any) (int32, error) {
 	if err != nil {
 		return 0, err
 	}
+
 	for n, arg := range args {
 		if err := i.codec.EncodeInto(i.arena, block+int32(n)*codec.ValueSize, arg); err != nil {
 			return 0, fmt.Errorf("argument %d: %w", n, err)
 		}
 	}
+
 	return block, nil
 }
 
@@ -250,6 +259,7 @@ func (i *Module) Get(name string) (value.Value, error) {
 	}
 
 	used := i.mod.Xget_global(ptr, int32(len(name)), outPtr, defaultValueArenaCapacity)
+
 	return i.consumeArena(outPtr, used)
 }
 
@@ -268,6 +278,7 @@ func (i *Module) Exec(code string) error {
 
 	used := i.mod.Xexec(ptr, int32(len(code)), outPtr, defaultValueArenaCapacity)
 	_, err = i.consumeArena(outPtr, used)
+
 	return err
 }
 
@@ -316,6 +327,7 @@ func (i *Module) CallRef(obj value.Object, args []any) (value.Value, error) {
 	}
 
 	used := i.mod.Xcall_ref(int32(ref), argsPtr, int32(len(args)), outPtr, defaultValueArenaCapacity)
+
 	return i.consumeArena(outPtr, used)
 }
 
@@ -335,6 +347,7 @@ func (i *Module) Resolve(obj value.Object) (value.Value, error) {
 	}
 
 	used := i.mod.Xref_to_value(int32(ref), outPtr, defaultValueArenaCapacity)
+
 	return i.consumeArena(outPtr, used)
 }
 
@@ -399,6 +412,7 @@ func (i *Module) Set(name string, v any) error {
 	if err != nil {
 		return err
 	}
+
 	if err := i.codec.EncodeInto(i.arena, valuePtr, v); err != nil {
 		return err
 	}
@@ -410,6 +424,7 @@ func (i *Module) Set(name string, v any) error {
 
 	used := i.mod.Xset_global(namePtr, int32(len(name)), valuePtr, outPtr, defaultValueArenaCapacity)
 	_, err = i.consumeArena(outPtr, used)
+
 	return err
 }
 
@@ -417,6 +432,7 @@ func (i *Module) Snapshot() (*Snapshot, error) {
 	if i.filesystem.HasOpenFiles() {
 		return nil, errors.New("micropython: close open files and directory iterators before cloning or compiling")
 	}
+
 	if i.network.HasOpenSockets() {
 		return nil, errors.New("micropython: close open sockets before cloning or compiling")
 	}
@@ -440,17 +456,20 @@ func (i *Module) Restore(s *Snapshot) error {
 	if err := errors.Join(i.network.Reset(s.network), i.filesystem.Reset(s.filesystem)); err != nil {
 		return err
 	}
+
 	i.environment.Reset(s.vars)
 
 	i.networkConfig = s.network
 	if err := i.mem.Load(s.memory); err != nil {
 		return err
 	}
+
 	*i.mod.X__stack_pointer() = s.stack
 
 	if i.arena == nil {
 		i.arena = &memory.Arena{}
 	}
+
 	i.arena.Load(i.mem, s.arena)
 
 	i.mod.Xreset_refs()
@@ -459,6 +478,7 @@ func (i *Module) Restore(s *Snapshot) error {
 
 	i.restore(s.registry, s.counter)
 	i.cancelled.Store(false)
+
 	return nil
 }
 
@@ -480,5 +500,6 @@ func (i *Module) DefineFunction(name string, fn HostFunc) error {
 	}
 
 	i.mod.Xdefine_function(ptr, i.register(fn))
+
 	return nil
 }

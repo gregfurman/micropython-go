@@ -19,6 +19,7 @@ func (i *Module) Xhost_trampoline(funcID, argsPtr, argsSize, outPtr, outCapacity
 			i.writeErr(outPtr, outCapacity, fmt.Errorf("host function panicked: %v", r))
 		}
 	}()
+
 	if err := i.dispatch(funcID, argsPtr, argsSize, outPtr, outCapacity); err != nil {
 		i.writeErr(outPtr, outCapacity, err)
 	}
@@ -51,6 +52,7 @@ func (i *Module) Xgo_ref_free(id int32) int32 {
 	if i.refs.drop(uint32(id)) {
 		return 1
 	}
+
 	return 0
 }
 
@@ -58,5 +60,6 @@ func (i *Module) Xhost_poll() int32 {
 	if i.cancelled.Load() {
 		return 1
 	}
+
 	return 0
 }

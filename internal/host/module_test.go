@@ -26,15 +26,18 @@ except Exception as e:
 
 func newT(t *testing.T) *Module {
 	t.Helper()
+
 	inst, err := NewModule(0, nil, network.Config{}, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	return inst
 }
 
 func define(t *testing.T, inst *Module, name string, fn HostFunc) {
 	t.Helper()
+
 	if err := inst.DefineFunction(name, fn); err != nil {
 		t.Fatalf("DefineFunction(%q): %v", name, err)
 	}
@@ -43,13 +46,16 @@ func define(t *testing.T, inst *Module, name string, fn HostFunc) {
 func eval(t *testing.T, inst *Module, expr string) any {
 	t.Helper()
 	step(t, inst)
+
 	got, err := inst.Eval(expr)
 	if err != nil {
 		t.Fatalf("Eval(%q): %v", expr, err)
 	}
+
 	if got == nil {
 		return nil
 	}
+
 	return value.Lift(got)
 }
 
@@ -67,6 +73,7 @@ func TestHostFunc(t *testing.T) {
 				if !ok {
 					return nil, fmt.Errorf("want str, got %T", value.Lift(args[0]))
 				}
+
 				return value.Str(strings.ToUpper(s)), nil
 			},
 			expr: `f("hello world")`,
@@ -79,10 +86,12 @@ func TestHostFunc(t *testing.T) {
 				if !ok {
 					return nil, fmt.Errorf("arg 0: want int64, got %T", value.Lift(args[0]))
 				}
+
 				b, ok := value.Lift(args[1]).(int64)
 				if !ok {
 					return nil, fmt.Errorf("arg 1: want int64, got %T", value.Lift(args[1]))
 				}
+
 				return value.Int(a + b), nil
 			},
 			expr: `f(1, 2)`,
@@ -122,6 +131,7 @@ func TestHostFunc(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			inst := newT(t)
 			define(t, inst, "f", tc.fn)
+
 			if got := eval(t, inst, tc.expr); !reflect.DeepEqual(got, tc.want) {
 				t.Errorf("%s = %#v (%T), want %#v (%T)", tc.expr, got, got, tc.want, tc.want)
 			}
@@ -175,13 +185,16 @@ func TestHostFuncErrors(t *testing.T) {
 			if got != nil {
 				t.Errorf("value = %#v, want nil on error", got)
 			}
+
 			pyErr, ok := errors.AsType[*value.Exception](err)
 			if !ok {
 				t.Fatalf("err = %v (%T), want *codec.PythonError", err, err)
 			}
+
 			if pyErr.Type() != tc.wantType {
 				t.Errorf("exception type = %q, want %q", pyErr.Type(), tc.wantType)
 			}
+
 			if !strings.Contains(pyErr.Message(), tc.wantMsg) {
 				t.Errorf("message = %q, want it to contain %q", pyErr.Message(), tc.wantMsg)
 			}
@@ -189,6 +202,7 @@ func TestHostFuncErrors(t *testing.T) {
 			if err := inst.Exec(recordRaisedClass); err != nil {
 				t.Fatal(err)
 			}
+
 			if got := eval(t, inst, "seen"); got != tc.wantType {
 				t.Errorf("guest saw %#v, want %q", got, tc.wantType)
 			}
@@ -221,6 +235,7 @@ func TestHostFuncSurvivesSnapshotRestore(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+
 		if got := eval(t, restored, `f()`); got != "from host" {
 			t.Errorf("f() = %#v after Snapshot.Restore", got)
 		}
@@ -230,6 +245,7 @@ func TestHostFuncSurvivesSnapshotRestore(t *testing.T) {
 		if err := inst.Restore(snap); err != nil {
 			t.Fatal(err)
 		}
+
 		if got := eval(t, inst, `f()`); got != "from host" {
 			t.Errorf("f() = %#v after Module.Restore", got)
 		}
@@ -265,6 +281,7 @@ func TestValuesRoundTrip(t *testing.T) {
 
 	t.Run("guest to host", func(t *testing.T) {
 		got := eval(t, inst, `["", b"", ["nested"], {"key": "value"}]`)
+
 		want := []any{"", []byte{}, []any{"nested"}, map[string]any{"key": "value"}}
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("guest payload mismatch:\n got: %#v\nwant: %#v", got, want)
@@ -298,15 +315,15 @@ func TestGarbageCollection(t *testing.T) {
 
 	runtime.GC()
 
-	val, err = inst.Call("ping", []any{})
+	_, err = inst.Call("ping", []any{})
 	if err != nil {
 		t.Fatalf("unexpected error when calling 'ping' function: %v", err)
 	}
-
 }
 
 func TestHostValuesAreFreedWhenAConversionRaises(t *testing.T) {
 	const rounds = 2000
+
 	blob := strings.Repeat("x", 4096) // one guest allocation per argument
 
 	tests := []struct {
@@ -340,10 +357,12 @@ func TestHostValuesAreFreedWhenAConversionRaises(t *testing.T) {
 			before := guestPagesUsed(inst)
 			for range rounds {
 				step(t, inst)
+
 				if _, err := inst.Call("f", tc.args(stale)); err == nil {
 					t.Fatal("Call with a stale ref returned no error")
 				}
 			}
+
 			if grew := guestPagesUsed(inst) - before; grew > 0 {
 				t.Errorf("guest memory grew by %d pages over %d raising calls, want none", grew, rounds)
 			}
@@ -358,13 +377,16 @@ func TestWalkingContainersLeavesNothingBehind(t *testing.T) {
 	exec(t, inst, "def f():\n    return [{'k': (1, 2)}, {1, 2}, [[['deep']]]]\n")
 
 	step(t, inst)
+
 	if _, err := inst.Call("f", nil); err != nil {
 		t.Fatal(err)
 	}
+
 	before := guestHeapFree(t, inst)
 
 	for range rounds {
 		step(t, inst)
+
 		if _, err := inst.Call("f", nil); err != nil {
 			t.Fatal(err)
 		}
@@ -382,10 +404,12 @@ func guestPagesUsed(inst *Module) int { return len(*inst.mem.Slice()) >> 16 }
 func guestHeapFree(t *testing.T, inst *Module) int64 {
 	t.Helper()
 	exec(t, inst, "import gc\ngc.collect()")
+
 	free, ok := eval(t, inst, "gc.mem_free()").(int64)
 	if !ok {
 		t.Fatal("gc.mem_free() did not return an int")
 	}
+
 	return free
 }
 
@@ -398,6 +422,7 @@ func step(t *testing.T, inst *Module) {
 func exec(t *testing.T, inst *Module, src string) {
 	t.Helper()
 	step(t, inst)
+
 	if err := inst.Exec(src); err != nil {
 		t.Fatalf("Exec(%q): %v", src, err)
 	}
@@ -405,13 +430,16 @@ func exec(t *testing.T, inst *Module, src string) {
 
 func objOf(t *testing.T, v value.Value) value.Object {
 	t.Helper()
+
 	o, ok := v.(value.Object)
 	if !ok {
 		t.Fatalf("value %#v (%T) is not an object", v, v)
 	}
+
 	if o.Ref() == 0 {
 		t.Fatal("object carries ref 0, so it is not bound to the guest")
 	}
+
 	return o
 }
 
@@ -419,8 +447,10 @@ func objOf(t *testing.T, v value.Value) value.Object {
 // Cleanup ordering is not specified, so it runs a few rounds.
 func gcWait(t *testing.T) {
 	t.Helper()
+
 	for range 3 {
 		done := make(chan struct{})
+
 		func() {
 			// Not new(int): the tiny allocator batches those, and they hold
 			// each other's cleanups back.
@@ -428,6 +458,7 @@ func gcWait(t *testing.T) {
 			runtime.AddCleanup(sentinel, func(ch chan struct{}) { close(ch) }, done)
 		}()
 		runtime.GC()
+
 		select {
 		case <-done:
 		case <-time.After(5 * time.Second):
@@ -441,10 +472,12 @@ func TestReleasedRefIDIsNotReused(t *testing.T) {
 	exec(t, inst, `first = lambda: "first"`)
 
 	step(t, inst)
+
 	handle, err := inst.Eval("first")
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	staleID := objOf(t, handle).Ref()
 	handle = nil
 
@@ -452,16 +485,19 @@ func TestReleasedRefIDIsNotReused(t *testing.T) {
 
 	exec(t, inst, `second = lambda: "second"`)
 	step(t, inst)
+
 	fresh, err := inst.Eval("second")
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	if objOf(t, fresh).Ref() == staleID {
 		t.Errorf("id %d was handed straight back out", staleID)
 	}
 
 	stale := value.NewObject("", value.NewRef(staleID, inst.refs), false, true)
 	step(t, inst)
+
 	if out, err := inst.CallRef(stale, nil); err == nil {
 		t.Fatalf("stale ref %d resolved to %#v, want an error", staleID, value.Lift(out))
 	}
@@ -479,23 +515,29 @@ func TestGuestRejectsInvalidEnvironmentStatus(t *testing.T) {
 	for _, status := range []int32{1, -4096, -abi.EACCES} {
 		t.Run(fmt.Sprint(status), func(t *testing.T) {
 			m := newModule(nil, network.Config{}, nil, nil)
+
 			t.Cleanup(func() { _ = m.Close() })
 			// Substitute the import before guest initialization to exercise the
 			// C adapter, including statuses the real Go provider never returns.
 			m.mod = wasi.New(m, m.network, m.filesystem, statusEnvironment{m.environment, status})
 			m.mem.Bind(m.mod)
+
 			if m.mod.Xinit_vm(defaultHeapSize, maxHostArgs) != 0 {
 				t.Fatal("guest initialization failed")
 			}
+
 			var err error
+
 			m.arena, err = m.mem.NewArena(moduleArenaCapacity)
 			if err != nil {
 				t.Fatal(err)
 			}
+
 			code := abi.EIO
 			if status == -abi.EACCES {
 				code = abi.EACCES
 			}
+
 			if err := m.Exec(fmt.Sprintf(`
 import os
 for operation in (lambda: os.putenv('KEY', 'value'), lambda: os.unsetenv('KEY')):

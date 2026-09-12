@@ -57,6 +57,7 @@ func (s *Signaller) Context(ctx context.Context) (context.Context, context.Cance
 		case <-ctx.Done():
 		case <-stop:
 		}
+
 		cancel(ErrShutdownTriggered)
 	}()
 

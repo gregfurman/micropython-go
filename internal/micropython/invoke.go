@@ -24,9 +24,11 @@ func (m *Module) invoke[F any, V comparable](idx int32, call func(F) V) (ret V) 
 		if r == nil {
 			return
 		}
+
 		if _, ok := r.(longjmp); !ok {
 			panic(r)
 		}
+
 		*m.X__stack_pointer() = sp
 		m.XsetThrew(1, 0)
 	}()
@@ -59,28 +61,12 @@ func (m *Module) _invoke_viiii(v0, v1, v2, v3, v4 int32) {
 	m.invoke(v0, func(f func(int32, int32, int32, int32)) int32 { f(v1, v2, v3, v4); return 0 })
 }
 
-func (m *Module) _invoke_viiiii(v0, v1, v2, v3, v4, v5 int32) {
-	m.invoke(v0, func(f func(int32, int32, int32, int32, int32)) int32 { f(v1, v2, v3, v4, v5); return 0 })
-}
-
 func (m *Module) _invoke_i(v0 int32) int32 {
 	return m.invoke(v0, func(f func() int32) int32 { return f() })
 }
 
 // Scalar arguments other than i32 get their own signatures; the linker asks
 // for exactly the set the module uses, so this list grows when the API does.
-
-func (m *Module) _invoke_ij(v0 int32, v1 int64) int32 {
-	return m.invoke(v0, func(f func(int64) int32) int32 { return f(v1) })
-}
-
-func (m *Module) _invoke_id(v0 int32, v1 float64) int32 {
-	return m.invoke(v0, func(f func(float64) int32) int32 { return f(v1) })
-}
-
-func (m *Module) _invoke_di(v0, v1 int32) float64 {
-	return m.invoke(v0, func(f func(int32) float64) float64 { return f(v1) })
-}
 
 func (m *Module) _invoke_ii(v0, v1 int32) int32 {
 	return m.invoke(v0, func(f func(int32) int32) int32 { return f(v1) })

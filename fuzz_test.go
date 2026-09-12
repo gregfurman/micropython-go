@@ -22,10 +22,12 @@ func bounded() (context.Context, context.CancelFunc) {
 
 func fuzzInstance(t *testing.T) *Instance {
 	t.Helper()
+
 	in, err := NewInstance(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	return in
 }
 
@@ -64,9 +66,11 @@ func FuzzExec(f *testing.F) {
 		if errors.Is(err, context.DeadlineExceeded) {
 			t.Skip("guest did not return")
 		}
+
 		if err != nil {
 			t.Fatalf("interpreter unusable after Exec(%q): %v", src, err)
 		}
+
 		if got.Export() != int64(3) {
 			t.Fatalf("interpreter wrong after Exec(%q): len('abc') = %#v", src, got)
 		}
@@ -94,9 +98,11 @@ func FuzzEval(f *testing.F) {
 		if errors.Is(err, context.DeadlineExceeded) {
 			t.Skip("guest did not return")
 		}
+
 		if err != nil {
 			t.Fatalf("interpreter unusable after Eval(%q): %v", expr, err)
 		}
+
 		if got.Export() != int64(3) {
 			t.Fatalf("interpreter wrong after Eval(%q): len('abc') = %#v", expr, got)
 		}
@@ -131,6 +137,7 @@ func FuzzCallArgs(f *testing.F) {
 		if errors.Is(err, context.DeadlineExceeded) {
 			t.Skip("guest did not return")
 		}
+
 		if err != nil {
 			t.Fatalf("echo(%#v): %v", want, err)
 		}
@@ -168,9 +175,11 @@ func FuzzProgram(f *testing.F) {
 			wg.Go(func() {
 				ctx, cancel := bounded()
 				defer cancel()
+
 				progCall(ctx, p, name, arg) //nolint:errcheck // any answer is fine; not panicking is the point
 			})
 		}
+
 		wg.Wait()
 
 		// Whatever happened, the Program must still serve a call.
@@ -181,9 +190,11 @@ func FuzzProgram(f *testing.F) {
 		if errors.Is(err, context.DeadlineExceeded) {
 			t.Skip("guest did not return")
 		}
+
 		if err != nil {
 			t.Fatalf("Program unusable after Compile(%q)+Call(%q): %v", src, name, err)
 		}
+
 		if got.Export() != int64(4) {
 			t.Fatalf("Program wrong after Compile(%q)+Call(%q): len('abcd') = %#v", src, name, got)
 		}
@@ -201,8 +212,10 @@ func (r *reader) byte() byte {
 	if r.pos >= len(r.buf) {
 		return 0
 	}
+
 	b := r.buf[r.pos]
 	r.pos++
+
 	return b
 }
 
@@ -211,6 +224,7 @@ func (r *reader) bytes(n int) []byte {
 	for i := range out {
 		out[i] = r.byte()
 	}
+
 	return out
 }
 
@@ -238,6 +252,7 @@ func genValue(r *reader, depth int) any {
 			// separate question from encoding; neither is what this tests.
 			return 0.0
 		}
+
 		return f
 	case 4:
 		return string(sanitise(r.bytes(int(r.byte() % 16))))
@@ -249,33 +264,41 @@ func genValue(r *reader, depth int) any {
 		return int64(binary.LittleEndian.Uint64(r.bytes(8))) >> (r.byte() % 64)
 	case 7:
 		n := int(r.byte() % 5)
+
 		out := make([]any, n)
 		for i := range out {
 			out[i] = genValue(r, depth+1)
 		}
+
 		return out
 	case 8:
 		n := int(r.byte() % 5)
+
 		out := make(map[string]any, n)
 		for range n {
 			out[string(sanitise(r.bytes(int(r.byte()%8))))] = genValue(r, depth+1)
 		}
+
 		return out
 	case 9:
 		n := int(r.byte() % 4)
+
 		out := make([]any, n)
 		for i := range out {
 			out[i] = genValue(r, depth+1)
 		}
+
 		return value.Tuple(out)
 	case 10, 11, 12:
 		return value.Set(genHashables(r))
 	default:
 		n := int(r.byte() % 4)
+
 		out := make([]any, n)
 		for i := range out {
 			out[i] = genValue(r, depth+1)
 		}
+
 		return out
 	}
 }
@@ -283,16 +306,21 @@ func genValue(r *reader, depth int) any {
 func genHashables(r *reader) []any {
 	n := int(r.byte() % 5)
 	seen := make(map[string]bool, n)
+
 	out := make([]any, 0, n)
 	for range n {
 		v := genScalar(r)
+
 		k := pyKey(v)
 		if seen[k] {
 			continue
 		}
+
 		seen[k] = true
+
 		out = append(out, v)
 	}
+
 	return out
 }
 
@@ -302,6 +330,7 @@ func pyKey(v any) string {
 		if t {
 			return "int/1"
 		}
+
 		return "int/0"
 	case int64:
 		return fmt.Sprintf("int/%d", t)
@@ -332,5 +361,6 @@ func sanitise(b []byte) []byte {
 			b[i] = 'a' + c%26
 		}
 	}
+
 	return b
 }

@@ -88,6 +88,7 @@ func WithHostFunc(name string, fn HostFunc) Option {
 		if o.hostFuncs == nil {
 			o.hostFuncs = make(map[string]HostFunc, 1)
 		}
+
 		o.hostFuncs[name] = fn
 	})
 }
@@ -117,6 +118,7 @@ func newOptions[T ProgramOption](opts []T) *options {
 	for _, opt := range opts {
 		opt.apply(o)
 	}
+
 	return o
 }
 
@@ -144,6 +146,7 @@ func (o *options) validate() error {
 	if _, err := o.allowList(); err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -188,6 +191,7 @@ func WithEnv(name, value string) Option {
 		if o.vars == nil {
 			o.vars = make(map[string]string)
 		}
+
 		o.vars[name] = value
 	})
 }
@@ -242,10 +246,12 @@ func (o *options) allowList() (*network.AllowList, error) {
 		if err := list.Add(g.transport, g.address, g.port); err != nil {
 			return nil, fmt.Errorf("micropython: %w", err)
 		}
+
 		if err := network.ValidateIPv4Address(g.address); err != nil {
 			return nil, fmt.Errorf("micropython: %w", err)
 		}
 	}
+
 	return list, nil
 }
 

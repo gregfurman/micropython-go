@@ -32,6 +32,7 @@ func main() {
 	// A raise comes back as an ordinary Go error carrying the exception, so
 	// callers branch on the class rather than on the message.
 	var exc *micropython.PythonError
+
 	err = p.Run(ctx, func(in *micropython.BorrowedInstance) error {
 		_, err := in.Call(ctx, "lookup", "missing")
 		return err
@@ -42,13 +43,16 @@ func main() {
 
 	// The interpreter is unharmed: the failure was the guest's.
 	var got micropython.Value
+
 	if err := p.Run(ctx, func(in *micropython.BorrowedInstance) error {
 		v, err := in.Call(ctx, "lookup", "a")
 		got = v
+
 		return err
 	}); err != nil {
 		log.Fatal(err)
 	}
+
 	fmt.Println("recovered:", got)
 
 	// A call stops when its context does. There is no scheduler inside the

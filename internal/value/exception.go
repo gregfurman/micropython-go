@@ -22,7 +22,9 @@ func FromGuest(raw string, streamed any, interrupted bool) *Exception {
 	if e == nil {
 		e = &Exception{}
 	}
+
 	e.raw, e.interrupted = raw, interrupted
+
 	return e
 }
 
@@ -41,6 +43,7 @@ func (e *Exception) Unwrap() error {
 	if e.interrupted {
 		return ErrInterrupted
 	}
+
 	return nil
 }
 

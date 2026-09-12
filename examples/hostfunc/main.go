@@ -26,6 +26,7 @@ func main() {
 	if err := in.DefineFunction(ctx, "usd", usd); err != nil {
 		log.Fatal(err)
 	}
+
 	if err := in.DefineFunction(ctx, "fetch", fetch); err != nil {
 		log.Fatal(err)
 	}

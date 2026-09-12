@@ -29,15 +29,19 @@ func (s state) wantAvailable() bool { return s == supported }
 
 func check(t *testing.T, subject string, want state, run func() error) {
 	t.Helper()
+
 	err := run()
+
 	got := err == nil
 	if got == want.wantAvailable() {
 		return
 	}
+
 	if got {
 		t.Errorf("%s: works, but is recorded as %s", subject, want)
 		return
 	}
+
 	t.Errorf("%s: recorded as %s, but it failed: %v", subject, want, err)
 }
 
@@ -99,16 +103,20 @@ func TestSupportedTemplatelib(t *testing.T) {
 	if err != nil {
 		t.Fatalf("import string: %v", err)
 	}
+
 	names, ok := got.Export().([]any)
 	if !ok {
 		t.Fatalf("dir(string) = %#v, want a list", got)
 	}
+
 	var found bool
+
 	for _, n := range names {
 		if n == "templatelib" {
 			found = true
 		}
 	}
+
 	if !found {
 		t.Errorf("dir(string) = %v, want it to contain templatelib", names)
 	}
@@ -252,9 +260,11 @@ func TestSupportedNumerics(t *testing.T) {
 	if got, err := in.Eval(ctx, "2**200 == "+big); err != nil || got.Export() != true {
 		t.Errorf("2**200 exact = %#v, %v", got, err)
 	}
+
 	if got, err := in.Eval(ctx, "repr(0.1 + 0.2)"); err != nil || got.Export() != "0.30000000000000004" {
 		t.Errorf("float is not a 64-bit double: %#v, %v", got, err)
 	}
+
 	if got, err := in.Eval(ctx, "(1+2j).imag"); err != nil || got.Export() != 2.0 {
 		t.Errorf("complex = %#v, %v", got, err)
 	}
