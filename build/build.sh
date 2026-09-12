@@ -7,6 +7,10 @@ ROOT=..
 WASI_SDK="${WASI_SDK:-$ROOT/tools/wasi-sdk}/bin"
 BINARYEN="${BINARYEN:-$ROOT/tools/binaryen}/bin"
 
+# NOTE: we pin the source date of the micropython submodule within build. If this changes (i.e a version updates) then 
+# our build job should be regenerated.
+export SOURCE_DATE_EPOCH="${SOURCE_DATE_EPOCH:-$(git -C "$ROOT/micropython" log -1 --format=%ct)}"
+
 EXTMOD_SRCS="$ROOT/micropython/extmod/modjson.c \
 	$ROOT/micropython/extmod/modre.c \
 	$ROOT/micropython/extmod/modos.c \

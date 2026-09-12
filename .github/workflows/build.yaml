@@ -1,0 +1,58 @@
+name: Build
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'build/**'
+      - 'micropython'
+      - 'internal/micropython/**'
+      - 'tools.sh'
+      - 'go.mod'
+      - 'go.sum'
+      - '.github/workflows/build.yaml'
+  pull_request:
+    paths:
+      - 'build/**'
+      - 'micropython'
+      - 'internal/micropython/**'
+      - 'tools.sh'
+      - 'go.mod'
+      - 'go.sum'
+      - '.github/workflows/build.yaml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: wasm2go bindings
+    runs-on: ubuntu-latest
+    steps:
+
+    - name: Checkout code
+      uses: actions/checkout@v7
+      with:
+        submodules: true
+
+    - name: Install Go
+      uses: actions/setup-go@v7
+      with:
+        go-version-file: go.mod
+        check-latest: true
+
+    - name: Cache toolchain
+      id: toolchain
+      uses: actions/cache@v4
+      with:
+        path: tools
+        key: toolchain-${{ runner.os }}-${{ hashFiles('tools.sh') }}
+
+    - name: Toolchain
+      if: steps.toolchain.outputs.cache-hit != 'true'
+      run: make tools
+
+    - name: Build
+      run: make wasm2go
+
+    - name: Verify
+      run: git diff-index --quiet HEAD || { >&2 echo "Generated files in internal/micropython are out of date. Run 'make wasm2go' and commit the result."; exit 1; }

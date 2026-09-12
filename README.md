@@ -5,6 +5,8 @@
 </p>
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/gregfurman/micropython-go.svg)](https://pkg.go.dev/github.com/gregfurman/micropython-go)
+[![Test](https://github.com/gregfurman/micropython-go/actions/workflows/test.yaml/badge.svg?branch=main)](https://github.com/gregfurman/micropython-go/actions/workflows/test.yaml)
+[![Build](https://github.com/gregfurman/micropython-go/actions/workflows/build.yaml/badge.svg?branch=main)](https://github.com/gregfurman/micropython-go/actions/workflows/build.yaml)
 
 `micropython-go` embeds [MicroPython](https://github.com/micropython/micropython)
 in Go applications without CGO. Run Python scripts, exchange values, and call
