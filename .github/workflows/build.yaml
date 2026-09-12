@@ -34,6 +34,11 @@ jobs:
       with:
         submodules: true
 
+    # .gitmodules marks the submodule shallow, so it arrives without tags and
+    # the build cannot name the version it is compiling in.
+    - name: Tags
+      run: git -C micropython fetch --tags --depth 1 origin
+
     - name: Install Go
       uses: actions/setup-go@v7
       with:
