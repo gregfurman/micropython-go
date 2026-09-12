@@ -54,7 +54,24 @@ jobs:
     - name: Build
       run: make wasm2go
 
+    - name: Versions
+      run: |
+        ./tools/wasi-sdk/bin/clang --version | head -1
+        ./tools/binaryen/bin/wasm-opt --version
+        cat build/build-embed/genhdr/mpversion.h
+
     - name: Verify
       run: |
         git add -A -- internal/micropython
         git diff --cached --stat --exit-code -- internal/micropython || { >&2 echo "Generated files in internal/micropython are out of date. Run 'make wasm2go' and commit the result."; exit 1; }
+
+    # So a mismatch can be diffed against the committed bytes instead of guessed at.
+    - name: Upload
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: rebuilt
+        path: |
+          internal/micropython/micropython.go
+          internal/micropython/micropython.dat
+          build/build-embed/genhdr/mpversion.h
