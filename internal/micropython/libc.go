@@ -22,7 +22,7 @@ func (m *Module) _fmod(x, y float64) float64 { return math.Mod(x, y) }
 
 func (m *Module) _frexp(x float64, eptr int32) float64 {
 	x, exp := math.Frexp(x)
-	store32((*m.memory)[uint32(eptr):], uint32(exp))
+	store32((*m.memory), uint32(eptr), uint32(exp))
 	return x
 }
 func (m *Module) _ldexp(x float64, n int32) float64 { return math.Ldexp(x, int(n)) }
@@ -51,7 +51,7 @@ func (m *Module) _modf(x float64, iptr int32) (f float64) {
 	} else {
 		x, f = math.Modf(x)
 	}
-	store64((*m.memory)[uint32(iptr):], math.Float64bits(x))
+	store64((*m.memory), uint32(iptr), math.Float64bits(x))
 	return f
 }
 func (m *Module) _pow(x, y float64) float64 { return math.Pow(x, y) }
