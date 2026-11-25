@@ -37,12 +37,14 @@ mkdir -p "$(dirname "$GO_OUT")"
 # compiler-rt soft-float that -nostdlib would otherwise drop.
 BUILTINS="$("$WASI_SDK/clang" -print-resource-dir)/lib/wasm32-unknown-wasi/libclang_rt.builtins.a"
 
-"$WASI_SDK/clang" --target=wasm32 -ffreestanding -nostdlib -Os -Wall -fno-common \
+
+"$WASI_SDK/clang" --target=wasm32 -ffreestanding -nostdlib -Os -Wall -fno-common --no-wasm-opt \
 	-o micropython \
 	arena.c decode.c encode.c exec.c gccollect.c hostfn.c main.c mphalport.c \
-	network.c printf.c refs.c vfs.c vm.c wasm_sjlj.c \
+	network.c printf.c refs.c vfs.c vm.c \
 	$ROOT/libc/libc.c \
 	$ROOT/libc/malloc_sbrk.c \
+	$ROOT/libc/setjmp_em.c \
 	$ROOT/micropython/py/*.c \
 	$ROOT/micropython/ports/embed/port/*.c \
 	$ROOT/micropython/shared/netutils/netutils.c \
@@ -79,7 +81,6 @@ go tool libc-gen -wasm micropython.wasm \
     -pkg micropython
 
 go tool wasm2go -embed -unsafe \
-    -provided $ROOT/internal/micropython/invoke.go \
     -provided $ROOT/internal/micropython/clock.go \
     -provided $ROOT/internal/micropython/libc.go \
     -o "$GO_OUT" micropython.wasm
