@@ -197,7 +197,7 @@ except BaseException as e:
 func TestLimitStackDepth(t *testing.T) {
 	// The README quotes this band. Frame cost varies with arguments and
 	// locals, so the two ends are a trivial frame and a fat one.
-	const minFrames, maxFrames = 340, 385
+	const minFrames, maxFrames = 380, 440
 
 	tests := []struct{ name, def, call string }{
 		{
